@@ -20,7 +20,6 @@ lint:clippy:
   script:
     - cargo clippy -- -D warnings
   tags: [linux]
-  allow_failure: true  # GTK4 dev libs may not be on all runners
 
 build:
   stage: build
@@ -30,7 +29,6 @@ build:
     paths:
       - target/release/vauchi-gtk
   tags: [linux]
-  allow_failure: true  # GTK4 dev libs not on shell runner
 
 test:
   stage: test
@@ -38,4 +36,3 @@ test:
   script:
     - cargo test
   tags: [linux]
-  allow_failure: true  # GTK4 dev libs not on shell runner
