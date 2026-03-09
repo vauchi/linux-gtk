@@ -1,0 +1,92 @@
+// SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! Component renderers — one GTK4 widget per `Component` enum variant.
+
+mod action_list;
+mod card_preview;
+mod confirmation_dialog;
+mod contact_list;
+mod divider;
+mod field_list;
+mod info_panel;
+mod pin_input;
+mod qr_code;
+mod settings_group;
+mod status_indicator;
+mod text;
+mod text_input;
+mod toggle_list;
+
+use gtk4::Widget;
+use vauchi_core::ui::Component;
+
+/// Render a `Component` to a GTK4 widget.
+pub fn render_component(component: &Component) -> Widget {
+    match component {
+        Component::Text { id, content, style } => text::render(id, content, style),
+        Component::TextInput {
+            id,
+            label,
+            value,
+            placeholder,
+            max_length,
+            validation_error,
+            input_type,
+        } => text_input::render(id, label, value, placeholder, max_length, validation_error, input_type),
+        Component::ToggleList { id, label, items } => toggle_list::render(id, label, items),
+        Component::FieldList {
+            id,
+            fields,
+            visibility_mode,
+            available_groups,
+        } => field_list::render(id, fields, visibility_mode, available_groups),
+        Component::CardPreview {
+            name,
+            fields,
+            group_views,
+            selected_group,
+        } => card_preview::render(name, fields, group_views, selected_group),
+        Component::InfoPanel {
+            id,
+            icon,
+            title,
+            items,
+        } => info_panel::render(id, icon, title, items),
+        Component::ContactList {
+            id,
+            contacts,
+            searchable,
+        } => contact_list::render(id, contacts, searchable),
+        Component::SettingsGroup { id, label, items } => settings_group::render(id, label, items),
+        Component::ActionList { id, items } => action_list::render(id, items),
+        Component::StatusIndicator {
+            id,
+            icon,
+            title,
+            detail,
+            status,
+        } => status_indicator::render(id, icon, title, detail, status),
+        Component::PinInput {
+            id,
+            label,
+            length,
+            masked,
+            validation_error,
+        } => pin_input::render(id, label, length, masked, validation_error),
+        Component::QrCode {
+            id,
+            data,
+            mode,
+            label,
+        } => qr_code::render(id, data, mode, label),
+        Component::ConfirmationDialog {
+            id,
+            title,
+            message,
+            confirm_text,
+            destructive,
+        } => confirmation_dialog::render(id, title, message, confirm_text, destructive),
+        Component::Divider => divider::render(),
+    }
+}
