@@ -1,38 +1,61 @@
 # SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# GitLab CI for vauchi-gtk (Linux GTK4 frontend)
+#
+# Uses shared templates from vauchi/scripts for self-hosted runner setup,
+# caching, and change-based rules.
+
+include:
+  - project: 'vauchi/scripts'
+    ref: main
+    file:
+      - '/ci-templates/rust-base.yml'
+      - '/ci-templates/mr-rules.yml'
+      - '/ci-templates/reuse.yml'
+
 stages:
   - lint
   - build
   - test
 
-variables:
-  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
-
 lint:fmt:
+  extends: [.linux-runner, .validation-rust, .timeout-quick]
   stage: lint
   script:
     - cargo fmt --check
-  tags: [linux]
 
 lint:clippy:
+  extends: [.linux-runner, .validation-rust, .timeout-standard]
   stage: lint
+  needs:
+    - job: lint:fmt
+      optional: true
+  before_script:
+    - !reference [.self-hosted, before_script]
   script:
     - cargo clippy -- -D warnings
-  tags: [linux]
 
 build:
+  extends: [.linux-runner, .validation-rust, .timeout-standard]
   stage: build
+  needs:
+    - job: lint:fmt
+      optional: true
+  before_script:
+    - !reference [.self-hosted, before_script]
   script:
     - cargo build --release
   artifacts:
     paths:
       - target/release/vauchi-gtk
-  tags: [linux]
+    expire_in: 1 week
 
 test:
+  extends: [.linux-runner, .validation-rust, .timeout-standard]
   stage: test
   needs: [build]
+  before_script:
+    - !reference [.self-hosted, before_script]
   script:
     - cargo test
-  tags: [linux]
