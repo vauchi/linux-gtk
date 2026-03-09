@@ -4,14 +4,17 @@
 //! FieldList component renderer.
 
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Widget};
-use vauchi_core::ui::{FieldDisplay, UiFieldVisibility, VisibilityMode};
+use gtk4::{Box as GtkBox, Button, Label, ListBox, Orientation, SelectionMode, Widget};
+use vauchi_core::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
+
+use super::super::screen_renderer::OnAction;
 
 pub fn render(
-    _id: &str,
+    id: &str,
     fields: &[FieldDisplay],
     visibility_mode: &VisibilityMode,
     _available_groups: &[String],
+    on_action: &OnAction,
 ) -> Widget {
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::None)
@@ -44,28 +47,40 @@ pub fn render(
 
         row.append(&text_box);
 
-        // Visibility indicator
-        let vis_text = match (&field.visibility, visibility_mode) {
-            (UiFieldVisibility::Shown, VisibilityMode::ShowHide) => "Visible",
-            (UiFieldVisibility::Hidden, VisibilityMode::ShowHide) => "Hidden",
+        // Visibility toggle button
+        let (vis_text, is_visible) = match (&field.visibility, visibility_mode) {
+            (UiFieldVisibility::Shown, VisibilityMode::ShowHide) => ("Visible", true),
+            (UiFieldVisibility::Hidden, VisibilityMode::ShowHide) => ("Hidden", false),
             (UiFieldVisibility::Groups(groups), VisibilityMode::PerGroup) => {
                 if groups.is_empty() {
-                    "No groups"
+                    ("No groups", false)
                 } else {
-                    "Per-group"
+                    ("Per-group", true)
                 }
             }
-            _ => "",
+            _ => ("", false),
         };
 
-        let vis_label = Label::builder()
+        let vis_btn = Button::builder()
             .label(vis_text)
-            .halign(gtk4::Align::End)
             .valign(gtk4::Align::Center)
-            .css_classes(["dim-label", "caption"])
+            .css_classes(["flat", "caption"])
             .build();
-        row.append(&vis_label);
 
+        // Wire: toggle field visibility
+        let on_action = on_action.clone();
+        let _component_id = id.to_string();
+        let field_id = field.id.clone();
+        let new_visible = !is_visible;
+        vis_btn.connect_clicked(move |_| {
+            (on_action)(UserAction::FieldVisibilityChanged {
+                field_id: field_id.clone(),
+                group_id: None,
+                visible: new_visible,
+            });
+        });
+
+        row.append(&vis_btn);
         list_box.append(&row);
     }
 

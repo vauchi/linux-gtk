@@ -5,9 +5,11 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Switch, Widget};
-use vauchi_core::ui::{SettingsItem, SettingsItemKind};
+use vauchi_core::ui::{SettingsItem, SettingsItemKind, UserAction};
 
-pub fn render(_id: &str, label: &str, items: &[SettingsItem]) -> Widget {
+use super::super::screen_renderer::OnAction;
+
+pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnAction) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
 
     // Group header
@@ -43,6 +45,19 @@ pub fn render(_id: &str, label: &str, items: &[SettingsItem]) -> Widget {
                     .active(*enabled)
                     .valign(gtk4::Align::Center)
                     .build();
+
+                // Wire: emit SettingsToggled when switch is toggled
+                let on_action = on_action.clone();
+                let component_id = id.to_string();
+                let item_id = item.id.clone();
+                switch.connect_state_set(move |_, _| {
+                    (on_action)(UserAction::SettingsToggled {
+                        component_id: component_id.clone(),
+                        item_id: item_id.clone(),
+                    });
+                    gtk4::glib::Propagation::Proceed
+                });
+
                 row.append(&switch);
             }
             SettingsItemKind::Value { value } => {
@@ -62,9 +77,8 @@ pub fn render(_id: &str, label: &str, items: &[SettingsItem]) -> Widget {
                         .build();
                     row.append(&detail_label);
                 }
-                // Navigation arrow
                 let arrow = Label::builder()
-                    .label("\u{203A}") // single right-pointing angle quotation mark
+                    .label("\u{203A}")
                     .halign(gtk4::Align::End)
                     .css_classes(["dim-label"])
                     .build();

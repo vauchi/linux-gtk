@@ -1,0 +1,3 @@
+# Local development path overrides
+[patch.'https://gitlab.com/vauchi/core.git']
+vauchi-core = { path = "../core/vauchi-core" }

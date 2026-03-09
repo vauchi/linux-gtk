@@ -4,4 +4,5 @@
 //! Platform-specific GTK/GNOME chrome (header bar, notifications).
 
 pub mod header_bar;
+pub mod init;
 pub mod notifications;

@@ -5,13 +5,19 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
+use std::cell::RefCell;
+use std::rc::Rc;
+use vauchi_core::ui::UserAction;
+
+use super::super::screen_renderer::OnAction;
 
 pub fn render(
-    _id: &str,
+    id: &str,
     label: &str,
     length: &usize,
     masked: &bool,
     validation_error: &Option<String>,
+    on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
 
@@ -27,6 +33,9 @@ pub fn render(
     let pin_row = GtkBox::new(Orientation::Horizontal, 8);
     pin_row.set_halign(gtk4::Align::Center);
 
+    // Collect entries to read combined PIN value
+    let entries: Rc<RefCell<Vec<Entry>>> = Rc::new(RefCell::new(Vec::new()));
+
     for _ in 0..*length {
         let digit_entry = Entry::builder()
             .max_length(1)
@@ -39,6 +48,23 @@ pub fn render(
             digit_entry.set_visibility(false);
         }
 
+        // Wire: accumulate all digits and emit TextChanged with full PIN
+        let on_action = on_action.clone();
+        let component_id = id.to_string();
+        let entries_for_closure = entries.clone();
+        digit_entry.connect_changed(move |_| {
+            let pin: String = entries_for_closure
+                .borrow()
+                .iter()
+                .map(|e| e.text().to_string())
+                .collect();
+            (on_action)(UserAction::TextChanged {
+                component_id: component_id.clone(),
+                value: pin,
+            });
+        });
+
+        entries.borrow_mut().push(digit_entry.clone());
         pin_row.append(&digit_entry);
     }
 

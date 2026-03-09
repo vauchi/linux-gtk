@@ -21,8 +21,10 @@ mod toggle_list;
 use gtk4::Widget;
 use vauchi_core::ui::Component;
 
-/// Render a `Component` to a GTK4 widget.
-pub fn render_component(component: &Component) -> Widget {
+use super::screen_renderer::OnAction;
+
+/// Render a `Component` to a GTK4 widget, wiring interactive signals via `on_action`.
+pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
     match component {
         Component::Text { id, content, style } => text::render(id, content, style),
         Component::TextInput {
@@ -33,14 +35,25 @@ pub fn render_component(component: &Component) -> Widget {
             max_length,
             validation_error,
             input_type,
-        } => text_input::render(id, label, value, placeholder, max_length, validation_error, input_type),
-        Component::ToggleList { id, label, items } => toggle_list::render(id, label, items),
+        } => text_input::render(
+            id,
+            label,
+            value,
+            placeholder,
+            max_length,
+            validation_error,
+            input_type,
+            on_action,
+        ),
+        Component::ToggleList { id, label, items } => {
+            toggle_list::render(id, label, items, on_action)
+        }
         Component::FieldList {
             id,
             fields,
             visibility_mode,
             available_groups,
-        } => field_list::render(id, fields, visibility_mode, available_groups),
+        } => field_list::render(id, fields, visibility_mode, available_groups, on_action),
         Component::CardPreview {
             name,
             fields,
@@ -57,8 +70,10 @@ pub fn render_component(component: &Component) -> Widget {
             id,
             contacts,
             searchable,
-        } => contact_list::render(id, contacts, searchable),
-        Component::SettingsGroup { id, label, items } => settings_group::render(id, label, items),
+        } => contact_list::render(id, contacts, searchable, on_action),
+        Component::SettingsGroup { id, label, items } => {
+            settings_group::render(id, label, items, on_action)
+        }
         Component::ActionList { id, items } => action_list::render(id, items),
         Component::StatusIndicator {
             id,
@@ -73,7 +88,7 @@ pub fn render_component(component: &Component) -> Widget {
             length,
             masked,
             validation_error,
-        } => pin_input::render(id, label, length, masked, validation_error),
+        } => pin_input::render(id, label, length, masked, validation_error, on_action),
         Component::QrCode {
             id,
             data,
@@ -86,7 +101,7 @@ pub fn render_component(component: &Component) -> Widget {
             message,
             confirm_text,
             destructive,
-        } => confirmation_dialog::render(id, title, message, confirm_text, destructive),
+        } => confirmation_dialog::render(id, title, message, confirm_text, destructive, on_action),
         Component::Divider => divider::render(),
     }
 }

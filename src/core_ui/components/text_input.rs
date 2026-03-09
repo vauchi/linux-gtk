@@ -5,16 +5,20 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
-use vauchi_core::ui::InputType;
+use vauchi_core::ui::{InputType, UserAction};
 
+use super::super::screen_renderer::OnAction;
+
+#[allow(clippy::too_many_arguments)]
 pub fn render(
-    _id: &str,
+    id: &str,
     label: &str,
     value: &str,
     placeholder: &Option<String>,
     max_length: &Option<usize>,
     validation_error: &Option<String>,
     input_type: &InputType,
+    on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 4);
 
@@ -41,6 +45,17 @@ pub fn render(
         InputType::Phone => entry.set_input_purpose(gtk4::InputPurpose::Phone),
         InputType::Text => {}
     }
+
+    // Wire: emit TextChanged when entry text changes
+    let on_action = on_action.clone();
+    let component_id = id.to_string();
+    entry.connect_changed(move |entry| {
+        (on_action)(UserAction::TextChanged {
+            component_id: component_id.clone(),
+            value: entry.text().to_string(),
+        });
+    });
+
     container.append(&entry);
 
     // Validation error
