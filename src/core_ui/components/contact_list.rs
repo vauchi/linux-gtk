@@ -5,9 +5,16 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
-use vauchi_core::ui::ContactItem;
+use vauchi_core::ui::{ContactItem, UserAction};
 
-pub fn render(_id: &str, contacts: &[ContactItem], searchable: &bool) -> Widget {
+use super::super::screen_renderer::OnAction;
+
+pub fn render(
+    id: &str,
+    contacts: &[ContactItem],
+    searchable: &bool,
+    on_action: &OnAction,
+) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
 
     // Optional search entry
@@ -15,6 +22,16 @@ pub fn render(_id: &str, contacts: &[ContactItem], searchable: &bool) -> Widget 
         let search = SearchEntry::builder()
             .placeholder_text("Search contacts...")
             .build();
+
+        let on_action_search = on_action.clone();
+        let component_id = id.to_string();
+        search.connect_search_changed(move |entry| {
+            (on_action_search)(UserAction::SearchChanged {
+                component_id: component_id.clone(),
+                query: entry.text().to_string(),
+            });
+        });
+
         container.append(&search);
     }
 
@@ -23,6 +40,9 @@ pub fn render(_id: &str, contacts: &[ContactItem], searchable: &bool) -> Widget 
         .selection_mode(SelectionMode::Single)
         .css_classes(["boxed-list"])
         .build();
+
+    // Store contact IDs for row activation
+    let contact_ids: Vec<String> = contacts.iter().map(|c| c.id.clone()).collect();
 
     for contact in contacts {
         let row = GtkBox::new(Orientation::Horizontal, 12);
@@ -76,6 +96,19 @@ pub fn render(_id: &str, contacts: &[ContactItem], searchable: &bool) -> Widget 
 
         list_box.append(&row);
     }
+
+    // Wire: emit ListItemSelected when a row is activated
+    let on_action = on_action.clone();
+    let component_id = id.to_string();
+    list_box.connect_row_activated(move |_, row| {
+        let index = row.index() as usize;
+        if let Some(contact_id) = contact_ids.get(index) {
+            (on_action)(UserAction::ListItemSelected {
+                component_id: component_id.clone(),
+                item_id: contact_id.clone(),
+            });
+        }
+    });
 
     container.append(&list_box);
     container.upcast()

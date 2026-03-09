@@ -5,9 +5,11 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget};
-use vauchi_core::ui::ToggleItem;
+use vauchi_core::ui::{ToggleItem, UserAction};
 
-pub fn render(_id: &str, label: &str, items: &[ToggleItem]) -> Widget {
+use super::super::screen_renderer::OnAction;
+
+pub fn render(id: &str, label: &str, items: &[ToggleItem], on_action: &OnAction) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
 
     // Header label
@@ -35,6 +37,18 @@ pub fn render(_id: &str, label: &str, items: &[ToggleItem]) -> Widget {
             .label(&item.label)
             .active(item.selected)
             .build();
+
+        // Wire: emit ItemToggled when checkbox state changes
+        let on_action = on_action.clone();
+        let component_id = id.to_string();
+        let item_id = item.id.clone();
+        check.connect_toggled(move |_| {
+            (on_action)(UserAction::ItemToggled {
+                component_id: component_id.clone(),
+                item_id: item_id.clone(),
+            });
+        });
+
         row_box.append(&check);
 
         if let Some(subtitle) = &item.subtitle {

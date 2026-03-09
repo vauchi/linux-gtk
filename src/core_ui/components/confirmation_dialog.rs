@@ -5,13 +5,17 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Frame, Label, Orientation, Widget};
+use vauchi_core::ui::UserAction;
+
+use super::super::screen_renderer::OnAction;
 
 pub fn render(
-    _id: &str,
+    id: &str,
     title: &str,
     message: &str,
     confirm_text: &str,
     destructive: &bool,
+    on_action: &OnAction,
 ) -> Widget {
     let frame = Frame::builder().css_classes(["card"]).build();
 
@@ -50,6 +54,16 @@ pub fn render(
         .halign(gtk4::Align::Center)
         .css_classes(css_classes)
         .build();
+
+    // Wire: emit ActionPressed when confirm button is clicked
+    let on_action = on_action.clone();
+    let action_id = format!("{}_confirm", id);
+    confirm_btn.connect_clicked(move |_| {
+        (on_action)(UserAction::ActionPressed {
+            action_id: action_id.clone(),
+        });
+    });
+
     container.append(&confirm_btn);
 
     frame.set_child(Some(&container));
