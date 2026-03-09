@@ -9,6 +9,7 @@ use vauchi_core::ui::{InputType, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     id: &str,
     label: &str,

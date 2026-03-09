@@ -34,7 +34,7 @@ pub fn render(
         let field_row = GtkBox::new(Orientation::Horizontal, 8);
 
         let label = Label::builder()
-            .label(&format!("{}:", field.label))
+            .label(format!("{}:", field.label))
             .halign(gtk4::Align::Start)
             .css_classes(["dim-label"])
             .build();
