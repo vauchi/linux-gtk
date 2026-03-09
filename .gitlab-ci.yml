@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+stages:
+  - lint
+  - build
+  - test
+
+variables:
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+
+lint:fmt:
+  stage: lint
+  script:
+    - cargo fmt --check
+  tags: [linux]
+
+lint:clippy:
+  stage: lint
+  script:
+    - cargo clippy -- -D warnings
+  tags: [linux]
+  allow_failure: true  # GTK4 dev libs may not be on all runners
+
+build:
+  stage: build
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/vauchi-gtk
+  tags: [linux]
+
+test:
+  stage: test
+  script:
+    - cargo test
+  tags: [linux]
