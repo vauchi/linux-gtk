@@ -4,13 +4,79 @@
 //! ContactList component renderer.
 
 use gtk4::prelude::*;
-use gtk4::{Label, Widget};
+use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
 use vauchi_core::ui::ContactItem;
 
-pub fn render(_id: &str, _contacts: &[ContactItem], _searchable: &bool) -> Widget {
-    // TODO: Implement full ContactList rendering with ListView
-    Label::builder()
-        .label("ContactList placeholder")
-        .build()
-        .upcast()
+pub fn render(_id: &str, contacts: &[ContactItem], searchable: &bool) -> Widget {
+    let container = GtkBox::new(Orientation::Vertical, 8);
+
+    // Optional search entry
+    if *searchable {
+        let search = SearchEntry::builder()
+            .placeholder_text("Search contacts...")
+            .build();
+        container.append(&search);
+    }
+
+    // Contact list
+    let list_box = ListBox::builder()
+        .selection_mode(SelectionMode::Single)
+        .css_classes(["boxed-list"])
+        .build();
+
+    for contact in contacts {
+        let row = GtkBox::new(Orientation::Horizontal, 12);
+        row.set_margin_top(8);
+        row.set_margin_bottom(8);
+        row.set_margin_start(12);
+        row.set_margin_end(12);
+
+        // Avatar initials circle
+        let avatar = Label::builder()
+            .label(&contact.avatar_initials)
+            .width_request(40)
+            .height_request(40)
+            .halign(gtk4::Align::Center)
+            .valign(gtk4::Align::Center)
+            .css_classes(["title-4"])
+            .build();
+        row.append(&avatar);
+
+        // Name and subtitle
+        let text_box = GtkBox::new(Orientation::Vertical, 2);
+        text_box.set_hexpand(true);
+
+        let name_label = Label::builder()
+            .label(&contact.name)
+            .halign(gtk4::Align::Start)
+            .build();
+        text_box.append(&name_label);
+
+        if let Some(subtitle) = &contact.subtitle {
+            let sub_label = Label::builder()
+                .label(subtitle)
+                .halign(gtk4::Align::Start)
+                .css_classes(["dim-label", "caption"])
+                .build();
+            text_box.append(&sub_label);
+        }
+
+        row.append(&text_box);
+
+        // Status indicator
+        if let Some(status) = &contact.status {
+            let status_label = Label::builder()
+                .label(status)
+                .halign(gtk4::Align::End)
+                .valign(gtk4::Align::Center)
+                .css_classes(["dim-label", "caption"])
+                .build();
+            row.append(&status_label);
+        }
+
+        list_box.append(&row);
+    }
+
+    container.append(&list_box);
+    container.upcast()
 }
