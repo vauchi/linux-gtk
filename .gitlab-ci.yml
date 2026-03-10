@@ -14,12 +14,17 @@ include:
       - '/ci-templates/mr-rules.yml'
       - '/ci-templates/downstream.yml'
       - '/ci-templates/reuse.yml'
+      - '/ci-templates/perf.yml'
 
 stages:
   - lint
   - build
   - test
   - verify
+
+# Duplicate dependency check (advisory)
+lint:duplicates:
+  extends: [.linux-runner-nocache, .lint-duplicates-job, .timeout-quick]
 
 lint:fmt:
   extends: [.linux-runner, .validation-rust, .timeout-quick]
@@ -62,6 +67,14 @@ test:
   script:
     - cargo test
   allow_failure: true  # GTK4 dev libs may not be on all runners
+
+# Binary size tracking (main merges + release tags)
+perf:binary-size:
+  extends: [.binary-size-tracking-job, .linux-runner, .timeout-long]
+  before_script:
+    - !reference [.self-hosted, before_script]
+  variables:
+    BINARY_SIZE_REPO_LABEL: "linux-gtk"
 
 # ============================================================
 # Verify Stage (upstream trigger only)
