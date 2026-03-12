@@ -121,6 +121,23 @@ fn handle_app_engine_result(
             // Reset — re-render from scratch
             render_app_engine_screen(container, app_engine);
         }
+        ActionResult::ShowToast { message, .. } => {
+            // Show as transient info — re-use alert for now
+            if let Some(window) = container
+                .root()
+                .and_then(|r| r.downcast::<gtk4::Window>().ok())
+            {
+                let dialog = gtk4::MessageDialog::builder()
+                    .transient_for(&window)
+                    .modal(true)
+                    .message_type(gtk4::MessageType::Info)
+                    .buttons(gtk4::ButtonsType::Ok)
+                    .text(&message)
+                    .build();
+                dialog.connect_response(|d, _| d.close());
+                dialog.show();
+            }
+        }
     }
 }
 

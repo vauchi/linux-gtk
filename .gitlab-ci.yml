@@ -88,15 +88,11 @@ perf:binary-size:
 # verify:downstream-rust. Verifies this repo builds and tests
 # pass against the updated vauchi-core.
 
-<<<<<<< HEAD
 # Design drift: verify all design-spec components are implemented
 check:design-drift:
   extends: .design-drift-job
   variables:
     DESIGN_DRIFT_COMPONENT_DIR: "src/core_ui/components"
-
-=======
->>>>>>> de0b745 (feat: add cargo-machete unused dependency lint job)
 verify:upstream-compat:
   extends: [.linux-runner, .verify-on-upstream, .timeout-standard]
   stage: verify
