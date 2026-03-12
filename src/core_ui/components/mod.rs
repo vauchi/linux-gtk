@@ -86,6 +86,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             id,
             label,
             length,
+            filled: _,
             masked,
             validation_error,
         } => pin_input::render(id, label, length, masked, validation_error, on_action),
@@ -103,5 +104,28 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             destructive,
         } => confirmation_dialog::render(id, title, message, confirm_text, destructive, on_action),
         Component::Divider => divider::render(),
+        // TODO: implement proper renderers for these new component types
+        Component::ShowToast { id, message, .. } => {
+            text::render(id, message, &vauchi_core::ui::TextStyle::Body)
+        }
+        Component::InlineConfirm {
+            id,
+            warning,
+            confirm_text,
+            cancel_text: _,
+            destructive,
+        } => confirmation_dialog::render(id, "", warning, confirm_text, destructive, on_action),
+        Component::EditableText {
+            id, label, value, ..
+        } => text_input::render(
+            id,
+            label,
+            value,
+            &None,
+            &None,
+            &None,
+            &vauchi_core::ui::InputType::Text,
+            on_action,
+        ),
     }
 }

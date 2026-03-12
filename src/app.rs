@@ -98,7 +98,7 @@ fn build_sidebar(app_engine: &Rc<RefCell<AppEngine<MockTransport>>>, content: &G
 fn screen_label(screen: &AppScreen) -> &str {
     match screen {
         AppScreen::Onboarding => "Setup",
-        AppScreen::Home => "Home",
+        AppScreen::MyInfo => "My Info",
         AppScreen::Contacts => "Contacts",
         AppScreen::Exchange => "Exchange",
         AppScreen::Settings => "Settings",
