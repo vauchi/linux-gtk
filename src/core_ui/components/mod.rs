@@ -89,6 +89,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             filled: _,
             masked,
             validation_error,
+            ..
         } => pin_input::render(id, label, length, masked, validation_error, on_action),
         Component::QrCode {
             id,
