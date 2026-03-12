@@ -4,16 +4,18 @@
 //! FieldList component renderer.
 
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, ListBox, Orientation, SelectionMode, Widget};
+use gtk4::{
+    Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
+};
 use vauchi_core::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
 
 use super::super::screen_renderer::OnAction;
 
 pub fn render(
-    id: &str,
+    _id: &str,
     fields: &[FieldDisplay],
     visibility_mode: &VisibilityMode,
-    _available_groups: &[String],
+    available_groups: &[String],
     on_action: &OnAction,
 ) -> Widget {
     let list_box = ListBox::builder()
@@ -47,42 +49,86 @@ pub fn render(
 
         row.append(&text_box);
 
-        // Visibility toggle button
-        let (vis_text, is_visible) = match (&field.visibility, visibility_mode) {
-            (UiFieldVisibility::Shown, VisibilityMode::ShowHide) => ("Visible", true),
-            (UiFieldVisibility::Hidden, VisibilityMode::ShowHide) => ("Hidden", false),
-            (UiFieldVisibility::Groups(groups), VisibilityMode::PerGroup) => {
-                if groups.is_empty() {
-                    ("No groups", false)
-                } else {
-                    ("Per-group", true)
-                }
+        match visibility_mode {
+            VisibilityMode::ReadOnly => {
+                // No visibility controls — fields are display-only.
             }
-            _ => ("", false),
-        };
+            VisibilityMode::ShowHide => {
+                render_show_hide_toggle(&row, field, on_action);
+            }
+            VisibilityMode::PerGroup => {
+                render_per_group_toggles(&row, field, available_groups, on_action);
+            }
+        }
 
-        let vis_btn = Button::builder()
-            .label(vis_text)
-            .valign(gtk4::Align::Center)
-            .css_classes(["flat", "caption"])
-            .build();
-
-        // Wire: toggle field visibility
-        let on_action = on_action.clone();
-        let _component_id = id.to_string();
-        let field_id = field.id.clone();
-        let new_visible = !is_visible;
-        vis_btn.connect_clicked(move |_| {
-            (on_action)(UserAction::FieldVisibilityChanged {
-                field_id: field_id.clone(),
-                group_id: None,
-                visible: new_visible,
-            });
-        });
-
-        row.append(&vis_btn);
         list_box.append(&row);
     }
 
     list_box.upcast()
+}
+
+/// Render a simple show/hide toggle button for the field.
+fn render_show_hide_toggle(row: &GtkBox, field: &FieldDisplay, on_action: &OnAction) {
+    let is_visible = matches!(field.visibility, UiFieldVisibility::Shown);
+    let vis_text = if is_visible { "Visible" } else { "Hidden" };
+
+    let vis_btn = Button::builder()
+        .label(vis_text)
+        .valign(gtk4::Align::Center)
+        .css_classes(["flat", "caption"])
+        .build();
+
+    let on_action = on_action.clone();
+    let field_id = field.id.clone();
+    let new_visible = !is_visible;
+    vis_btn.connect_clicked(move |_| {
+        (on_action)(UserAction::FieldVisibilityChanged {
+            field_id: field_id.clone(),
+            group_id: None,
+            visible: new_visible,
+        });
+    });
+
+    row.append(&vis_btn);
+}
+
+/// Render per-group checkboxes showing which groups can see this field.
+fn render_per_group_toggles(
+    row: &GtkBox,
+    field: &FieldDisplay,
+    available_groups: &[String],
+    on_action: &OnAction,
+) {
+    let active_groups: Vec<&str> = match &field.visibility {
+        UiFieldVisibility::Groups(groups) => groups.iter().map(|s| s.as_str()).collect(),
+        UiFieldVisibility::Shown => available_groups.iter().map(|s| s.as_str()).collect(),
+        UiFieldVisibility::Hidden => vec![],
+    };
+
+    let group_box = GtkBox::new(Orientation::Horizontal, 4);
+    group_box.set_valign(gtk4::Align::Center);
+
+    for group_name in available_groups {
+        let is_active = active_groups.contains(&group_name.as_str());
+
+        let check = CheckButton::builder()
+            .label(group_name)
+            .active(is_active)
+            .build();
+
+        let on_action = on_action.clone();
+        let field_id = field.id.clone();
+        let group_id = group_name.clone();
+        check.connect_toggled(move |btn| {
+            (on_action)(UserAction::FieldVisibilityChanged {
+                field_id: field_id.clone(),
+                group_id: Some(group_id.clone()),
+                visible: btn.is_active(),
+            });
+        });
+
+        group_box.append(&check);
+    }
+
+    row.append(&group_box);
 }
