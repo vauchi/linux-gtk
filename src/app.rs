@@ -27,6 +27,13 @@ fn build_ui(app: &adw::Application) {
     let vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
     let app_engine = Rc::new(RefCell::new(AppEngine::new(vauchi)));
 
+    // Navigate to dynamic default screen (MyInfo with 0 contacts, Contacts with >=1)
+    {
+        let mut engine = app_engine.borrow_mut();
+        let default = engine.default_screen();
+        engine.navigate_to(default);
+    }
+
     // Main layout: sidebar + content
     let main_box = GtkBox::new(Orientation::Horizontal, 0);
 
