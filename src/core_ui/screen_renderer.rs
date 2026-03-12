@@ -60,13 +60,66 @@ fn handle_app_engine_result(
             };
             render_screen_model(container, &screen, &on_action);
         }
-        ActionResult::ValidationError { .. }
-        | ActionResult::Complete
-        | ActionResult::ShowAlert { .. } => {
+        ActionResult::ValidationError { .. } | ActionResult::Complete => {
             render_app_engine_screen(container, app_engine);
         }
-        _ => {
-            eprintln!("Unhandled ActionResult variant");
+        ActionResult::ShowAlert { title, message } => {
+            if let Some(window) = container
+                .root()
+                .and_then(|r| r.downcast::<gtk4::Window>().ok())
+            {
+                let dialog = gtk4::MessageDialog::builder()
+                    .transient_for(&window)
+                    .modal(true)
+                    .message_type(gtk4::MessageType::Info)
+                    .buttons(gtk4::ButtonsType::Ok)
+                    .text(&title)
+                    .secondary_text(&message)
+                    .build();
+                dialog.connect_response(|d, _| d.close());
+                dialog.show();
+            }
+        }
+        ActionResult::OpenContact { contact_id } => {
+            app_engine
+                .borrow_mut()
+                .navigate_to(vauchi_core::ui::AppScreen::ContactDetail { contact_id });
+            render_app_engine_screen(container, app_engine);
+        }
+        ActionResult::EditContact { contact_id } => {
+            app_engine
+                .borrow_mut()
+                .navigate_to(vauchi_core::ui::AppScreen::ContactEdit { contact_id });
+            render_app_engine_screen(container, app_engine);
+        }
+        ActionResult::OpenUrl { url } => {
+            let _ = gtk4::gio::AppInfo::launch_default_for_uri(
+                &url,
+                None::<&gtk4::gio::AppLaunchContext>,
+            );
+        }
+        ActionResult::StartDeviceLink => {
+            app_engine
+                .borrow_mut()
+                .navigate_to(vauchi_core::ui::AppScreen::DeviceLinking);
+            render_app_engine_screen(container, app_engine);
+        }
+        ActionResult::StartBackupImport => {
+            app_engine
+                .borrow_mut()
+                .navigate_to(vauchi_core::ui::AppScreen::Backup);
+            render_app_engine_screen(container, app_engine);
+        }
+        ActionResult::RequestCamera => {
+            // Camera not available on desktop — no-op
+        }
+        ActionResult::OpenEntryDetail { .. } => {
+            // Handled internally by AppEngine
+            render_app_engine_screen(container, app_engine);
+        }
+        ActionResult::WipeComplete => {
+            // Reset — re-render from scratch
+            render_app_engine_screen(container, app_engine);
         }
     }
 }
