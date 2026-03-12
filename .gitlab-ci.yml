@@ -15,6 +15,7 @@ include:
       - '/ci-templates/downstream.yml'
       - '/ci-templates/reuse.yml'
       - '/ci-templates/perf.yml'
+      - '/ci-templates/design-drift.yml'
 
 stages:
   - lint
@@ -86,6 +87,12 @@ perf:binary-size:
 # Runs when core merges to main and triggers this repo via
 # verify:downstream-rust. Verifies this repo builds and tests
 # pass against the updated vauchi-core.
+
+# Design drift: verify all design-spec components are implemented
+check:design-drift:
+  extends: .design-drift-job
+  variables:
+    DESIGN_DRIFT_COMPONENT_DIR: "src/core_ui/components"
 
 verify:upstream-compat:
   extends: [.linux-runner, .verify-on-upstream, .timeout-standard]
