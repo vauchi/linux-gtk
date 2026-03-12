@@ -59,7 +59,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             fields,
             group_views,
             selected_group,
-        } => card_preview::render(name, fields, group_views, selected_group),
+        } => card_preview::render(name, fields, group_views, selected_group, on_action),
         Component::InfoPanel {
             id,
             icon,

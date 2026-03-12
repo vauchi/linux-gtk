@@ -4,14 +4,17 @@
 //! CardPreview component renderer.
 
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Frame, Label, Orientation, Widget};
-use vauchi_core::ui::{FieldDisplay, GroupCardView};
+use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
+use vauchi_core::ui::{FieldDisplay, GroupCardView, UserAction};
+
+use super::super::screen_renderer::OnAction;
 
 pub fn render(
     name: &str,
     fields: &[FieldDisplay],
-    _group_views: &[GroupCardView],
-    _selected_group: &Option<String>,
+    group_views: &[GroupCardView],
+    selected_group: &Option<String>,
+    on_action: &OnAction,
 ) -> Widget {
     let frame = Frame::builder().css_classes(["card"]).build();
 
@@ -30,6 +33,58 @@ pub fn render(
     container.append(&name_label);
 
     // Fields
+    render_fields(&container, fields);
+
+    // Group tabs
+    if !group_views.is_empty() {
+        let tab_bar = GtkBox::new(Orientation::Horizontal, 4);
+        tab_bar.set_margin_top(8);
+
+        // "All" tab
+        let all_btn = ToggleButton::builder()
+            .label("All")
+            .active(selected_group.is_none())
+            .build();
+        {
+            let on_action = on_action.clone();
+            all_btn.connect_clicked(move |_| {
+                (on_action)(UserAction::GroupViewSelected { group_name: None });
+            });
+        }
+        tab_bar.append(&all_btn);
+
+        // Per-group tabs
+        for gv in group_views {
+            let btn = ToggleButton::builder()
+                .label(&gv.display_name)
+                .group(&all_btn)
+                .active(selected_group.as_deref() == Some(&gv.group_name))
+                .build();
+            let group_name = gv.group_name.clone();
+            let on_action = on_action.clone();
+            btn.connect_clicked(move |_| {
+                (on_action)(UserAction::GroupViewSelected {
+                    group_name: Some(group_name.clone()),
+                });
+            });
+            tab_bar.append(&btn);
+        }
+
+        container.append(&tab_bar);
+
+        // Show group-specific fields if a group is selected
+        if let Some(selected) = selected_group {
+            if let Some(gv) = group_views.iter().find(|g| &g.group_name == selected) {
+                render_fields(&container, &gv.visible_fields);
+            }
+        }
+    }
+
+    frame.set_child(Some(&container));
+    frame.upcast()
+}
+
+fn render_fields(container: &GtkBox, fields: &[FieldDisplay]) {
     for field in fields {
         let field_row = GtkBox::new(Orientation::Horizontal, 8);
 
@@ -49,7 +104,4 @@ pub fn render(
 
         container.append(&field_row);
     }
-
-    frame.set_child(Some(&container));
-    frame.upcast()
 }
