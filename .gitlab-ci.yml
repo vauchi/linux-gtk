@@ -16,12 +16,14 @@ include:
       - '/ci-templates/reuse.yml'
       - '/ci-templates/perf.yml'
       - '/ci-templates/design-drift.yml'
+      - '/ci-templates/badges.yml'
 
 stages:
   - lint
   - build
   - test
   - verify
+  - deploy
 
 # Duplicate dependency check (advisory)
 lint:duplicates:
@@ -116,3 +118,10 @@ verify:upstream-prerelease:
   script:
     - cargo test
   allow_failure: true  # GTK4 dev libs may not be on all runners
+
+# ============================================================
+# Deploy Stage — Badge Pages
+# ============================================================
+
+pages:
+  extends: .badges-pages
