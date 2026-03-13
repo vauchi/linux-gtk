@@ -34,8 +34,14 @@ fn build_ui(app: &adw::Application) {
         engine.navigate_to(default);
     }
 
-    // Main layout: sidebar + content
-    let main_box = GtkBox::new(Orientation::Horizontal, 0);
+    // Main layout: header + body
+    let root = GtkBox::new(Orientation::Vertical, 0);
+
+    let header = platform::header_bar::build(app);
+    root.append(&header);
+
+    let body = GtkBox::new(Orientation::Horizontal, 0);
+    body.set_vexpand(true);
 
     // Content area
     let content = GtkBox::new(Orientation::Vertical, 0);
@@ -47,8 +53,10 @@ fn build_ui(app: &adw::Application) {
 
     // Navigation sidebar
     let sidebar = build_sidebar(&app_engine, &content);
-    main_box.append(&sidebar);
-    main_box.append(&content);
+    body.append(&sidebar);
+    body.append(&content);
+
+    root.append(&body);
 
     // Render initial screen
     screen_renderer::render_app_engine_screen(&content, &app_engine);
@@ -58,7 +66,7 @@ fn build_ui(app: &adw::Application) {
         .title("Vauchi")
         .default_width(700)
         .default_height(600)
-        .content(&main_box)
+        .content(&root)
         .build();
 
     window.present();
@@ -110,6 +118,18 @@ fn screen_label(screen: &AppScreen) -> &str {
         AppScreen::Exchange => "Exchange",
         AppScreen::Settings => "Settings",
         AppScreen::Help => "Help",
+        AppScreen::Backup => "Backup",
+        AppScreen::Lock => "Lock",
+        AppScreen::DeviceLinking => "Device Linking",
+        AppScreen::DuressPin => "Duress PIN",
+        AppScreen::EmergencyShred => "Emergency Shred",
+        AppScreen::DeliveryStatus => "Delivery Status",
+        AppScreen::Sync => "Sync",
+        AppScreen::TorSettings => "Tor Settings",
+        AppScreen::Recovery => "Recovery",
+        AppScreen::Groups => "Groups",
+        AppScreen::Privacy => "Privacy",
+        AppScreen::Support => "Support",
         _ => "Other",
     }
 }

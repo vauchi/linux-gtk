@@ -93,10 +93,19 @@ fn handle_app_engine_result(
             render_app_engine_screen(container, app_engine);
         }
         ActionResult::OpenUrl { url } => {
-            let _ = gtk4::gio::AppInfo::launch_default_for_uri(
+            if let Err(e) = gtk4::gio::AppInfo::launch_default_for_uri(
                 &url,
                 None::<&gtk4::gio::AppLaunchContext>,
-            );
+            ) {
+                handle_app_engine_result(
+                    container,
+                    app_engine,
+                    ActionResult::ShowAlert {
+                        title: "Could not open link".into(),
+                        message: e.message().to_owned(),
+                    },
+                );
+            }
         }
         ActionResult::StartDeviceLink => {
             app_engine

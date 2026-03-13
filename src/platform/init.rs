@@ -10,12 +10,10 @@ use vauchi_core::network::MockTransport;
 
 /// Returns the XDG data directory for vauchi (`$XDG_DATA_HOME/vauchi` or `~/.local/share/vauchi`).
 fn data_dir() -> PathBuf {
-    std::env::var("XDG_DATA_HOME")
+    std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").expect("HOME environment variable not set");
-            PathBuf::from(home).join(".local/share")
-        })
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
         .join("vauchi")
 }
 
