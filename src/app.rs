@@ -9,7 +9,7 @@ use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_core::network::MockTransport;
+use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{AppEngine, AppScreen};
 
 use crate::core_ui::screen_renderer;
@@ -72,7 +72,10 @@ fn build_ui(app: &adw::Application) {
     window.present();
 }
 
-fn build_sidebar(app_engine: &Rc<RefCell<AppEngine<MockTransport>>>, content: &GtkBox) -> GtkBox {
+fn build_sidebar(
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    content: &GtkBox,
+) -> GtkBox {
     let sidebar = GtkBox::new(Orientation::Vertical, 0);
     sidebar.set_width_request(200);
     sidebar.add_css_class("navigation-sidebar");

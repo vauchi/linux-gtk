@@ -6,7 +6,10 @@
 use std::path::PathBuf;
 
 use vauchi_core::api::{Vauchi, VauchiConfig};
-use vauchi_core::network::MockTransport;
+use vauchi_core::network::WebSocketTransport;
+
+/// Default relay URL.
+const DEFAULT_RELAY_URL: &str = "wss://relay.vauchi.app";
 
 /// Returns the XDG data directory for vauchi (`$XDG_DATA_HOME/vauchi` or `~/.local/share/vauchi`).
 fn data_dir() -> PathBuf {
@@ -17,10 +20,29 @@ fn data_dir() -> PathBuf {
         .join("vauchi")
 }
 
-pub fn init_vauchi() -> Result<Vauchi<MockTransport>, Box<dyn std::error::Error>> {
+/// Resolve relay URL: config file > env var > default.
+fn resolve_relay_url(data_path: &std::path::Path) -> String {
+    let relay_config_path = data_path.join("relay_url.txt");
+    std::fs::read_to_string(&relay_config_path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            std::env::var("VAUCHI_RELAY_URL")
+                .ok()
+                .filter(|s| !s.is_empty())
+        })
+        .unwrap_or_else(|| DEFAULT_RELAY_URL.to_string())
+}
+
+pub fn init_vauchi() -> Result<Vauchi<WebSocketTransport>, Box<dyn std::error::Error>> {
     let data_path = data_dir();
     std::fs::create_dir_all(&data_path)?;
 
-    let config = VauchiConfig::with_storage_path(&data_path);
-    Ok(Vauchi::new(config)?)
+    let relay_url = resolve_relay_url(&data_path);
+    let config = VauchiConfig::with_storage_path(&data_path).with_relay_url(relay_url);
+    Ok(Vauchi::with_transport_factory(
+        config,
+        WebSocketTransport::new,
+    )?)
 }

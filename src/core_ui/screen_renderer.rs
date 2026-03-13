@@ -12,7 +12,7 @@ use gtk4::{self, Box as GtkBox, Label, Orientation};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_core::network::MockTransport;
+use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
@@ -27,7 +27,7 @@ pub type OnAction = Rc<dyn Fn(UserAction)>;
 /// Renders the current AppEngine screen into a container.
 pub fn render_app_engine_screen(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<MockTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
 ) {
     let screen = app_engine.borrow().current_screen();
 
@@ -45,7 +45,7 @@ pub fn render_app_engine_screen(
 
 fn handle_app_engine_result(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<MockTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
     result: ActionResult,
 ) {
     match result {
