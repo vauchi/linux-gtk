@@ -74,7 +74,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
         Component::SettingsGroup { id, label, items } => {
             settings_group::render(id, label, items, on_action)
         }
-        Component::ActionList { id, items } => action_list::render(id, items),
+        Component::ActionList { id, items } => action_list::render(id, items, on_action),
         Component::StatusIndicator {
             id,
             icon,

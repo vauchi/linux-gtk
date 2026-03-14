@@ -37,7 +37,7 @@ pub fn render(
         entry.set_placeholder_text(Some(ph));
     }
     if let Some(max) = max_length {
-        entry.set_max_length(*max as i32);
+        entry.set_max_length(i32::try_from(*max).unwrap_or(i32::MAX));
     }
     match input_type {
         InputType::Password => entry.set_visibility(false),

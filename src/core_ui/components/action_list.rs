@@ -5,13 +5,17 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Widget};
-use vauchi_core::ui::ActionListItem;
+use vauchi_core::ui::{ActionListItem, UserAction};
 
-pub fn render(_id: &str, items: &[ActionListItem]) -> Widget {
+use super::super::screen_renderer::OnAction;
+
+pub fn render(_id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widget {
     let list_box = ListBox::builder()
-        .selection_mode(SelectionMode::None)
+        .selection_mode(SelectionMode::Single)
         .css_classes(["boxed-list"])
         .build();
+
+    let item_ids: Vec<String> = items.iter().map(|item| item.id.clone()).collect();
 
     for item in items {
         let row = GtkBox::new(Orientation::Horizontal, 8);
@@ -46,6 +50,17 @@ pub fn render(_id: &str, items: &[ActionListItem]) -> Widget {
 
         list_box.append(&row);
     }
+
+    // Wire: emit ActionPressed when a row is activated
+    let on_action = on_action.clone();
+    list_box.connect_row_activated(move |_, row| {
+        let index = row.index() as usize;
+        if let Some(action_id) = item_ids.get(index) {
+            (on_action)(UserAction::ActionPressed {
+                action_id: action_id.clone(),
+            });
+        }
+    });
 
     list_box.upcast()
 }

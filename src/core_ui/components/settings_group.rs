@@ -25,6 +25,19 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         .css_classes(["boxed-list"])
         .build();
 
+    let item_ids: Vec<String> = items.iter().map(|item| item.id.clone()).collect();
+    let clickable_indices: Vec<usize> = items
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| {
+            matches!(
+                item.kind,
+                SettingsItemKind::Link { .. } | SettingsItemKind::Destructive { .. }
+            )
+        })
+        .map(|(i, _)| i)
+        .collect();
+
     for item in items {
         let row = GtkBox::new(Orientation::Horizontal, 8);
         row.set_margin_top(8);
@@ -95,6 +108,23 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         }
 
         list_box.append(&row);
+    }
+
+    // Wire: emit ActionPressed when Link or Destructive rows are activated
+    if !clickable_indices.is_empty() {
+        let on_action = on_action.clone();
+        let component_id = id.to_string();
+        list_box.connect_row_activated(move |_, row| {
+            let index = row.index() as usize;
+            if clickable_indices.contains(&index) {
+                if let Some(item_id) = item_ids.get(index) {
+                    (on_action)(UserAction::ActionPressed {
+                        action_id: format!("{}_{}", component_id, item_id),
+                    });
+                }
+            }
+        });
+        list_box.set_selection_mode(SelectionMode::Single);
     }
 
     container.append(&list_box);

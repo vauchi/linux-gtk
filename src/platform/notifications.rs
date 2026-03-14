@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! GNotification integration for desktop notifications.
+//!
+//! Use for OS-level notifications (e.g., sync events, message delivery)
+//! when the app window is not focused. For in-app toast messages,
+//! use `adw::Toast` via the `ToastOverlay` instead.
 
 use gtk4::gio;
 use gtk4::prelude::*;
