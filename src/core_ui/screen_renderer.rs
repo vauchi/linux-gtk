@@ -21,6 +21,8 @@ use vauchi_core::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
 
+use crate::platform::hardware;
+
 use super::components;
 
 /// Callback type for components to send `UserAction` back to the engine.
@@ -167,9 +169,17 @@ fn handle_exchange_commands(
             // ── Audio (ultrasonic proximity) ─────────────────────────
             ExchangeCommand::AudioEmitChallenge { .. }
             | ExchangeCommand::AudioListenForResponse { .. } => {
-                // TODO: Integrate ultrasonic audio via cpal crate
                 if notified_unavailable.insert("audio") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Audio proximity");
+                    if hardware::has_audio() {
+                        // Hardware present but cpal integration not yet built
+                        // TODO: Integrate ultrasonic audio via cpal crate
+                        let toast = adw::Toast::new(
+                            "Audio hardware detected — ultrasonic verification not yet integrated",
+                        );
+                        toast_overlay.add_toast(toast);
+                    } else {
+                        report_hardware_unavailable(app_engine, toast_overlay, "Audio");
+                    }
                 }
             }
             ExchangeCommand::AudioStop => {} // no-op when audio isn't running
@@ -181,17 +191,33 @@ fn handle_exchange_commands(
             | ExchangeCommand::BleWriteCharacteristic { .. }
             | ExchangeCommand::BleReadCharacteristic { .. }
             | ExchangeCommand::BleDisconnect => {
-                // TODO: Integrate BLE via BlueZ D-Bus API (zbus crate)
                 if notified_unavailable.insert("ble") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                    if hardware::has_bluetooth() {
+                        // Adapter present but BlueZ integration not yet built
+                        // TODO: Integrate BLE via BlueZ D-Bus API (zbus crate)
+                        let toast = adw::Toast::new(
+                            "Bluetooth adapter detected — BLE exchange not yet integrated",
+                        );
+                        toast_overlay.add_toast(toast);
+                    } else {
+                        report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                    }
                 }
             }
 
             // ── NFC ──────────────────────────────────────────────────
             ExchangeCommand::NfcActivate { .. } | ExchangeCommand::NfcDeactivate => {
-                // TODO: Integrate NFC via libnfc (USB NFC reader)
                 if notified_unavailable.insert("nfc") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "NFC");
+                    if hardware::has_nfc() {
+                        // NFC reader present but libnfc integration not yet built
+                        // TODO: Integrate NFC via libnfc (USB NFC reader)
+                        let toast = adw::Toast::new(
+                            "NFC reader detected — NFC exchange not yet integrated",
+                        );
+                        toast_overlay.add_toast(toast);
+                    } else {
+                        report_hardware_unavailable(app_engine, toast_overlay, "NFC");
+                    }
                 }
             }
         }
@@ -237,15 +263,17 @@ fn show_qr_paste_dialog(
         None => return,
     };
 
-    let dialog = adw::MessageDialog::new(
-        Some(&window),
-        Some("Paste QR Code Data"),
-        Some(
-            "Camera scanning is not yet available.\n\
-             Scan the other device's QR code with your phone, \
-             copy the data, and paste it below.",
-        ),
-    );
+    let body = if hardware::has_camera() {
+        "Camera detected but scanning integration is not yet available.\n\
+         Scan the other device's QR code with your phone, \
+         copy the data, and paste it below."
+    } else {
+        "No camera detected on this device.\n\
+         Scan the other device's QR code with your phone, \
+         copy the data, and paste it below."
+    };
+
+    let dialog = adw::MessageDialog::new(Some(&window), Some("Paste QR Code Data"), Some(body));
 
     // Text entry for pasting QR data
     let entry = gtk4::Entry::builder()
