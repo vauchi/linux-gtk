@@ -13,7 +13,9 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_core::exchange::ExchangeCommand;
+use std::collections::HashSet;
+
+use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
 use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
@@ -111,12 +113,10 @@ fn handle_app_engine_result(
             render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::RequestCamera => {
-            // TODO: Integrate camera via XDG Camera Portal or v4l2 for QR scanning
-            show_alert(
-                container,
-                "Camera not yet integrated",
-                "Camera-based QR scanning is not yet available. Please use the QR display mode to show your code to the other device.",
-            );
+            // TODO: Integrate camera via XDG Camera Portal or v4l2 for QR scanning.
+            // Fallback: show a paste dialog so the user can paste QR data from
+            // a separate scanner app or phone.
+            show_qr_paste_dialog(container, app_engine, toast_overlay);
         }
         ActionResult::OpenEntryDetail { .. } => {
             // Handled internally by AppEngine
@@ -131,44 +131,50 @@ fn handle_app_engine_result(
             toast_overlay.add_toast(toast);
         }
         ActionResult::ExchangeCommands { commands } => {
-            handle_exchange_commands(container, toast_overlay, &commands);
+            handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
     }
 }
 
 /// Dispatch exchange hardware commands to platform-specific actions (ADR-031).
+///
+/// Commands arrive in batches (e.g., BleStartScanning + BleStartAdvertising together).
+/// We deduplicate "unavailable" toasts per transport to avoid spamming the user.
 fn handle_exchange_commands(
     container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
     toast_overlay: &adw::ToastOverlay,
     commands: &[ExchangeCommand],
 ) {
+    // Track which transports we've already shown "unavailable" toasts for
+    // to avoid spamming when a batch has multiple commands for the same transport.
+    let mut notified_unavailable: HashSet<&str> = HashSet::new();
+
     for cmd in commands {
         match cmd {
-            ExchangeCommand::QrDisplay { data } => {
-                // QR display is already handled by the ExchangeEngine's screen model
-                // (Component::QrCode with QrMode::Display). This command is for
-                // cases where the QR data changes mid-flow.
-                let toast = adw::Toast::new(&format!("QR code updated ({}B)", data.len()));
-                toast_overlay.add_toast(toast);
+            ExchangeCommand::QrDisplay { .. } => {
+                // QR data changed mid-session. The ExchangeSession updated its
+                // state, so re-rendering the current screen will pick up the new
+                // QR via Component::QrCode in the screen model.
+                render_app_engine_screen(container, app_engine, toast_overlay);
             }
             ExchangeCommand::QrRequestScan => {
-                // TODO: Integrate camera via XDG Camera Portal or v4l2
-                show_alert(
-                    container,
-                    "Camera not yet integrated",
-                    "Camera-based QR scanning is not yet available. \
-                     Please use the QR display mode to show your code to the other device.",
-                );
+                // TODO: Integrate camera via XDG Camera Portal or v4l2.
+                // Fallback: paste dialog so user can paste from a phone scanner.
+                show_qr_paste_dialog(container, app_engine, toast_overlay);
             }
+
+            // ── Audio (ultrasonic proximity) ─────────────────────────
             ExchangeCommand::AudioEmitChallenge { .. }
             | ExchangeCommand::AudioListenForResponse { .. } => {
                 // TODO: Integrate ultrasonic audio via cpal crate
-                let toast = adw::Toast::new("Audio proximity verification not yet available");
-                toast_overlay.add_toast(toast);
+                if notified_unavailable.insert("audio") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Audio proximity");
+                }
             }
-            ExchangeCommand::AudioStop => {
-                // No-op when audio isn't running
-            }
+            ExchangeCommand::AudioStop => {} // no-op when audio isn't running
+
+            // ── BLE ──────────────────────────────────────────────────
             ExchangeCommand::BleStartScanning { .. }
             | ExchangeCommand::BleStartAdvertising { .. }
             | ExchangeCommand::BleConnect { .. }
@@ -176,16 +182,112 @@ fn handle_exchange_commands(
             | ExchangeCommand::BleReadCharacteristic { .. }
             | ExchangeCommand::BleDisconnect => {
                 // TODO: Integrate BLE via BlueZ D-Bus API (zbus crate)
-                let toast = adw::Toast::new("Bluetooth LE not yet available on desktop");
-                toast_overlay.add_toast(toast);
+                if notified_unavailable.insert("ble") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                }
             }
+
+            // ── NFC ──────────────────────────────────────────────────
             ExchangeCommand::NfcActivate { .. } | ExchangeCommand::NfcDeactivate => {
                 // TODO: Integrate NFC via libnfc (USB NFC reader)
-                let toast = adw::Toast::new("NFC not yet available on desktop");
-                toast_overlay.add_toast(toast);
+                if notified_unavailable.insert("nfc") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "NFC");
+                }
             }
         }
     }
+}
+
+/// Report a hardware transport as unavailable — sends `HardwareUnavailable` back
+/// to core so the ExchangeSession can trigger transport fallback, and shows a
+/// toast to the user.
+fn report_hardware_unavailable(
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
+    transport: &str,
+) {
+    let toast = adw::Toast::new(&format!("{} not yet available on desktop", transport));
+    toast_overlay.add_toast(toast);
+
+    // Notify core so the session can fall back to another transport
+    let event = ExchangeHardwareEvent::HardwareUnavailable {
+        transport: transport.to_string(),
+    };
+    app_engine.borrow_mut().handle_hardware_event(event);
+}
+
+/// Show a dialog for manually pasting QR code data.
+///
+/// This is the desktop fallback for camera-based QR scanning. The user can:
+/// 1. Scan the QR with their phone's camera app
+/// 2. Copy the QR data string
+/// 3. Paste it into this dialog
+///
+/// On confirm, the data is forwarded to AppEngine as a `QrScanned` hardware event.
+fn show_qr_paste_dialog(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let window = match container
+        .root()
+        .and_then(|r| r.downcast::<gtk4::Window>().ok())
+    {
+        Some(w) => w,
+        None => return,
+    };
+
+    let dialog = adw::MessageDialog::new(
+        Some(&window),
+        Some("Paste QR Code Data"),
+        Some(
+            "Camera scanning is not yet available.\n\
+             Scan the other device's QR code with your phone, \
+             copy the data, and paste it below.",
+        ),
+    );
+
+    // Text entry for pasting QR data
+    let entry = gtk4::Entry::builder()
+        .placeholder_text("Paste QR code data here…")
+        .hexpand(true)
+        .margin_start(24)
+        .margin_end(24)
+        .build();
+    dialog.set_extra_child(Some(&entry));
+
+    dialog.add_response("cancel", "Cancel");
+    dialog.add_response("confirm", "Confirm");
+    dialog.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
+    dialog.set_default_response(Some("confirm"));
+    dialog.set_close_response("cancel");
+
+    let app_engine = app_engine.clone();
+    let toast_overlay = toast_overlay.clone();
+    let container = container.clone();
+    dialog.connect_response(None, move |dlg, response| {
+        if response == "confirm" {
+            // Get text from the entry widget inside the dialog
+            if let Some(extra) = dlg.extra_child() {
+                if let Ok(entry) = extra.downcast::<gtk4::Entry>() {
+                    let data = entry.text().to_string();
+                    if data.trim().is_empty() {
+                        let toast = adw::Toast::new("No QR data entered");
+                        toast_overlay.add_toast(toast);
+                        return;
+                    }
+
+                    // Forward to core as a hardware event
+                    let event = ExchangeHardwareEvent::QrScanned { data };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+                    }
+                }
+            }
+        }
+    });
+
+    dialog.present();
 }
 
 /// Show a modal alert using adw::MessageDialog.
