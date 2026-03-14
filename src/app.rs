@@ -43,7 +43,7 @@ fn build_ui(app: &adw::Application) {
     let body = GtkBox::new(Orientation::Horizontal, 0);
     body.set_vexpand(true);
 
-    // Content area
+    // Content area wrapped in ToastOverlay for non-blocking toasts
     let content = GtkBox::new(Orientation::Vertical, 0);
     content.set_hexpand(true);
     content.set_margin_top(24);
@@ -51,15 +51,19 @@ fn build_ui(app: &adw::Application) {
     content.set_margin_start(24);
     content.set_margin_end(24);
 
+    let toast_overlay = adw::ToastOverlay::new();
+    toast_overlay.set_child(Some(&content));
+    toast_overlay.set_hexpand(true);
+
     // Navigation sidebar
-    let sidebar = build_sidebar(&app_engine, &content);
+    let sidebar = build_sidebar(&app_engine, &content, &toast_overlay);
     body.append(&sidebar);
-    body.append(&content);
+    body.append(&toast_overlay);
 
     root.append(&body);
 
     // Render initial screen
-    screen_renderer::render_app_engine_screen(&content, &app_engine);
+    screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -75,6 +79,7 @@ fn build_ui(app: &adw::Application) {
 fn build_sidebar(
     app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
     content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
 ) -> GtkBox {
     let sidebar = GtkBox::new(Orientation::Vertical, 0);
     sidebar.set_width_request(200);
@@ -100,12 +105,13 @@ fn build_sidebar(
 
     let app_engine = app_engine.clone();
     let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
         let screens = app_engine.borrow().available_screens();
         if let Some(screen) = screens.get(index).cloned() {
             app_engine.borrow_mut().navigate_to(screen);
-            screen_renderer::render_app_engine_screen(&content, &app_engine);
+            screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay);
         }
     });
 

@@ -7,11 +7,13 @@
 //! - `render_app_engine_screen()` — for the main app using `AppEngine`
 //! - `ScreenRenderer` — for standalone engine usage (tests, single-engine demos)
 
-use gtk4::prelude::*;
 use gtk4::{self, Box as GtkBox, Label, Orientation};
+use libadwaita as adw;
+use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use vauchi_core::exchange::ExchangeCommand;
 use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
@@ -28,125 +30,175 @@ pub type OnAction = Rc<dyn Fn(UserAction)>;
 pub fn render_app_engine_screen(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
 ) {
     let screen = app_engine.borrow().current_screen();
 
     let on_action: OnAction = {
         let app_engine = app_engine.clone();
         let container = container.clone();
+        let toast_overlay = toast_overlay.clone();
         Rc::new(move |action: UserAction| {
             let result = app_engine.borrow_mut().handle_action(action);
-            handle_app_engine_result(&container, &app_engine, result);
+            handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
         })
     };
 
     render_screen_model(container, &screen, &on_action);
 }
 
+fn build_on_action(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
+) -> OnAction {
+    let app_engine = app_engine.clone();
+    let container = container.clone();
+    let toast_overlay = toast_overlay.clone();
+    Rc::new(move |action: UserAction| {
+        let result = app_engine.borrow_mut().handle_action(action);
+        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+    })
+}
+
 fn handle_app_engine_result(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
     result: ActionResult,
 ) {
     match result {
         ActionResult::UpdateScreen(screen) | ActionResult::NavigateTo(screen) => {
-            let on_action: OnAction = {
-                let app_engine = app_engine.clone();
-                let container = container.clone();
-                Rc::new(move |action: UserAction| {
-                    let result = app_engine.borrow_mut().handle_action(action);
-                    handle_app_engine_result(&container, &app_engine, result);
-                })
-            };
+            let on_action = build_on_action(container, app_engine, toast_overlay);
             render_screen_model(container, &screen, &on_action);
         }
         ActionResult::ValidationError { .. } | ActionResult::Complete => {
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::ShowAlert { title, message } => {
-            if let Some(window) = container
-                .root()
-                .and_then(|r| r.downcast::<gtk4::Window>().ok())
-            {
-                let dialog = gtk4::MessageDialog::builder()
-                    .transient_for(&window)
-                    .modal(true)
-                    .message_type(gtk4::MessageType::Info)
-                    .buttons(gtk4::ButtonsType::Ok)
-                    .text(&title)
-                    .secondary_text(&message)
-                    .build();
-                dialog.connect_response(|d, _| d.close());
-                dialog.show();
-            }
+            show_alert(container, &title, &message);
         }
         ActionResult::OpenContact { contact_id } => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::ContactDetail { contact_id });
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::EditContact { contact_id } => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::ContactEdit { contact_id });
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::OpenUrl { url } => {
             if let Err(e) = gtk4::gio::AppInfo::launch_default_for_uri(
                 &url,
                 None::<&gtk4::gio::AppLaunchContext>,
             ) {
-                handle_app_engine_result(
-                    container,
-                    app_engine,
-                    ActionResult::ShowAlert {
-                        title: "Could not open link".into(),
-                        message: e.message().to_owned(),
-                    },
-                );
+                show_alert(container, "Could not open link", e.message());
             }
         }
         ActionResult::StartDeviceLink => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::DeviceLinking);
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::StartBackupImport => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::Backup);
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::RequestCamera => {
-            // Camera not available on desktop — no-op
+            // TODO: Integrate camera via XDG Camera Portal or v4l2 for QR scanning
+            show_alert(
+                container,
+                "Camera not yet integrated",
+                "Camera-based QR scanning is not yet available. Please use the QR display mode to show your code to the other device.",
+            );
         }
         ActionResult::OpenEntryDetail { .. } => {
             // Handled internally by AppEngine
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::WipeComplete => {
             // Reset — re-render from scratch
-            render_app_engine_screen(container, app_engine);
+            render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::ShowToast { message, .. } => {
-            // Show as transient info — re-use alert for now
-            if let Some(window) = container
-                .root()
-                .and_then(|r| r.downcast::<gtk4::Window>().ok())
-            {
-                let dialog = gtk4::MessageDialog::builder()
-                    .transient_for(&window)
-                    .modal(true)
-                    .message_type(gtk4::MessageType::Info)
-                    .buttons(gtk4::ButtonsType::Ok)
-                    .text(&message)
-                    .build();
-                dialog.connect_response(|d, _| d.close());
-                dialog.show();
+            let toast = adw::Toast::new(&message);
+            toast_overlay.add_toast(toast);
+        }
+        ActionResult::ExchangeCommands { commands } => {
+            handle_exchange_commands(container, toast_overlay, &commands);
+        }
+    }
+}
+
+/// Dispatch exchange hardware commands to platform-specific actions (ADR-031).
+fn handle_exchange_commands(
+    container: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+    commands: &[ExchangeCommand],
+) {
+    for cmd in commands {
+        match cmd {
+            ExchangeCommand::QrDisplay { data } => {
+                // QR display is already handled by the ExchangeEngine's screen model
+                // (Component::QrCode with QrMode::Display). This command is for
+                // cases where the QR data changes mid-flow.
+                let toast = adw::Toast::new(&format!("QR code updated ({}B)", data.len()));
+                toast_overlay.add_toast(toast);
+            }
+            ExchangeCommand::QrRequestScan => {
+                // TODO: Integrate camera via XDG Camera Portal or v4l2
+                show_alert(
+                    container,
+                    "Camera not yet integrated",
+                    "Camera-based QR scanning is not yet available. \
+                     Please use the QR display mode to show your code to the other device.",
+                );
+            }
+            ExchangeCommand::AudioEmitChallenge { .. }
+            | ExchangeCommand::AudioListenForResponse { .. } => {
+                // TODO: Integrate ultrasonic audio via cpal crate
+                let toast = adw::Toast::new("Audio proximity verification not yet available");
+                toast_overlay.add_toast(toast);
+            }
+            ExchangeCommand::AudioStop => {
+                // No-op when audio isn't running
+            }
+            ExchangeCommand::BleStartScanning { .. }
+            | ExchangeCommand::BleStartAdvertising { .. }
+            | ExchangeCommand::BleConnect { .. }
+            | ExchangeCommand::BleWriteCharacteristic { .. }
+            | ExchangeCommand::BleReadCharacteristic { .. }
+            | ExchangeCommand::BleDisconnect => {
+                // TODO: Integrate BLE via BlueZ D-Bus API (zbus crate)
+                let toast = adw::Toast::new("Bluetooth LE not yet available on desktop");
+                toast_overlay.add_toast(toast);
+            }
+            ExchangeCommand::NfcActivate { .. } | ExchangeCommand::NfcDeactivate => {
+                // TODO: Integrate NFC via libnfc (USB NFC reader)
+                let toast = adw::Toast::new("NFC not yet available on desktop");
+                toast_overlay.add_toast(toast);
             }
         }
+    }
+}
+
+/// Show a modal alert using adw::MessageDialog.
+fn show_alert(container: &GtkBox, title: &str, message: &str) {
+    if let Some(window) = container
+        .root()
+        .and_then(|r| r.downcast::<gtk4::Window>().ok())
+    {
+        let dialog = adw::MessageDialog::new(Some(&window), Some(title), Some(message));
+        dialog.add_response("ok", "OK");
+        dialog.set_default_response(Some("ok"));
+        dialog.set_close_response("ok");
+        dialog.present();
     }
 }
 
