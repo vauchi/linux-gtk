@@ -70,31 +70,35 @@ pub fn has_nfc() -> bool {
 mod tests {
     use super::*;
 
-    // These tests verify the detection functions return a valid bool
-    // without panicking. Actual results depend on the test machine's hardware.
+    // These tests verify the detection functions return without panicking
+    // and produce consistent results. Actual values depend on the test
+    // machine's hardware.
 
     #[test]
-    fn bluetooth_detection_returns_bool() {
-        let result = has_bluetooth();
-        // Result is hardware-dependent, but must be a valid bool
-        assert!(result || !result);
+    fn bluetooth_detection_is_consistent() {
+        let first = has_bluetooth();
+        let second = has_bluetooth();
+        assert_eq!(first, second, "bluetooth detection should be stable");
     }
 
     #[test]
-    fn audio_detection_returns_bool() {
-        let result = has_audio();
-        assert!(result || !result);
+    fn audio_detection_is_consistent() {
+        let first = has_audio();
+        let second = has_audio();
+        assert_eq!(first, second, "audio detection should be stable");
     }
 
     #[test]
-    fn camera_detection_returns_bool() {
-        let result = has_camera();
-        assert!(result || !result);
+    fn camera_detection_is_consistent() {
+        let first = has_camera();
+        let second = has_camera();
+        assert_eq!(first, second, "camera detection should be stable");
     }
 
     #[test]
-    fn nfc_detection_returns_bool() {
-        let result = has_nfc();
-        assert!(result || !result);
+    fn nfc_detection_is_consistent() {
+        let first = has_nfc();
+        let second = has_nfc();
+        assert_eq!(first, second, "nfc detection should be stable");
     }
 }
