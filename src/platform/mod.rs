@@ -3,6 +3,8 @@
 
 //! Platform-specific GTK/GNOME chrome (header bar, notifications).
 
+pub mod audio;
+pub mod camera;
 pub mod hardware;
 pub mod header_bar;
 pub mod init;

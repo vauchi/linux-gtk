@@ -65,7 +65,7 @@ fn build_on_action(
     })
 }
 
-fn handle_app_engine_result(
+pub fn handle_app_engine_result(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
     toast_overlay: &adw::ToastOverlay,
@@ -115,10 +115,7 @@ fn handle_app_engine_result(
             render_app_engine_screen(container, app_engine, toast_overlay);
         }
         ActionResult::RequestCamera => {
-            // TODO: Integrate camera via XDG Camera Portal or v4l2 for QR scanning.
-            // Fallback: show a paste dialog so the user can paste QR data from
-            // a separate scanner app or phone.
-            show_qr_paste_dialog(container, app_engine, toast_overlay);
+            scan_or_paste_qr(container, app_engine, toast_overlay);
         }
         ActionResult::OpenEntryDetail { .. } => {
             // Handled internally by AppEngine
@@ -161,28 +158,57 @@ fn handle_exchange_commands(
                 render_app_engine_screen(container, app_engine, toast_overlay);
             }
             ExchangeCommand::QrRequestScan => {
-                // TODO: Integrate camera via XDG Camera Portal or v4l2.
-                // Fallback: paste dialog so user can paste from a phone scanner.
-                show_qr_paste_dialog(container, app_engine, toast_overlay);
+                scan_or_paste_qr(container, app_engine, toast_overlay);
             }
 
             // ── Audio (ultrasonic proximity) ─────────────────────────
-            ExchangeCommand::AudioEmitChallenge { .. }
-            | ExchangeCommand::AudioListenForResponse { .. } => {
-                if notified_unavailable.insert("audio") {
-                    if hardware::has_audio() {
-                        // Hardware present but cpal integration not yet built
-                        // TODO: Integrate ultrasonic audio via cpal crate
-                        let toast = adw::Toast::new(
-                            "Audio hardware detected — ultrasonic verification not yet integrated",
-                        );
-                        toast_overlay.add_toast(toast);
-                    } else {
-                        report_hardware_unavailable(app_engine, toast_overlay, "Audio");
+            ExchangeCommand::AudioEmitChallenge { data } => {
+                if hardware::has_audio() {
+                    #[cfg(feature = "audio")]
+                    {
+                        crate::platform::audio::emit_challenge(toast_overlay, data.clone());
                     }
+                    #[cfg(not(feature = "audio"))]
+                    {
+                        let _ = data;
+                        if notified_unavailable.insert("audio") {
+                            let toast =
+                                adw::Toast::new("Audio detected — built without audio feature");
+                            toast_overlay.add_toast(toast);
+                        }
+                    }
+                } else if notified_unavailable.insert("audio") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Audio");
                 }
             }
-            ExchangeCommand::AudioStop => {} // no-op when audio isn't running
+            ExchangeCommand::AudioListenForResponse { timeout_ms } => {
+                if hardware::has_audio() {
+                    #[cfg(feature = "audio")]
+                    {
+                        crate::platform::audio::listen_for_response(
+                            container,
+                            app_engine,
+                            toast_overlay,
+                            *timeout_ms,
+                        );
+                    }
+                    #[cfg(not(feature = "audio"))]
+                    {
+                        let _ = timeout_ms;
+                        if notified_unavailable.insert("audio") {
+                            let toast =
+                                adw::Toast::new("Audio detected — built without audio feature");
+                            toast_overlay.add_toast(toast);
+                        }
+                    }
+                } else if notified_unavailable.insert("audio") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Audio");
+                }
+            }
+            ExchangeCommand::AudioStop => {
+                #[cfg(feature = "audio")]
+                crate::platform::audio::stop();
+            }
 
             // ── BLE ──────────────────────────────────────────────────
             ExchangeCommand::BleStartScanning { .. }
@@ -240,6 +266,23 @@ fn report_hardware_unavailable(
         transport: transport.to_string(),
     };
     app_engine.borrow_mut().handle_hardware_event(event);
+}
+
+/// Try camera-based QR scanning if available, otherwise fall back to paste dialog.
+fn scan_or_paste_qr(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    #[cfg(feature = "camera")]
+    {
+        if hardware::has_camera() {
+            crate::platform::camera::scan_qr(container, app_engine, toast_overlay);
+            return;
+        }
+    }
+    // No camera or feature not enabled — fall back to paste dialog
+    show_qr_paste_dialog(container, app_engine, toast_overlay);
 }
 
 /// Show a dialog for manually pasting QR code data.

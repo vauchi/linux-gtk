@@ -9,11 +9,24 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Vauchi desktop app for Linux (GTK4 + libadwaita)"
 
+[features]
+default = ["audio"]
+audio = ["vauchi-core/audio-cpal"]
+camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]
+
 [dependencies]
 vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main" }
 gtk4 = "0.9"
 libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = "0.14"
+
+# Audio proximity (ultrasonic via CPAL) — enabled by default
+# Uses CpalAudioBackend from vauchi-core
+
+# Camera QR scanning — optional, requires v4l2 dev libraries
+nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }
+rqrr = { version = "0.9", optional = true }
+image = { version = "0.25", optional = true, default-features = false }
 
 [dev-dependencies]
 tempfile = "3.0"
