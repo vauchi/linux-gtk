@@ -16,7 +16,7 @@ ble = ["dep:bluer", "dep:tokio", "dep:tokio-stream"]
 camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]
 
 [dependencies]
-vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage"] }
+vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
 gtk4 = "0.9"
 libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = "0.14"
