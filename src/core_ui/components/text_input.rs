@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! TextInput component renderer.
+//!
+//! Text inputs accumulate text locally and only emit `TextChanged` when
+//! the user commits the value (Enter key or focus leave). This prevents
+//! the screen from re-rendering on every keystroke.
+//!
+//! For live filtering (search), use the SearchEntry in ContactList instead.
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
@@ -46,15 +52,32 @@ pub fn render(
         InputType::Text => {}
     }
 
-    // Wire: emit TextChanged when entry text changes
-    let on_action = on_action.clone();
-    let component_id = id.to_string();
-    entry.connect_changed(move |entry| {
-        (on_action)(UserAction::TextChanged {
-            component_id: component_id.clone(),
-            value: entry.text().to_string(),
+    // Emit TextChanged on Enter key (activate signal)
+    {
+        let on_action = on_action.clone();
+        let component_id = id.to_string();
+        entry.connect_activate(move |entry| {
+            (on_action)(UserAction::TextChanged {
+                component_id: component_id.clone(),
+                value: entry.text().to_string(),
+            });
         });
-    });
+    }
+
+    // Emit TextChanged on focus leave (user tabbed/clicked away)
+    {
+        let on_action = on_action.clone();
+        let component_id = id.to_string();
+        let entry_ref = entry.clone();
+        let focus_controller = gtk4::EventControllerFocus::new();
+        focus_controller.connect_leave(move |_| {
+            (on_action)(UserAction::TextChanged {
+                component_id: component_id.clone(),
+                value: entry_ref.text().to_string(),
+            });
+        });
+        entry.add_controller(focus_controller);
+    }
 
     container.append(&entry);
 

@@ -28,15 +28,6 @@ use super::components;
 /// Callback type for components to send `UserAction` back to the engine.
 pub type OnAction = Rc<dyn Fn(UserAction)>;
 
-// Tracks the currently rendered screen_id to avoid unnecessary re-renders.
-// When `UpdateScreen` returns the same screen_id, we skip the re-render
-// because the engine just acknowledged input (e.g., TextChanged) without
-// changing the visible content. This prevents text Entry widgets from being
-// destroyed and recreated on every keystroke.
-thread_local! {
-    static CURRENT_SCREEN_ID: RefCell<String> = const { RefCell::new(String::new()) };
-}
-
 // ── AppEngine rendering (main app path) ─────────────────────────────
 
 /// Renders the current AppEngine screen into a container.
@@ -46,10 +37,6 @@ pub fn render_app_engine_screen(
     toast_overlay: &adw::ToastOverlay,
 ) {
     let screen = app_engine.borrow().current_screen();
-
-    CURRENT_SCREEN_ID.with(|id| {
-        *id.borrow_mut() = screen.screen_id.clone();
-    });
 
     let on_action: OnAction = {
         let app_engine = app_engine.clone();
@@ -85,25 +72,7 @@ pub fn handle_app_engine_result(
     result: ActionResult,
 ) {
     match result {
-        ActionResult::UpdateScreen(screen) => {
-            // Skip re-render if the screen_id hasn't changed — the engine
-            // just acknowledged input (TextChanged, ItemToggled, etc.)
-            // without changing the visible screen. Re-rendering would
-            // destroy active text Entry widgets and lose cursor/focus.
-            let same_screen = CURRENT_SCREEN_ID.with(|id| *id.borrow() == screen.screen_id);
-            if same_screen {
-                return;
-            }
-            CURRENT_SCREEN_ID.with(|id| {
-                *id.borrow_mut() = screen.screen_id.clone();
-            });
-            let on_action = build_on_action(container, app_engine, toast_overlay);
-            render_screen_model(container, &screen, &on_action);
-        }
-        ActionResult::NavigateTo(screen) => {
-            CURRENT_SCREEN_ID.with(|id| {
-                *id.borrow_mut() = screen.screen_id.clone();
-            });
+        ActionResult::UpdateScreen(screen) | ActionResult::NavigateTo(screen) => {
             let on_action = build_on_action(container, app_engine, toast_overlay);
             render_screen_model(container, &screen, &on_action);
         }

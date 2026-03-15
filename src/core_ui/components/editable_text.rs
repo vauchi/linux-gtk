@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! EditableText component renderer — toggles between display and edit mode.
+//!
+//! In edit mode, text accumulates locally. The value is emitted as
+//! `TextChanged` when Save is clicked or Enter is pressed.
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
@@ -32,16 +35,6 @@ pub fn render(
         let edit_row = GtkBox::new(Orientation::Horizontal, 8);
 
         let entry = Entry::builder().text(value).hexpand(true).build();
-
-        let on_action_change = on_action.clone();
-        let component_id = id.to_string();
-        entry.connect_changed(move |entry| {
-            (on_action_change)(UserAction::TextChanged {
-                component_id: component_id.clone(),
-                value: entry.text().to_string(),
-            });
-        });
-
         edit_row.append(&entry);
 
         let save_btn = Button::builder()
@@ -50,15 +43,40 @@ pub fn render(
             .valign(gtk4::Align::Center)
             .build();
 
-        let on_action_save = on_action.clone();
-        let action_id = format!("{}_save", id);
-        save_btn.connect_clicked(move |_| {
-            (on_action_save)(UserAction::ActionPressed {
-                action_id: action_id.clone(),
+        // Save button: emit TextChanged with current value, then ActionPressed
+        {
+            let on_action = on_action.clone();
+            let component_id = id.to_string();
+            let action_id = format!("{}_save", id);
+            let entry_ref = entry.clone();
+            save_btn.connect_clicked(move |_| {
+                (on_action)(UserAction::TextChanged {
+                    component_id: component_id.clone(),
+                    value: entry_ref.text().to_string(),
+                });
+                (on_action)(UserAction::ActionPressed {
+                    action_id: action_id.clone(),
+                });
             });
-        });
-        edit_row.append(&save_btn);
+        }
 
+        // Enter key: same as Save
+        {
+            let on_action = on_action.clone();
+            let component_id = id.to_string();
+            let action_id = format!("{}_save", id);
+            entry.connect_activate(move |entry| {
+                (on_action)(UserAction::TextChanged {
+                    component_id: component_id.clone(),
+                    value: entry.text().to_string(),
+                });
+                (on_action)(UserAction::ActionPressed {
+                    action_id: action_id.clone(),
+                });
+            });
+        }
+
+        edit_row.append(&save_btn);
         container.append(&edit_row);
 
         // Validation error
@@ -87,10 +105,10 @@ pub fn render(
             .valign(gtk4::Align::Center)
             .build();
 
-        let on_action_edit = on_action.clone();
+        let on_action = on_action.clone();
         let action_id = format!("{}_edit", id);
         edit_btn.connect_clicked(move |_| {
-            (on_action_edit)(UserAction::ActionPressed {
+            (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
             });
         });

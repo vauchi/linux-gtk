@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! PinInput component renderer.
+//!
+//! PIN digits accumulate locally. The combined PIN is emitted as
+//! `TextChanged` only when all digits are filled or Enter is pressed.
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
@@ -33,10 +36,10 @@ pub fn render(
     let pin_row = GtkBox::new(Orientation::Horizontal, 8);
     pin_row.set_halign(gtk4::Align::Center);
 
-    // Collect entries to read combined PIN value
     let entries: Rc<RefCell<Vec<Entry>>> = Rc::new(RefCell::new(Vec::new()));
+    let pin_length = *length;
 
-    for _ in 0..*length {
+    for _ in 0..pin_length {
         let digit_entry = Entry::builder()
             .max_length(1)
             .width_chars(2)
@@ -48,20 +51,22 @@ pub fn render(
             digit_entry.set_visibility(false);
         }
 
-        // Wire: accumulate all digits and emit TextChanged with full PIN
+        // Emit only when all digits are filled
         let on_action = on_action.clone();
         let component_id = id.to_string();
-        let entries_for_closure = entries.clone();
+        let entries_ref = entries.clone();
         digit_entry.connect_changed(move |_| {
-            let pin: String = entries_for_closure
+            let pin: String = entries_ref
                 .borrow()
                 .iter()
                 .map(|e| e.text().to_string())
                 .collect();
-            (on_action)(UserAction::TextChanged {
-                component_id: component_id.clone(),
-                value: pin,
-            });
+            if pin.len() == pin_length {
+                (on_action)(UserAction::TextChanged {
+                    component_id: component_id.clone(),
+                    value: pin,
+                });
+            }
         });
 
         entries.borrow_mut().push(digit_entry.clone());
