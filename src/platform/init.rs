@@ -42,7 +42,8 @@ pub fn init_vauchi() -> Result<Vauchi<WebSocketTransport>, Box<dyn std::error::E
     std::fs::create_dir_all(&data_path)?;
 
     let relay_url = resolve_relay_url(&data_path);
-    let config = VauchiConfig::with_storage_path(&data_path).with_relay_url(relay_url);
+    let config =
+        VauchiConfig::with_storage_path(data_path.join("vauchi.db")).with_relay_url(relay_url);
 
     // Use GNOME Keyring (Secret Service) for secure key storage.
     // Keys are protected by the user's login session — no separate unlock needed.
