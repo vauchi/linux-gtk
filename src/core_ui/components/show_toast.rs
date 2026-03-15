@@ -3,6 +3,7 @@
 
 //! ShowToast component renderer — in-page notification banner.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, Widget};
 use vauchi_core::ui::UserAction;
@@ -17,6 +18,8 @@ pub fn render(
 ) -> Widget {
     let container = GtkBox::new(Orientation::Horizontal, 12);
     container.add_css_class("card");
+    container.set_widget_name(id);
+    container.update_property(&[Property::Label(message)]);
     container.set_margin_top(8);
     container.set_margin_bottom(8);
     container.set_margin_start(12);

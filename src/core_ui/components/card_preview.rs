@@ -3,6 +3,7 @@
 
 //! CardPreview component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
 use vauchi_core::ui::{FieldDisplay, GroupCardView, UserAction};
@@ -17,6 +18,8 @@ pub fn render(
     on_action: &OnAction,
 ) -> Widget {
     let frame = Frame::builder().css_classes(["card"]).build();
+    frame.set_widget_name("card_preview");
+    frame.update_property(&[Property::Label(&format!("Contact card: {}", name))]);
 
     let container = GtkBox::new(Orientation::Vertical, 8);
     container.set_margin_top(16);

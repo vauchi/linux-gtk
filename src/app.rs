@@ -3,6 +3,7 @@
 
 //! Application entry point and GTK4 setup.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{self, Box as GtkBox, Label, ListBox, Orientation, SelectionMode};
 use libadwaita as adw;
@@ -84,10 +85,12 @@ fn build_sidebar(
     let sidebar = GtkBox::new(Orientation::Vertical, 0);
     sidebar.set_width_request(200);
     sidebar.add_css_class("navigation-sidebar");
+    sidebar.set_widget_name("sidebar");
 
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::Single)
         .build();
+    list_box.update_property(&[Property::Label("Navigation")]);
 
     let screens = app_engine.borrow().available_screens();
     for screen in &screens {

@@ -3,6 +3,7 @@
 
 //! SettingsGroup component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Switch, Widget};
 use vauchi_core::ui::{SettingsItem, SettingsItemKind, UserAction};
@@ -11,6 +12,7 @@ use super::super::screen_renderer::OnAction;
 
 pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnAction) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
+    container.set_widget_name(id);
 
     // Group header
     let header = Label::builder()
@@ -24,6 +26,7 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
+    list_box.update_property(&[Property::Label(label)]);
 
     let item_ids: Vec<String> = items.iter().map(|item| item.id.clone()).collect();
     let clickable_indices: Vec<usize> = items
@@ -58,6 +61,7 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
                     .active(*enabled)
                     .valign(gtk4::Align::Center)
                     .build();
+                switch.update_property(&[Property::Label(&item.label)]);
 
                 // Wire: emit SettingsToggled when switch is toggled
                 let on_action = on_action.clone();

@@ -3,17 +3,20 @@
 
 //! ActionList component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Widget};
 use vauchi_core::ui::{ActionListItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(_id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widget {
+pub fn render(id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widget {
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::Single)
         .css_classes(["boxed-list"])
         .build();
+    list_box.set_widget_name(id);
+    list_box.update_property(&[Property::Label("Actions")]);
 
     let item_ids: Vec<String> = items.iter().map(|item| item.id.clone()).collect();
 

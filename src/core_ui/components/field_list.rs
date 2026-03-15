@@ -3,6 +3,7 @@
 
 //! FieldList component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{
     Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
@@ -22,6 +23,7 @@ pub fn render(
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
+    list_box.update_property(&[Property::Label("Fields")]);
 
     for field in fields {
         let row = GtkBox::new(Orientation::Horizontal, 8);

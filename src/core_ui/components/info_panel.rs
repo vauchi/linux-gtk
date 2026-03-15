@@ -3,12 +3,15 @@
 
 //! InfoPanel component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, Widget};
 use vauchi_core::ui::InfoItem;
 
-pub fn render(_id: &str, icon: &Option<String>, title: &str, items: &[InfoItem]) -> Widget {
+pub fn render(id: &str, icon: &Option<String>, title: &str, items: &[InfoItem]) -> Widget {
     let frame = Frame::builder().css_classes(["card"]).build();
+    frame.set_widget_name(id);
+    frame.update_property(&[Property::Label(title)]);
 
     let container = GtkBox::new(Orientation::Vertical, 8);
     container.set_margin_top(12);

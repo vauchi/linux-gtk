@@ -6,6 +6,7 @@
 //! PIN digits accumulate locally. The combined PIN is emitted as
 //! `TextChanged` only when all digits are filled or Enter is pressed.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use std::cell::RefCell;
@@ -23,6 +24,7 @@ pub fn render(
     on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
+    container.set_widget_name(id);
 
     // Label
     let lbl = Label::builder()
@@ -46,6 +48,7 @@ pub fn render(
             .halign(gtk4::Align::Center)
             .input_purpose(gtk4::InputPurpose::Digits)
             .build();
+        digit_entry.update_property(&[Property::Label(label)]);
 
         if *masked {
             digit_entry.set_visibility(false);

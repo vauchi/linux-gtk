@@ -7,7 +7,7 @@ use gtk4::prelude::*;
 use gtk4::{Label, Widget};
 use vauchi_core::ui::TextStyle;
 
-pub fn render(_id: &str, content: &str, style: &TextStyle) -> Widget {
+pub fn render(id: &str, content: &str, style: &TextStyle) -> Widget {
     let css_class = match style {
         TextStyle::Title => "title-1",
         TextStyle::Subtitle => "title-3",
@@ -15,10 +15,11 @@ pub fn render(_id: &str, content: &str, style: &TextStyle) -> Widget {
         TextStyle::Caption => "caption",
     };
 
-    Label::builder()
+    let label = Label::builder()
         .label(content)
         .css_classes([css_class])
         .halign(gtk4::Align::Start)
-        .build()
-        .upcast()
+        .build();
+    label.set_widget_name(id);
+    label.upcast()
 }

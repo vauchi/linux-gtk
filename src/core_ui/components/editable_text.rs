@@ -6,6 +6,7 @@
 //! In edit mode, text accumulates locally. The value is emitted as
 //! `TextChanged` when Save is clicked or Enter is pressed.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
 use vauchi_core::ui::UserAction;
@@ -21,6 +22,8 @@ pub fn render(
     on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 4);
+    container.set_widget_name(id);
+    container.update_property(&[Property::Label(label)]);
 
     // Label
     let lbl = Label::builder()
@@ -35,6 +38,7 @@ pub fn render(
         let edit_row = GtkBox::new(Orientation::Horizontal, 8);
 
         let entry = Entry::builder().text(value).hexpand(true).build();
+        entry.update_property(&[Property::Label(label)]);
         edit_row.append(&entry);
 
         let save_btn = Button::builder()

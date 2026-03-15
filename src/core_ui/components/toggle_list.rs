@@ -3,6 +3,7 @@
 
 //! ToggleList component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget};
 use vauchi_core::ui::{ToggleItem, UserAction};
@@ -11,6 +12,7 @@ use super::super::screen_renderer::OnAction;
 
 pub fn render(id: &str, label: &str, items: &[ToggleItem], on_action: &OnAction) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
+    container.set_widget_name(id);
 
     // Header label
     let header = Label::builder()
@@ -25,6 +27,7 @@ pub fn render(id: &str, label: &str, items: &[ToggleItem], on_action: &OnAction)
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
+    list_box.update_property(&[Property::Label(label)]);
 
     for item in items {
         let row_box = GtkBox::new(Orientation::Vertical, 2);

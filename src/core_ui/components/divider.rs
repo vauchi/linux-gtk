@@ -4,8 +4,10 @@
 //! Divider component renderer.
 
 use gtk4::prelude::*;
-use gtk4::{Separator, Widget};
+use gtk4::{AccessibleRole, Separator, Widget};
 
 pub fn render() -> Widget {
-    Separator::new(gtk4::Orientation::Horizontal).upcast()
+    let sep = Separator::new(gtk4::Orientation::Horizontal);
+    sep.set_accessible_role(AccessibleRole::Separator);
+    sep.upcast()
 }

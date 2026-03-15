@@ -9,6 +9,7 @@
 //!
 //! For live filtering (search), use the SearchEntry in ContactList instead.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use vauchi_core::ui::{InputType, UserAction};
@@ -27,6 +28,7 @@ pub fn render(
     on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 4);
+    container.set_widget_name(id);
 
     // Label
     let lbl = Label::builder()
@@ -38,9 +40,11 @@ pub fn render(
 
     // Entry — widget name stores the component_id for flush_text_entries()
     let entry = Entry::builder().text(value).name(id).build();
+    entry.update_property(&[Property::Label(label)]);
 
     if let Some(ph) = placeholder {
         entry.set_placeholder_text(Some(ph));
+        entry.update_property(&[Property::Placeholder(ph)]);
     }
     if let Some(max) = max_length {
         entry.set_max_length(i32::try_from(*max).unwrap_or(i32::MAX));

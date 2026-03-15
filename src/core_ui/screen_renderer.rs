@@ -593,6 +593,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         .margin_top(8)
         .margin_bottom(4)
         .build();
+    title.set_widget_name("screen_title");
     container.append(&title);
 
     // Subtitle
@@ -629,6 +630,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .label(&action.label)
             .sensitive(action.enabled)
             .build();
+        btn.set_widget_name(&action.id);
 
         match action.style {
             ActionStyle::Primary => {

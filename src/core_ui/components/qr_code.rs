@@ -3,6 +3,7 @@
 
 //! QrCode component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Frame, Label, Orientation, Widget};
 use vauchi_core::ui::{QrMode, UserAction};
@@ -21,10 +22,17 @@ pub fn render(
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
     container.set_halign(gtk4::Align::Center);
+    container.set_widget_name(id);
 
     match mode {
-        QrMode::Display => render_display(&container, data),
-        QrMode::Scan => render_scan(&container, id, on_action),
+        QrMode::Display => {
+            container.update_property(&[Property::Label("QR code for contact exchange")]);
+            render_display(&container, data);
+        }
+        QrMode::Scan => {
+            container.update_property(&[Property::Label("Scan QR code")]);
+            render_scan(&container, id, on_action);
+        }
     }
 
     // Optional label below
@@ -145,12 +153,14 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction) {
         .placeholder_text("Paste QR data…")
         .width_chars(30)
         .build();
+    entry.update_property(&[Property::Label("QR data input")]);
     paste_row.append(&entry);
 
     let submit_btn = Button::builder()
         .label("Submit")
         .css_classes(["suggested-action"])
         .build();
+    submit_btn.update_property(&[Property::Label("Submit QR data")]);
 
     let on_action_submit = on_action.clone();
     let component_id = id.to_string();

@@ -3,18 +3,21 @@
 
 //! StatusIndicator component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_core::ui::Status;
 
 pub fn render(
-    _id: &str,
+    id: &str,
     icon: &Option<String>,
     title: &str,
     detail: &Option<String>,
     status: &Status,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Horizontal, 12);
+    container.set_widget_name(id);
+    container.update_property(&[Property::Label(title)]);
     container.set_margin_top(8);
     container.set_margin_bottom(8);
 

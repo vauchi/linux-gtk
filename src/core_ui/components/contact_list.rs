@@ -3,6 +3,7 @@
 
 //! ContactList component renderer.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
 use vauchi_core::ui::{ContactItem, UserAction};
@@ -16,12 +17,14 @@ pub fn render(
     on_action: &OnAction,
 ) -> Widget {
     let container = GtkBox::new(Orientation::Vertical, 8);
+    container.set_widget_name(id);
 
     // Optional search entry
     if *searchable {
         let search = SearchEntry::builder()
             .placeholder_text("Search contacts...")
             .build();
+        search.update_property(&[Property::Label("Search contacts")]);
 
         let on_action_search = on_action.clone();
         let component_id = id.to_string();
@@ -40,6 +43,7 @@ pub fn render(
         .selection_mode(SelectionMode::Single)
         .css_classes(["boxed-list"])
         .build();
+    list_box.update_property(&[Property::Label("Contacts")]);
 
     // Store contact IDs for row activation
     let contact_ids: Vec<String> = contacts.iter().map(|c| c.id.clone()).collect();
