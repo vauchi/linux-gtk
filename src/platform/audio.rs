@@ -18,7 +18,6 @@ mod inner {
 
     use vauchi_core::exchange::ExchangeHardwareEvent;
     use vauchi_core::exchange::{AudioBackend, AudioConfig, CpalAudioBackend};
-    use vauchi_core::network::WebSocketTransport;
     use vauchi_core::ui::AppEngine;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
@@ -61,7 +60,7 @@ mod inner {
     /// Listen for an ultrasonic response on a background thread.
     pub fn listen_for_response(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         timeout_ms: u64,
     ) {

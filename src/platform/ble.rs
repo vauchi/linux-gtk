@@ -18,7 +18,6 @@ mod inner {
     use libadwaita as adw;
 
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::network::WebSocketTransport;
     use vauchi_core::ui::AppEngine;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
@@ -29,7 +28,7 @@ mod inner {
     /// Reports each discovery as `BleDeviceDiscovered` to AppEngine.
     pub fn start_scanning(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         service_uuid: String,
     ) {
@@ -125,7 +124,7 @@ mod inner {
     /// Connect to a BLE device and report the result.
     pub fn connect(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         device_id: String,
     ) {
@@ -178,7 +177,7 @@ mod inner {
     /// Write data to a GATT characteristic.
     pub fn write_characteristic(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         uuid: String,
         data: Vec<u8>,
@@ -222,7 +221,7 @@ mod inner {
     /// Read data from a GATT characteristic.
     pub fn read_characteristic(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         uuid: String,
     ) {

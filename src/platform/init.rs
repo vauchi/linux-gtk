@@ -65,7 +65,7 @@ fn detect_secure_storage() -> Option<Arc<dyn SecureStorage>> {
     }
 }
 
-pub fn init_vauchi() -> Result<Vauchi<WebSocketTransport>, Box<dyn std::error::Error>> {
+pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
     let data_path = data_dir();
     std::fs::create_dir_all(&data_path)?;
 

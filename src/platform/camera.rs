@@ -16,7 +16,6 @@ mod inner {
     use libadwaita as adw;
 
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::network::WebSocketTransport;
     use vauchi_core::ui::AppEngine;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
@@ -26,7 +25,7 @@ mod inner {
     /// Runs on a background thread. On success, forwards `QrScanned` to AppEngine.
     pub fn scan_qr(
         container: &gtk4::Box,
-        app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+        app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
     ) {
         let container = container.clone();

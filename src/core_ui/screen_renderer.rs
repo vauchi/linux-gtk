@@ -16,7 +16,6 @@ use std::rc::Rc;
 use std::collections::HashSet;
 
 use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
-use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
@@ -41,7 +40,7 @@ thread_local! {
 /// Renders the current AppEngine screen into a container.
 pub fn render_app_engine_screen(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) {
     let screen = app_engine.borrow().current_screen();
@@ -63,7 +62,7 @@ pub fn render_app_engine_screen(
 
 fn build_on_action(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) -> OnAction {
     let app_engine = app_engine.clone();
@@ -77,7 +76,7 @@ fn build_on_action(
 
 pub fn handle_app_engine_result(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     result: ActionResult,
 ) {
@@ -164,7 +163,7 @@ pub fn handle_app_engine_result(
 /// We deduplicate "unavailable" toasts per transport to avoid spamming the user.
 fn handle_exchange_commands(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     commands: &[ExchangeCommand],
 ) {
@@ -352,7 +351,7 @@ fn handle_exchange_commands(
 /// to core so the ExchangeSession can trigger transport fallback, and shows a
 /// toast to the user.
 fn report_hardware_unavailable(
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     transport: &str,
 ) {
@@ -369,7 +368,7 @@ fn report_hardware_unavailable(
 /// Try camera-based QR scanning if available, otherwise fall back to paste dialog.
 fn scan_or_paste_qr(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) {
     #[cfg(feature = "camera")]
@@ -393,7 +392,7 @@ fn scan_or_paste_qr(
 /// On confirm, the data is forwarded to AppEngine as a `QrScanned` hardware event.
 fn show_qr_paste_dialog(
     container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) {
     let window = match container

@@ -7,19 +7,17 @@
 //! and that action handling returns expected results.
 
 use vauchi_core::api::{Vauchi, VauchiConfig};
-use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::*;
 
 // ── Test helpers ────────────────────────────────────────────────────
 
-fn create_app_engine(dir: &std::path::Path) -> AppEngine<WebSocketTransport> {
+fn create_app_engine(dir: &std::path::Path) -> AppEngine {
     let config = VauchiConfig::with_storage_path(dir.join("vauchi.db"));
-    let vauchi: Vauchi<WebSocketTransport> =
-        Vauchi::with_transport_factory(config, WebSocketTransport::new).expect("vauchi init");
+    let vauchi = Vauchi::new(config).expect("vauchi init");
     AppEngine::new(vauchi)
 }
 
-fn create_app_engine_with_identity(dir: &std::path::Path) -> AppEngine<WebSocketTransport> {
+fn create_app_engine_with_identity(dir: &std::path::Path) -> AppEngine {
     let mut engine = create_app_engine(dir);
     engine
         .vauchi_mut()

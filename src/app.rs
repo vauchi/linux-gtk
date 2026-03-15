@@ -10,7 +10,6 @@ use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_core::network::WebSocketTransport;
 use vauchi_core::ui::{AppEngine, AppScreen};
 
 use crate::core_ui::screen_renderer;
@@ -78,7 +77,7 @@ fn build_ui(app: &adw::Application) {
 }
 
 fn build_sidebar(
-    app_engine: &Rc<RefCell<AppEngine<WebSocketTransport>>>,
+    app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
 ) -> GtkBox {
