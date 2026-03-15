@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use vauchi_core::api::{Vauchi, VauchiConfig};
-use vauchi_core::network::WebSocketTransport;
 use vauchi_core::storage::{PlatformKeyring, SecureStorage};
 
 /// Default relay URL.
@@ -75,9 +74,8 @@ pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
 
     let secure_storage = detect_secure_storage();
 
-    Ok(Vauchi::with_transport_and_secure_storage(
-        config,
-        WebSocketTransport::new,
-        secure_storage,
-    )?)
+    Ok(match secure_storage {
+        Some(ss) => Vauchi::with_secure_storage(config, ss)?,
+        None => Vauchi::new(config)?,
+    })
 }
