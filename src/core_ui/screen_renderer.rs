@@ -28,6 +28,14 @@ use super::components;
 /// Callback type for components to send `UserAction` back to the engine.
 pub type OnAction = Rc<dyn Fn(UserAction)>;
 
+// Tracks the current screen_id. When UpdateScreen returns the same
+// screen_id, we skip the re-render — the engine just acknowledged input
+// (TextChanged from focus-out) without changing visible content. This
+// prevents the button the user is clicking from being destroyed mid-click.
+thread_local! {
+    static CURRENT_SCREEN_ID: RefCell<String> = const { RefCell::new(String::new()) };
+}
+
 // ── AppEngine rendering (main app path) ─────────────────────────────
 
 /// Renders the current AppEngine screen into a container.
@@ -37,6 +45,8 @@ pub fn render_app_engine_screen(
     toast_overlay: &adw::ToastOverlay,
 ) {
     let screen = app_engine.borrow().current_screen();
+
+    CURRENT_SCREEN_ID.with(|id| *id.borrow_mut() = screen.screen_id.clone());
 
     let on_action: OnAction = {
         let app_engine = app_engine.clone();
@@ -72,7 +82,20 @@ pub fn handle_app_engine_result(
     result: ActionResult,
 ) {
     match result {
-        ActionResult::UpdateScreen(screen) | ActionResult::NavigateTo(screen) => {
+        ActionResult::UpdateScreen(screen) => {
+            // Skip re-render if the screen_id hasn't changed. This happens
+            // when focus-out emits TextChanged — the engine acknowledges the
+            // input but the screen is identical. Re-rendering would destroy
+            // the button the user is about to click.
+            let same = CURRENT_SCREEN_ID.with(|id| *id.borrow() == screen.screen_id);
+            if !same {
+                CURRENT_SCREEN_ID.with(|id| *id.borrow_mut() = screen.screen_id.clone());
+                let on_action = build_on_action(container, app_engine, toast_overlay);
+                render_screen_model(container, &screen, &on_action);
+            }
+        }
+        ActionResult::NavigateTo(screen) => {
+            CURRENT_SCREEN_ID.with(|id| *id.borrow_mut() = screen.screen_id.clone());
             let on_action = build_on_action(container, app_engine, toast_overlay);
             render_screen_model(container, &screen, &on_action);
         }
@@ -625,8 +648,10 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         let container_ref = container.clone();
 
         btn.connect_clicked(move |_| {
-            // Flush all text entries so the engine has current values
-            flush_text_entries(&container_ref, &on_action);
+            // Flush only the currently focused entry (if any) so the engine
+            // has its value before processing the action. Does NOT flush
+            // entries belonging to sub-actions (add group, search, etc.).
+            flush_focused_entry(&container_ref, &on_action);
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
             });
@@ -687,27 +712,40 @@ fn collect_named_entries(container: &GtkBox) -> Vec<gtk4::Entry> {
     entries
 }
 
-/// Walk the widget tree and emit `TextChanged` for every Entry that has a
-/// component_id stored in its widget name. This ensures the engine has
-/// current text values before an ActionPressed is processed.
-fn flush_text_entries(container: &GtkBox, on_action: &OnAction) {
+/// Flush only the currently focused Entry (if any) in the widget tree.
+///
+/// Only emits TextChanged for the single entry that has focus — this is
+/// the entry the user was typing in before clicking the button. Entries
+/// belonging to sub-actions (add group, search) are not flushed because
+/// they don't have focus when a screen-level button is clicked.
+fn flush_focused_entry(container: &GtkBox, on_action: &OnAction) {
+    if let Some(entry) = find_focused_entry(container) {
+        let name = entry.widget_name();
+        let text = entry.text();
+        if !name.is_empty() && !text.is_empty() {
+            (on_action)(UserAction::TextChanged {
+                component_id: name.to_string(),
+                value: text.to_string(),
+            });
+        }
+    }
+}
+
+/// Find the focused Entry widget in the tree (if any).
+fn find_focused_entry(container: &GtkBox) -> Option<gtk4::Entry> {
     let mut child = container.first_child();
     while let Some(widget) = child {
-        // Check if this widget is an Entry with content
         if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>() {
-            let name = entry.widget_name();
-            let text = entry.text();
-            if !name.is_empty() && !text.is_empty() {
-                (on_action)(UserAction::TextChanged {
-                    component_id: name.to_string(),
-                    value: text.to_string(),
-                });
+            if entry.has_focus() {
+                return Some(entry);
             }
         }
-        // Recurse into containers
         if let Ok(box_widget) = widget.clone().downcast::<GtkBox>() {
-            flush_text_entries(&box_widget, on_action);
+            if let Some(found) = find_focused_entry(&box_widget) {
+                return Some(found);
+            }
         }
         child = widget.next_sibling();
     }
+    None
 }
