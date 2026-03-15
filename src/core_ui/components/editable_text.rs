@@ -1,0 +1,103 @@
+// SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! EditableText component renderer — toggles between display and edit mode.
+
+use gtk4::prelude::*;
+use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
+use vauchi_core::ui::UserAction;
+
+use super::super::screen_renderer::OnAction;
+
+pub fn render(
+    id: &str,
+    label: &str,
+    value: &str,
+    editing: &bool,
+    validation_error: &Option<String>,
+    on_action: &OnAction,
+) -> Widget {
+    let container = GtkBox::new(Orientation::Vertical, 4);
+
+    // Label
+    let lbl = Label::builder()
+        .label(label)
+        .halign(gtk4::Align::Start)
+        .css_classes(["caption", "dim-label"])
+        .build();
+    container.append(&lbl);
+
+    if *editing {
+        // Edit mode: text entry + save button
+        let edit_row = GtkBox::new(Orientation::Horizontal, 8);
+
+        let entry = Entry::builder().text(value).hexpand(true).build();
+
+        let on_action_change = on_action.clone();
+        let component_id = id.to_string();
+        entry.connect_changed(move |entry| {
+            (on_action_change)(UserAction::TextChanged {
+                component_id: component_id.clone(),
+                value: entry.text().to_string(),
+            });
+        });
+
+        edit_row.append(&entry);
+
+        let save_btn = Button::builder()
+            .label("Save")
+            .css_classes(["suggested-action"])
+            .valign(gtk4::Align::Center)
+            .build();
+
+        let on_action_save = on_action.clone();
+        let action_id = format!("{}_save", id);
+        save_btn.connect_clicked(move |_| {
+            (on_action_save)(UserAction::ActionPressed {
+                action_id: action_id.clone(),
+            });
+        });
+        edit_row.append(&save_btn);
+
+        container.append(&edit_row);
+
+        // Validation error
+        if let Some(error) = validation_error {
+            let err = Label::builder()
+                .label(error)
+                .css_classes(["error"])
+                .halign(gtk4::Align::Start)
+                .build();
+            container.append(&err);
+        }
+    } else {
+        // Display mode: value text + edit button
+        let display_row = GtkBox::new(Orientation::Horizontal, 8);
+
+        let value_label = Label::builder()
+            .label(value)
+            .halign(gtk4::Align::Start)
+            .hexpand(true)
+            .build();
+        display_row.append(&value_label);
+
+        let edit_btn = Button::builder()
+            .label("Edit")
+            .css_classes(["flat"])
+            .valign(gtk4::Align::Center)
+            .build();
+
+        let on_action_edit = on_action.clone();
+        let action_id = format!("{}_edit", id);
+        edit_btn.connect_clicked(move |_| {
+            (on_action_edit)(UserAction::ActionPressed {
+                action_id: action_id.clone(),
+            });
+        });
+        display_row.append(&edit_btn);
+
+        container.append(&display_row);
+    }
+
+    container.upcast()
+}

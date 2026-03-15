@@ -4,9 +4,11 @@
 //! Platform initialization — creates Vauchi instance with Linux-specific config.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use vauchi_core::api::{Vauchi, VauchiConfig};
 use vauchi_core::network::WebSocketTransport;
+use vauchi_core::storage::PlatformKeyring;
 
 /// Default relay URL.
 const DEFAULT_RELAY_URL: &str = "wss://relay.vauchi.app";
@@ -41,8 +43,14 @@ pub fn init_vauchi() -> Result<Vauchi<WebSocketTransport>, Box<dyn std::error::E
 
     let relay_url = resolve_relay_url(&data_path);
     let config = VauchiConfig::with_storage_path(&data_path).with_relay_url(relay_url);
-    Ok(Vauchi::with_transport_factory(
+
+    // Use GNOME Keyring (Secret Service) for secure key storage.
+    // Keys are protected by the user's login session — no separate unlock needed.
+    let secure_storage = Arc::new(PlatformKeyring::new("vauchi"));
+
+    Ok(Vauchi::with_transport_and_secure_storage(
         config,
         WebSocketTransport::new,
+        Some(secure_storage),
     )?)
 }

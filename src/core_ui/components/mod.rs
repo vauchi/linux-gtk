@@ -8,11 +8,14 @@ mod card_preview;
 mod confirmation_dialog;
 mod contact_list;
 mod divider;
+mod editable_text;
 mod field_list;
 mod info_panel;
+mod inline_confirm;
 mod pin_input;
 mod qr_code;
 mod settings_group;
+mod show_toast;
 mod status_indicator;
 mod text;
 mod text_input;
@@ -105,28 +108,32 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             destructive,
         } => confirmation_dialog::render(id, title, message, confirm_text, destructive, on_action),
         Component::Divider => divider::render(),
-        // TODO: implement proper renderers for these new component types
-        Component::ShowToast { id, message, .. } => {
-            text::render(id, message, &vauchi_core::ui::TextStyle::Body)
-        }
+        Component::ShowToast {
+            id,
+            message,
+            undo_action_id,
+            ..
+        } => show_toast::render(id, message, undo_action_id, on_action),
         Component::InlineConfirm {
             id,
             warning,
             confirm_text,
-            cancel_text: _,
+            cancel_text,
             destructive,
-        } => confirmation_dialog::render(id, "", warning, confirm_text, destructive, on_action),
+        } => inline_confirm::render(
+            id,
+            warning,
+            confirm_text,
+            cancel_text,
+            destructive,
+            on_action,
+        ),
         Component::EditableText {
-            id, label, value, ..
-        } => text_input::render(
             id,
             label,
             value,
-            &None,
-            &None,
-            &None,
-            &vauchi_core::ui::InputType::Text,
-            on_action,
-        ),
+            editing,
+            validation_error,
+        } => editable_text::render(id, label, value, editing, validation_error, on_action),
     }
 }
