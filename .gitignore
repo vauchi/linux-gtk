@@ -1,6 +1,6 @@
 /target
 .cargo/
-Cargo.lock
+# Cargo.lock committed for reproducible CI builds (binary crate)
 *.swp
 *.swo
 .DS_Store
