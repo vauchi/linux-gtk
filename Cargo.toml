@@ -10,8 +10,9 @@ license = "GPL-3.0-or-later"
 description = "Vauchi desktop app for Linux (GTK4 + libadwaita)"
 
 [features]
-default = ["audio"]
+default = ["audio", "ble"]
 audio = ["vauchi-core/audio-cpal"]
+ble = ["dep:bluer", "dep:tokio", "dep:tokio-stream"]
 camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]
 
 [dependencies]
@@ -22,6 +23,11 @@ qrcode = "0.14"
 
 # Audio proximity (ultrasonic via CPAL) — enabled by default
 # Uses CpalAudioBackend from vauchi-core
+
+# BLE exchange via BlueZ D-Bus — requires bluetooth adapter
+bluer = { version = "0.17", features = ["bluetoothd"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"], optional = true }
+tokio-stream = { version = "0.1", optional = true }
 
 # Camera QR scanning — optional, requires v4l2 dev libraries
 nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }

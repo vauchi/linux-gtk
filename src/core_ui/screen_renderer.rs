@@ -211,24 +211,99 @@ fn handle_exchange_commands(
             }
 
             // ── BLE ──────────────────────────────────────────────────
-            ExchangeCommand::BleStartScanning { .. }
-            | ExchangeCommand::BleStartAdvertising { .. }
-            | ExchangeCommand::BleConnect { .. }
-            | ExchangeCommand::BleWriteCharacteristic { .. }
-            | ExchangeCommand::BleReadCharacteristic { .. }
-            | ExchangeCommand::BleDisconnect => {
-                if notified_unavailable.insert("ble") {
-                    if hardware::has_bluetooth() {
-                        // Adapter present but BlueZ integration not yet built
-                        // TODO: Integrate BLE via BlueZ D-Bus API (zbus crate)
-                        let toast = adw::Toast::new(
-                            "Bluetooth adapter detected — BLE exchange not yet integrated",
+            ExchangeCommand::BleStartScanning { service_uuid } => {
+                if hardware::has_bluetooth() {
+                    #[cfg(feature = "ble")]
+                    {
+                        crate::platform::ble::start_scanning(
+                            container,
+                            app_engine,
+                            toast_overlay,
+                            service_uuid.clone(),
                         );
-                        toast_overlay.add_toast(toast);
-                    } else {
-                        report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
                     }
+                    #[cfg(not(feature = "ble"))]
+                    {
+                        let _ = service_uuid;
+                        if notified_unavailable.insert("ble") {
+                            let toast =
+                                adw::Toast::new("Bluetooth detected — built without BLE feature");
+                            toast_overlay.add_toast(toast);
+                        }
+                    }
+                } else if notified_unavailable.insert("ble") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
                 }
+            }
+            ExchangeCommand::BleStartAdvertising {
+                service_uuid,
+                payload: _,
+            } => {
+                if hardware::has_bluetooth() {
+                    #[cfg(feature = "ble")]
+                    {
+                        crate::platform::ble::start_advertising(
+                            toast_overlay,
+                            service_uuid.clone(),
+                        );
+                    }
+                    #[cfg(not(feature = "ble"))]
+                    {
+                        let _ = service_uuid;
+                    }
+                } else if notified_unavailable.insert("ble") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                }
+            }
+            ExchangeCommand::BleConnect { device_id } => {
+                #[cfg(feature = "ble")]
+                {
+                    crate::platform::ble::connect(
+                        container,
+                        app_engine,
+                        toast_overlay,
+                        device_id.clone(),
+                    );
+                }
+                #[cfg(not(feature = "ble"))]
+                {
+                    let _ = device_id;
+                }
+            }
+            ExchangeCommand::BleWriteCharacteristic { uuid, data } => {
+                #[cfg(feature = "ble")]
+                {
+                    crate::platform::ble::write_characteristic(
+                        container,
+                        app_engine,
+                        toast_overlay,
+                        uuid.clone(),
+                        data.clone(),
+                    );
+                }
+                #[cfg(not(feature = "ble"))]
+                {
+                    let _ = (uuid, data);
+                }
+            }
+            ExchangeCommand::BleReadCharacteristic { uuid } => {
+                #[cfg(feature = "ble")]
+                {
+                    crate::platform::ble::read_characteristic(
+                        container,
+                        app_engine,
+                        toast_overlay,
+                        uuid.clone(),
+                    );
+                }
+                #[cfg(not(feature = "ble"))]
+                {
+                    let _ = uuid;
+                }
+            }
+            ExchangeCommand::BleDisconnect => {
+                #[cfg(feature = "ble")]
+                crate::platform::ble::disconnect(toast_overlay);
             }
 
             // ── NFC ──────────────────────────────────────────────────
