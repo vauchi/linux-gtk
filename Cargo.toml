@@ -9,6 +9,10 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Vauchi desktop app for Linux (GTK4 + libadwaita)"
 
+[[bin]]
+name = "gvauchi"
+path = "src/main.rs"
+
 [features]
 default = ["audio", "ble"]
 audio = ["vauchi-core/audio-cpal"]
