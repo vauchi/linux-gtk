@@ -36,8 +36,8 @@ pub fn render(
         .build();
     container.append(&lbl);
 
-    // Entry
-    let entry = Entry::builder().text(value).build();
+    // Entry — widget name stores the component_id for flush_text_entries()
+    let entry = Entry::builder().text(value).name(id).build();
 
     if let Some(ph) = placeholder {
         entry.set_placeholder_text(Some(ph));

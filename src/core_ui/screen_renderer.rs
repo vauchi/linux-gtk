@@ -566,6 +566,9 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
     let title = Label::builder()
         .label(&screen.title)
         .css_classes(["title-1"])
+        .halign(gtk4::Align::Start)
+        .margin_top(8)
+        .margin_bottom(4)
         .build();
     container.append(&title);
 
@@ -573,21 +576,30 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
     if let Some(subtitle) = &screen.subtitle {
         let sub = Label::builder()
             .label(subtitle)
-            .css_classes(["subtitle"])
+            .css_classes(["dim-label"])
+            .halign(gtk4::Align::Start)
+            .wrap(true)
+            .margin_bottom(12)
             .build();
         container.append(&sub);
     }
 
-    // Components
+    // Components — with vertical spacing
     for component in &screen.components {
         let widget = components::render_component(component, on_action);
+        widget.set_margin_top(8);
+        widget.set_margin_bottom(8);
         container.append(&widget);
     }
 
-    // Action buttons
-    let button_box = GtkBox::new(Orientation::Horizontal, 8);
-    button_box.set_margin_top(16);
+    // Action buttons — respect engine's enabled state, but also dynamically
+    // update sensitivity as the user types (without re-rendering).
+    let button_box = GtkBox::new(Orientation::Horizontal, 12);
+    button_box.set_margin_top(24);
     button_box.set_halign(gtk4::Align::End);
+
+    // Collect buttons that need dynamic sensitivity (Primary buttons depend on input)
+    let dynamic_buttons: Rc<RefCell<Vec<gtk4::Button>>> = Rc::new(RefCell::new(Vec::new()));
 
     for action in &screen.actions {
         let btn = gtk4::Button::builder()
@@ -596,15 +608,25 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .build();
 
         match action.style {
-            ActionStyle::Primary => btn.add_css_class("suggested-action"),
-            ActionStyle::Destructive => btn.add_css_class("destructive-action"),
+            ActionStyle::Primary => {
+                btn.add_css_class("suggested-action");
+                btn.add_css_class("pill");
+                dynamic_buttons.borrow_mut().push(btn.clone());
+            }
+            ActionStyle::Destructive => {
+                btn.add_css_class("destructive-action");
+                btn.add_css_class("pill");
+            }
             ActionStyle::Secondary => {}
         }
 
         let on_action = on_action.clone();
         let action_id = action.id.clone();
+        let container_ref = container.clone();
 
         btn.connect_clicked(move |_| {
+            // Flush all text entries so the engine has current values
+            flush_text_entries(&container_ref, &on_action);
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
             });
@@ -613,4 +635,79 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         button_box.append(&btn);
     }
     container.append(&button_box);
+
+    // Wire text entries to dynamically enable/disable Primary buttons
+    // based on whether any named entry has content.
+    if !dynamic_buttons.borrow().is_empty() {
+        wire_dynamic_button_sensitivity(container, &dynamic_buttons);
+    }
+}
+
+/// Connect all named Entry widgets to update button sensitivity when text changes.
+/// Primary buttons are enabled when at least one named Entry has non-empty text.
+fn wire_dynamic_button_sensitivity(container: &GtkBox, buttons: &Rc<RefCell<Vec<gtk4::Button>>>) {
+    let entries = collect_named_entries(container);
+    if entries.is_empty() {
+        return;
+    }
+
+    for entry in &entries {
+        let all_entries = entries.clone();
+        let buttons = buttons.clone();
+        entry.connect_changed(move |_| {
+            let any_filled = all_entries.iter().any(|e| !e.text().is_empty());
+            for btn in buttons.borrow().iter() {
+                btn.set_sensitive(any_filled);
+            }
+        });
+    }
+
+    // Set initial state
+    let any_filled = entries.iter().any(|e| !e.text().is_empty());
+    for btn in buttons.borrow().iter() {
+        btn.set_sensitive(any_filled);
+    }
+}
+
+/// Collect all Entry widgets with a widget name (component_id) from the tree.
+fn collect_named_entries(container: &GtkBox) -> Vec<gtk4::Entry> {
+    let mut entries = Vec::new();
+    let mut child = container.first_child();
+    while let Some(widget) = child {
+        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>() {
+            if !entry.widget_name().is_empty() {
+                entries.push(entry);
+            }
+        }
+        if let Ok(box_widget) = widget.clone().downcast::<GtkBox>() {
+            entries.extend(collect_named_entries(&box_widget));
+        }
+        child = widget.next_sibling();
+    }
+    entries
+}
+
+/// Walk the widget tree and emit `TextChanged` for every Entry that has a
+/// component_id stored in its widget name. This ensures the engine has
+/// current text values before an ActionPressed is processed.
+fn flush_text_entries(container: &GtkBox, on_action: &OnAction) {
+    let mut child = container.first_child();
+    while let Some(widget) = child {
+        // Check if this widget is an Entry with content
+        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>() {
+            let name = entry.widget_name();
+            let text = entry.text();
+            if !name.is_empty() && !text.is_empty() {
+                (on_action)(UserAction::TextChanged {
+                    component_id: name.to_string(),
+                    value: text.to_string(),
+                });
+            }
+        }
+        // Recurse into containers
+        if let Ok(box_widget) = widget.clone().downcast::<GtkBox>() {
+            flush_text_entries(&box_widget, on_action);
+        }
+        child = widget.next_sibling();
+    }
 }

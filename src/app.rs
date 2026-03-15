@@ -46,10 +46,10 @@ fn build_ui(app: &adw::Application) {
     // Content area wrapped in ToastOverlay for non-blocking toasts
     let content = GtkBox::new(Orientation::Vertical, 0);
     content.set_hexpand(true);
-    content.set_margin_top(24);
-    content.set_margin_bottom(24);
-    content.set_margin_start(24);
-    content.set_margin_end(24);
+    content.set_margin_top(32);
+    content.set_margin_bottom(32);
+    content.set_margin_start(36);
+    content.set_margin_end(36);
 
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(&content));
