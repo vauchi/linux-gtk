@@ -99,7 +99,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             data,
             mode,
             label,
-        } => qr_code::render(id, data, mode, label),
+        } => qr_code::render(id, data, mode, label, on_action),
         Component::ConfirmationDialog {
             id,
             title,
