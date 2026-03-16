@@ -51,7 +51,7 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+wildcards = "warn"  # git deps (vauchi-core) have no version spec
 highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
