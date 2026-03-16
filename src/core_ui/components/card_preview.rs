@@ -59,7 +59,7 @@ pub fn render(
         // Per-group tabs
         for gv in group_views {
             let btn = ToggleButton::builder()
-                .label(&gv.display_name)
+                .label(&gv.group_name)
                 .group(&all_btn)
                 .active(selected_group.as_deref() == Some(&gv.group_name))
                 .build();

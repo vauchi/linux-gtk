@@ -54,13 +54,16 @@ pub fn render(id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widge
         list_box.append(&row);
     }
 
-    // Wire: emit ActionPressed when a row is activated
+    // Wire: emit ListItemSelected when a row is activated.
+    // Core engines (HelpEngine, SettingsEngine) expect ListItemSelected, not ActionPressed.
+    let component_id = id.to_string();
     let on_action = on_action.clone();
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
-        if let Some(action_id) = item_ids.get(index) {
-            (on_action)(UserAction::ActionPressed {
-                action_id: action_id.clone(),
+        if let Some(item_id) = item_ids.get(index) {
+            (on_action)(UserAction::ListItemSelected {
+                component_id: component_id.clone(),
+                item_id: item_id.clone(),
             });
         }
     });

@@ -580,6 +580,23 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         container.remove(&child);
     }
 
+    // Wrap all content in a ScrolledWindow so long screens (Settings) can scroll.
+    let scrolled = gtk4::ScrolledWindow::builder()
+        .vexpand(true)
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .build();
+    let inner = GtkBox::new(Orientation::Vertical, 0);
+    inner.set_margin_start(24);
+    inner.set_margin_end(24);
+    inner.set_margin_top(0);
+    inner.set_margin_bottom(24);
+    scrolled.set_child(Some(&inner));
+    container.append(&scrolled);
+
+    // All content goes into `inner` (scrollable). Keep `container` reference
+    // for flush_focused_entry compatibility.
+    let content = &inner;
+
     // Progress indicator
     if let Some(progress) = &screen.progress {
         let progress_text = if let Some(label) = &progress.label {
@@ -596,7 +613,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .css_classes(["dim-label", "caption"])
             .margin_bottom(4)
             .build();
-        container.append(&progress_label);
+        content.append(&progress_label);
     }
 
     // Title
@@ -608,7 +625,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         .margin_bottom(4)
         .build();
     title.set_widget_name("screen_title");
-    container.append(&title);
+    content.append(&title);
 
     // Subtitle
     if let Some(subtitle) = &screen.subtitle {
@@ -619,7 +636,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .wrap(true)
             .margin_bottom(12)
             .build();
-        container.append(&sub);
+        content.append(&sub);
     }
 
     // Components — with vertical spacing
@@ -627,7 +644,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         let widget = components::render_component(component, on_action);
         widget.set_margin_top(8);
         widget.set_margin_bottom(8);
-        container.append(&widget);
+        content.append(&widget);
     }
 
     // Action buttons — respect engine's enabled state, but also dynamically
@@ -661,13 +678,13 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
 
         let on_action = on_action.clone();
         let action_id = action.id.clone();
-        let container_ref = container.clone();
+        let content_ref = content.clone();
 
         btn.connect_clicked(move |_| {
             // Flush only the currently focused entry (if any) so the engine
             // has its value before processing the action. Does NOT flush
             // entries belonging to sub-actions (add group, search, etc.).
-            flush_focused_entry(&container_ref, &on_action);
+            flush_focused_entry(&content_ref, &on_action);
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
             });
@@ -675,12 +692,12 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
 
         button_box.append(&btn);
     }
-    container.append(&button_box);
+    content.append(&button_box);
 
     // Wire text entries to dynamically enable/disable Primary buttons
     // based on whether any named entry has content.
     if !dynamic_buttons.borrow().is_empty() {
-        wire_dynamic_button_sensitivity(container, &dynamic_buttons);
+        wire_dynamic_button_sensitivity(content, &dynamic_buttons);
     }
 }
 

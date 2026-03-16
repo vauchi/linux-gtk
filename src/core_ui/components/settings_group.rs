@@ -114,7 +114,8 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         list_box.append(&row);
     }
 
-    // Wire: emit ActionPressed when Link or Destructive rows are activated
+    // Wire: emit ListItemSelected when Link or Destructive rows are activated.
+    // Core's intercept_settings_action expects ListItemSelected with the bare item_id.
     if !clickable_indices.is_empty() {
         let on_action = on_action.clone();
         let component_id = id.to_string();
@@ -122,8 +123,9 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
             let index = row.index() as usize;
             if clickable_indices.contains(&index) {
                 if let Some(item_id) = item_ids.get(index) {
-                    (on_action)(UserAction::ActionPressed {
-                        action_id: format!("{}_{}", component_id, item_id),
+                    (on_action)(UserAction::ListItemSelected {
+                        component_id: component_id.clone(),
+                        item_id: item_id.clone(),
                     });
                 }
             }
