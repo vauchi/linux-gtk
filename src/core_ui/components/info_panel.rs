@@ -23,8 +23,7 @@ pub fn render(id: &str, icon: &Option<String>, title: &str, items: &[InfoItem]) 
     let header = GtkBox::new(Orientation::Horizontal, 8);
 
     if let Some(icon_name) = icon {
-        let icon_label = Label::builder().label(icon_name).build();
-        header.append(&icon_label);
+        header.append(&super::icons::icon_widget(icon_name));
     }
 
     let title_label = Label::builder()
@@ -41,8 +40,7 @@ pub fn render(id: &str, icon: &Option<String>, title: &str, items: &[InfoItem]) 
         let row = GtkBox::new(Orientation::Horizontal, 8);
 
         if let Some(item_icon) = &item.icon {
-            let icon_lbl = Label::builder().label(item_icon).build();
-            row.append(&icon_lbl);
+            row.append(&super::icons::icon_widget(item_icon));
         }
 
         let label = Label::builder()

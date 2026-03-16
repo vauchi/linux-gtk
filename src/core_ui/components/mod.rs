@@ -10,6 +10,7 @@ mod contact_list;
 mod divider;
 mod editable_text;
 mod field_list;
+pub mod icons;
 mod info_panel;
 mod inline_confirm;
 mod pin_input;

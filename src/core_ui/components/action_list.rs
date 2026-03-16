@@ -29,8 +29,7 @@ pub fn render(id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widge
 
         // Optional icon
         if let Some(icon_name) = &item.icon {
-            let icon_label = Label::builder().label(icon_name).build();
-            row.append(&icon_label);
+            row.append(&super::icons::icon_widget(icon_name));
         }
 
         // Label
