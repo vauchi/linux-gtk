@@ -41,6 +41,7 @@ allow = [
     "CDLA-Permissive-2.0",  # webpki-roots (Mozilla CA certs)
     "OpenSSL",              # aws-lc-sys (BoringSSL fork, FIPS 140-3)
     "LGPL-2.1-or-later",   # GTK4 bindings
+    "IJG",                  # libjpeg (image crate, camera feature)
 ]
 confidence-threshold = 0.8
 
