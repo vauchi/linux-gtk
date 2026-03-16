@@ -329,19 +329,34 @@ fn handle_exchange_commands(
             }
 
             // ── NFC ──────────────────────────────────────────────────
-            ExchangeCommand::NfcActivate { .. } | ExchangeCommand::NfcDeactivate => {
-                if notified_unavailable.insert("nfc") {
-                    if hardware::has_nfc() {
-                        // NFC reader present but libnfc integration not yet built
-                        // TODO: Integrate NFC via libnfc (USB NFC reader)
-                        let toast = adw::Toast::new(
-                            "NFC reader detected — NFC exchange not yet integrated",
+            ExchangeCommand::NfcActivate { payload } => {
+                if hardware::has_nfc() {
+                    #[cfg(feature = "nfc")]
+                    {
+                        crate::platform::nfc::activate(
+                            container,
+                            app_engine,
+                            toast_overlay,
+                            payload.clone(),
                         );
-                        toast_overlay.add_toast(toast);
-                    } else {
-                        report_hardware_unavailable(app_engine, toast_overlay, "NFC");
                     }
+                    #[cfg(not(feature = "nfc"))]
+                    {
+                        let _ = payload;
+                        if notified_unavailable.insert("nfc") {
+                            let toast =
+                                adw::Toast::new("NFC reader detected — built without NFC feature");
+                            toast_overlay.add_toast(toast);
+                        }
+                    }
+                } else if notified_unavailable.insert("nfc") {
+                    report_hardware_unavailable(app_engine, toast_overlay, "NFC");
                 }
+            }
+            ExchangeCommand::NfcDeactivate => {
+                // PC/SC polling is one-shot (returns after first exchange),
+                // so deactivate is a no-op. The background thread exits on
+                // its own after success or failure.
             }
         }
     }

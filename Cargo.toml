@@ -18,6 +18,7 @@ default = ["audio", "ble"]
 audio = ["vauchi-core/audio-cpal"]
 ble = ["dep:bluer", "dep:tokio", "dep:tokio-stream"]
 camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]
+nfc = ["dep:pcsc"]
 
 [dependencies]
 vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
@@ -38,8 +39,11 @@ nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }
 rqrr = { version = "0.9", optional = true }
 image = { version = "0.25", optional = true, default-features = false }
 
+# NFC exchange via PC/SC (pcsclite) — optional, requires USB NFC reader
+pcsc = { version = "2", optional = true }
+
 [package.metadata.cargo-machete]
-ignored = ["image", "nokhwa", "rqrr"]  # optional camera feature deps
+ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
 
 [dev-dependencies]
 tempfile = "3.0"
