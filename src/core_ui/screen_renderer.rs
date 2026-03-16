@@ -38,10 +38,12 @@ thread_local! {
 // ── AppEngine rendering (main app path) ─────────────────────────────
 
 /// Renders the current AppEngine screen into a container.
+/// If `sidebar` is provided, refreshes the sidebar after rendering (for post-onboarding updates).
 pub fn render_app_engine_screen(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
+    sidebar: Option<&gtk4::ListBox>,
 ) {
     let screen = app_engine.borrow().current_screen();
 
@@ -58,6 +60,11 @@ pub fn render_app_engine_screen(
     };
 
     render_screen_model(container, &screen, &on_action);
+
+    // Refresh sidebar if provided — picks up new screens after onboarding completes
+    if let Some(sb) = sidebar {
+        crate::app::refresh_sidebar(sb, app_engine);
+    }
 }
 
 fn build_on_action(
@@ -99,7 +106,7 @@ pub fn handle_app_engine_result(
             render_screen_model(container, &screen, &on_action);
         }
         ActionResult::ValidationError { .. } | ActionResult::Complete => {
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::ShowAlert { title, message } => {
             show_alert(container, &title, &message);
@@ -108,13 +115,13 @@ pub fn handle_app_engine_result(
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::ContactDetail { contact_id });
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::EditContact { contact_id } => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::ContactEdit { contact_id });
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::OpenUrl { url } => {
             if let Err(e) = gtk4::gio::AppInfo::launch_default_for_uri(
@@ -128,24 +135,24 @@ pub fn handle_app_engine_result(
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::DeviceLinking);
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::StartBackupImport => {
             app_engine
                 .borrow_mut()
                 .navigate_to(vauchi_core::ui::AppScreen::Backup);
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::RequestCamera => {
             scan_or_paste_qr(container, app_engine, toast_overlay);
         }
         ActionResult::OpenEntryDetail { .. } => {
             // Handled internally by AppEngine
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::WipeComplete => {
             // Reset — re-render from scratch
-            render_app_engine_screen(container, app_engine, toast_overlay);
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::ShowToast { message, .. } => {
             let toast = adw::Toast::new(&message);
@@ -177,7 +184,7 @@ fn handle_exchange_commands(
                 // QR data changed mid-session. The ExchangeSession updated its
                 // state, so re-rendering the current screen will pick up the new
                 // QR via Component::QrCode in the screen model.
-                render_app_engine_screen(container, app_engine, toast_overlay);
+                render_app_engine_screen(container, app_engine, toast_overlay, None);
             }
             ExchangeCommand::QrRequestScan => {
                 scan_or_paste_qr(container, app_engine, toast_overlay);

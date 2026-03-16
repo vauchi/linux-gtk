@@ -14,7 +14,7 @@ name = "gvauchi"
 path = "src/main.rs"
 
 [features]
-default = ["audio", "ble"]
+default = ["audio", "ble", "camera"]
 audio = ["vauchi-core/audio-cpal"]
 ble = ["dep:bluer", "dep:tokio", "dep:tokio-stream"]
 camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]

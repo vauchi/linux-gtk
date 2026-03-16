@@ -63,7 +63,7 @@ fn build_ui(app: &adw::Application) {
     root.append(&body);
 
     // Render initial screen
-    screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay);
+    screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -91,8 +91,54 @@ fn build_sidebar(
         .build();
     list_box.update_property(&[Property::Label("Navigation")]);
 
-    let screens = app_engine.borrow().available_screens();
-    for screen in &screens {
+    populate_sidebar(&list_box, &app_engine.borrow().available_screens());
+
+    let app_engine = app_engine.clone();
+    let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
+    let list_box_for_nav = list_box.clone();
+    list_box.connect_row_activated(move |_, row| {
+        let index = row.index() as usize;
+        let screens = app_engine.borrow().available_screens();
+        if let Some(screen) = screens.get(index).cloned() {
+            app_engine.borrow_mut().navigate_to(screen);
+            screen_renderer::render_app_engine_screen(
+                &content,
+                &app_engine,
+                &toast_overlay,
+                Some(&list_box_for_nav),
+            );
+        }
+    });
+
+    sidebar.append(&list_box);
+    sidebar
+}
+
+/// Rebuild the sidebar rows from the current available screens.
+/// Only rebuilds if the screen list has changed (avoids unnecessary flickering).
+fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
+    // Check if rebuild is needed by comparing row count
+    let current_rows = {
+        let mut count = 0;
+        let mut child = list_box.first_child();
+        while child.is_some() {
+            count += 1;
+            child = child.unwrap().next_sibling();
+        }
+        count
+    };
+
+    if current_rows == screens.len() {
+        return; // Same number of items — assume unchanged
+    }
+
+    // Clear and rebuild
+    while let Some(child) = list_box.first_child() {
+        list_box.remove(&child);
+    }
+
+    for screen in screens {
         let row = gtk4::ListBoxRow::builder().build();
         let label = Label::builder()
             .label(screen_label(screen))
@@ -104,26 +150,16 @@ fn build_sidebar(
         row.set_child(Some(&label));
         list_box.append(&row);
     }
+}
 
-    let app_engine = app_engine.clone();
-    let content = content.clone();
-    let toast_overlay = toast_overlay.clone();
-    list_box.connect_row_activated(move |_, row| {
-        let index = row.index() as usize;
-        let screens = app_engine.borrow().available_screens();
-        if let Some(screen) = screens.get(index).cloned() {
-            app_engine.borrow_mut().navigate_to(screen);
-            screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay);
-        }
-    });
-
-    sidebar.append(&list_box);
-    sidebar
+/// Public entry point for sidebar refresh — called from screen_renderer after navigation.
+pub fn refresh_sidebar(list_box: &ListBox, app_engine: &Rc<RefCell<AppEngine>>) {
+    populate_sidebar(list_box, &app_engine.borrow().available_screens());
 }
 
 fn screen_label(screen: &AppScreen) -> &str {
     match screen {
-        AppScreen::Onboarding => "Setup",
+        AppScreen::Onboarding => "Onboarding",
         AppScreen::MyInfo => "My Info",
         AppScreen::Contacts => "Contacts",
         AppScreen::Exchange => "Exchange",
