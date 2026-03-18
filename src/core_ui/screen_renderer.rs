@@ -161,9 +161,8 @@ pub fn handle_app_engine_result(
         ActionResult::ExchangeCommands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
-        // Catch-all for new ActionResult variants (e.g., TorCommand) that
-        // don't require GTK-specific handling — just re-render the screen.
-        _ => {
+        ActionResult::TorCommand { .. } => {
+            // Tor commands are dispatched at the app layer; re-render for state changes.
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
     }
