@@ -71,7 +71,9 @@ fn render_display(container: &GtkBox, data: &str) {
                 .width_request(QR_SIZE)
                 .height_request(QR_SIZE)
                 .halign(gtk4::Align::Center)
+                .accessible_role(gtk4::AccessibleRole::Img)
                 .build();
+            drawing_area.update_property(&[Property::Label("QR code for contact exchange")]);
 
             drawing_area.set_draw_func(move |_area, cr, width, height| {
                 // White background

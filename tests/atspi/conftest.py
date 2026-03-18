@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from helpers import find_app, dump_tree
+from helpers import find_app, find_all, find_one, dump_tree, wait_for_element
 
 
 @pytest.fixture(scope="session")
@@ -80,6 +80,11 @@ def gtk_app(gtk_binary, data_dir):
             f"stderr: {stderr.decode()[:500]}"
         )
 
+    # Auto-complete onboarding so tests get the full app with all screens.
+    # The fresh app shows "Welcome" with a "Create new identity" button.
+    # Clicking it creates a default identity and transitions to main UI.
+    _complete_onboarding(app_root)
+
     yield app_root
 
     # Teardown: kill the app
@@ -89,6 +94,26 @@ def gtk_app(gtk_binary, data_dir):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+
+
+def _complete_onboarding(app_root):
+    """Click through onboarding to create an identity.
+
+    After this, the sidebar populates with all screens and the app
+    lands on My Info. Idempotent: does nothing if already past onboarding.
+    """
+    # Look for the "Create new identity" button (AT-SPI role: "button")
+    create_btn = find_one(app_root, role="button", name="Create new identity")
+    if create_btn is None:
+        return  # Already past onboarding
+
+    try:
+        action = create_btn.get_action_iface()
+        if action and action.get_n_actions() > 0:
+            action.do_action(0)
+            time.sleep(1.5)  # Wait for identity creation + screen transition
+    except Exception:
+        pass  # Best-effort — tests will still run on onboarding if this fails
 
 
 @pytest.fixture

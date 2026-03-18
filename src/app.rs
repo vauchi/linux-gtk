@@ -139,9 +139,12 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
     }
 
     for screen in screens {
+        let name = screen_label(screen);
         let row = gtk4::ListBoxRow::builder().build();
+        // Expose row label to AT-SPI so assistive tech can navigate sidebar
+        row.update_property(&[gtk4::accessible::Property::Label(name)]);
         let label = Label::builder()
-            .label(screen_label(screen))
+            .label(name)
             .halign(gtk4::Align::Start)
             .margin_top(8)
             .margin_bottom(8)
