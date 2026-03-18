@@ -83,14 +83,6 @@ test:a11y:
   stage: test
   needs: [build]
   tags: [linux, self-hosted]
-  before_script:
-    # AT-SPI dependencies (idempotent — skips if already installed)
-    - >-
-      dpkg -l xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0 python3-pytest
-      >/dev/null 2>&1 ||
-      (sudo apt-get update -qq && sudo apt-get install -y -qq
-      xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0 python3-pytest
-      libgtk-4-1 libadwaita-1-0)
   script:
     - chmod +x tests/atspi/run-tests.sh
     - tests/atspi/run-tests.sh -v --tb=short
