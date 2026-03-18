@@ -79,14 +79,36 @@ test:
 
 # AT-SPI accessibility tests — headless GUI automation via Xvfb
 # Verifies widget tree structure, sidebar navigation, and screen content
+# AT-SPI accessibility + widget tree tests
 test:a11y:
   stage: test
   needs: [build]
   tags: [linux, self-hosted]
   script:
     - chmod +x tests/atspi/run-tests.sh
-    - tests/atspi/run-tests.sh -v --tb=short
-  allow_failure: true  # Advisory — AT-SPI deps may not be on all runners
+    - tests/atspi/run-tests.sh -v --tb=short -k "not test_snapshots"
+  allow_failure: true
+
+# Visual snapshot regression — captures each screen under Xvfb and
+# compares against committed baselines using ImageMagick compare.
+# First run: generates baselines (skips, does not fail).
+# Subsequent runs: diffs against baselines, fails on visual regression.
+# To regenerate: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots
+test:snapshots:
+  stage: test
+  needs: [build]
+  tags: [linux, self-hosted]
+  script:
+    - chmod +x tests/atspi/run-tests.sh
+    - tests/atspi/run-tests.sh -v --tb=short -k "test_snapshots"
+  artifacts:
+    when: always
+    paths:
+      - tests/atspi/snapshots/baseline/
+      - tests/atspi/snapshots/actual/
+      - tests/atspi/snapshots/diff/
+    expire_in: 30 days
+  allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
