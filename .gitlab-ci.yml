@@ -77,6 +77,34 @@ test:
     - cargo test
   allow_failure: true  # GTK4 dev libs may not be on all runners
 
+# AT-SPI accessibility tests — headless GUI automation via Xvfb
+# Verifies widget tree structure, sidebar navigation, and screen content
+test:a11y:
+  stage: test
+  needs: [build]
+  tags: [linux, self-hosted]
+  before_script:
+    # AT-SPI dependencies (idempotent — skips if already installed)
+    - >-
+      dpkg -l xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0 python3-pytest
+      >/dev/null 2>&1 ||
+      (sudo apt-get update -qq && sudo apt-get install -y -qq
+      xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0 python3-pytest
+      libgtk-4-1 libadwaita-1-0)
+  script:
+    - chmod +x tests/atspi/run-tests.sh
+    - tests/atspi/run-tests.sh -v --tb=short
+  allow_failure: true  # Advisory — AT-SPI deps may not be on all runners
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "src/**"
+          - "tests/atspi/**"
+          - ".gitlab-ci.yml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
 # ============================================================
 # Security Stage (change-based, parallel with test)
 # ============================================================
