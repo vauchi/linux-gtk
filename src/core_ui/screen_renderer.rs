@@ -161,6 +161,11 @@ pub fn handle_app_engine_result(
         ActionResult::ExchangeCommands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
+        ActionResult::TorCommand { .. } => {
+            // Tor commands are handled at the app layer; no UI action needed.
+            // Re-render to reflect any state change the engine applied.
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
+        }
     }
 }
 
