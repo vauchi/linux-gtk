@@ -116,9 +116,10 @@ fn app_engine_available_screens_with_identity() {
         "Should include Exchange"
     );
     assert!(
-        screens.contains(&AppScreen::Settings),
-        "Should include Settings"
+        screens.contains(&AppScreen::Groups),
+        "Should include Groups"
     );
+    assert!(screens.contains(&AppScreen::More), "Should include More");
 }
 
 #[test]
