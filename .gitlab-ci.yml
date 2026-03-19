@@ -53,7 +53,7 @@ lint:clippy:
     - cargo clippy -- -D warnings
 
 build:
-  extends: [.linux-runner, .validation-rust, .timeout-standard]
+  extends: [.linux-runner, .timeout-standard]
   stage: build
   needs:
     - job: lint:fmt
@@ -66,9 +66,20 @@ build:
     paths:
       - target/release/vauchi-gtk
     expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "**/*.rs"
+          - "**/Cargo.toml"
+          - "**/Cargo.lock"
+          - ".gitlab-ci.yml"
+          - "rust-toolchain.toml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:
-  extends: [.linux-runner, .validation-rust, .timeout-standard]
+  extends: [.linux-runner, .timeout-standard]
   stage: test
   needs: [build]
   before_script:
@@ -76,9 +87,18 @@ test:
   script:
     - cargo test
   allow_failure: true  # GTK4 dev libs may not be on all runners
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "**/*.rs"
+          - "**/Cargo.toml"
+          - "**/Cargo.lock"
+          - ".gitlab-ci.yml"
+          - "rust-toolchain.toml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# AT-SPI accessibility tests — headless GUI automation via Xvfb
-# Verifies widget tree structure, sidebar navigation, and screen content
 # AT-SPI accessibility + widget tree tests
 test:a11y:
   stage: test
@@ -88,6 +108,15 @@ test:a11y:
     - chmod +x tests/atspi/run-tests.sh
     - tests/atspi/run-tests.sh -v --tb=short -k "not test_snapshots"
   allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "src/**"
+          - "tests/atspi/**"
+          - ".gitlab-ci.yml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # Visual snapshot regression — captures each screen under Xvfb and
 # compares against committed baselines using ImageMagick compare.
