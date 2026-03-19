@@ -118,19 +118,32 @@ fn build_sidebar(
 /// Rebuild the sidebar rows from the current available screens.
 /// Only rebuilds if the screen list has changed (avoids unnecessary flickering).
 fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
-    // Check if rebuild is needed by comparing row count
-    let current_rows = {
-        let mut count = 0;
+    // Check if rebuild is needed by comparing screen IDs, not just count.
+    // Count-only comparison misses changes when the set mutates but size stays the same.
+    let current_labels = {
+        let mut labels = Vec::new();
         let mut child = list_box.first_child();
-        while child.is_some() {
-            count += 1;
-            child = child.unwrap().next_sibling();
+        while let Some(widget) = child {
+            if let Some(row) = widget.downcast_ref::<gtk4::ListBoxRow>() {
+                if let Some(label_widget) = row.child() {
+                    if let Some(label) = label_widget.downcast_ref::<Label>() {
+                        labels.push(label.text());
+                    }
+                }
+            }
+            child = widget.next_sibling();
         }
-        count
+        labels
     };
 
-    if current_rows == screens.len() {
-        return; // Same number of items — assume unchanged
+    let new_labels: Vec<&str> = screens.iter().map(screen_label).collect();
+    if current_labels.len() == new_labels.len()
+        && current_labels
+            .iter()
+            .zip(new_labels.iter())
+            .all(|(a, b)| a.as_str() == *b)
+    {
+        return; // Same screen IDs — no rebuild needed
     }
 
     // Clear and rebuild
@@ -180,6 +193,7 @@ fn screen_label(screen: &AppScreen) -> &str {
         AppScreen::Groups => "Groups",
         AppScreen::Privacy => "Privacy",
         AppScreen::Support => "Support",
+        AppScreen::More => "More",
         _ => "Other",
     }
 }
