@@ -121,13 +121,13 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         let component_id = id.to_string();
         list_box.connect_row_activated(move |_, row| {
             let index = row.index() as usize;
-            if clickable_indices.contains(&index) {
-                if let Some(item_id) = item_ids.get(index) {
-                    (on_action)(UserAction::ListItemSelected {
-                        component_id: component_id.clone(),
-                        item_id: item_id.clone(),
-                    });
-                }
+            if clickable_indices.contains(&index)
+                && let Some(item_id) = item_ids.get(index)
+            {
+                (on_action)(UserAction::ListItemSelected {
+                    component_id: component_id.clone(),
+                    item_id: item_id.clone(),
+                });
             }
         });
         list_box.set_selection_mode(SelectionMode::Single);

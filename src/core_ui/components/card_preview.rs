@@ -76,10 +76,10 @@ pub fn render(
         container.append(&tab_bar);
 
         // Show group-specific fields if a group is selected
-        if let Some(selected) = selected_group {
-            if let Some(gv) = group_views.iter().find(|g| &g.group_name == selected) {
-                render_fields(&container, &gv.visible_fields);
-            }
+        if let Some(selected) = selected_group
+            && let Some(gv) = group_views.iter().find(|g| &g.group_name == selected)
+        {
+            render_fields(&container, &gv.visible_fields);
         }
     }
 

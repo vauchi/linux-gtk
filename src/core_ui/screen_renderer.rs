@@ -462,20 +462,20 @@ fn show_qr_paste_dialog(
     dialog.connect_response(None, move |dlg, response| {
         if response == "confirm" {
             // Get text from the entry widget inside the dialog
-            if let Some(extra) = dlg.extra_child() {
-                if let Ok(entry) = extra.downcast::<gtk4::Entry>() {
-                    let data = entry.text().to_string();
-                    if data.trim().is_empty() {
-                        let toast = adw::Toast::new("No QR data entered");
-                        toast_overlay.add_toast(toast);
-                        return;
-                    }
+            if let Some(extra) = dlg.extra_child()
+                && let Ok(entry) = extra.downcast::<gtk4::Entry>()
+            {
+                let data = entry.text().to_string();
+                if data.trim().is_empty() {
+                    let toast = adw::Toast::new("No QR data entered");
+                    toast_overlay.add_toast(toast);
+                    return;
+                }
 
-                    // Forward to core as a hardware event
-                    let event = ExchangeHardwareEvent::QrScanned { data };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                // Forward to core as a hardware event
+                let event = ExchangeHardwareEvent::QrScanned { data };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                 }
             }
         }
@@ -743,10 +743,10 @@ fn collect_named_entries(container: &GtkBox) -> Vec<gtk4::Entry> {
     let mut entries = Vec::new();
     let mut child = container.first_child();
     while let Some(widget) = child {
-        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>() {
-            if !entry.widget_name().is_empty() {
-                entries.push(entry);
-            }
+        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>()
+            && !entry.widget_name().is_empty()
+        {
+            entries.push(entry);
         }
         if let Ok(box_widget) = widget.clone().downcast::<GtkBox>() {
             entries.extend(collect_named_entries(&box_widget));
@@ -779,15 +779,15 @@ fn flush_focused_entry(container: &GtkBox, on_action: &OnAction) {
 fn find_focused_entry(container: &GtkBox) -> Option<gtk4::Entry> {
     let mut child = container.first_child();
     while let Some(widget) = child {
-        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>() {
-            if entry.has_focus() {
-                return Some(entry);
-            }
+        if let Ok(entry) = widget.clone().downcast::<gtk4::Entry>()
+            && entry.has_focus()
+        {
+            return Some(entry);
         }
-        if let Ok(box_widget) = widget.clone().downcast::<GtkBox>() {
-            if let Some(found) = find_focused_entry(&box_widget) {
-                return Some(found);
-            }
+        if let Ok(box_widget) = widget.clone().downcast::<GtkBox>()
+            && let Some(found) = find_focused_entry(&box_widget)
+        {
+            return Some(found);
         }
         child = widget.next_sibling();
     }

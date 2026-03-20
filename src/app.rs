@@ -124,12 +124,11 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         let mut labels = Vec::new();
         let mut child = list_box.first_child();
         while let Some(widget) = child {
-            if let Some(row) = widget.downcast_ref::<gtk4::ListBoxRow>() {
-                if let Some(label_widget) = row.child() {
-                    if let Some(label) = label_widget.downcast_ref::<Label>() {
-                        labels.push(label.text());
-                    }
-                }
+            if let Some(row) = widget.downcast_ref::<gtk4::ListBoxRow>()
+                && let Some(label_widget) = row.child()
+                && let Some(label) = label_widget.downcast_ref::<Label>()
+            {
+                labels.push(label.text());
             }
             child = widget.next_sibling();
         }
