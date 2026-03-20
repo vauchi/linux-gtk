@@ -3,8 +3,8 @@
 
 //! Icon mapping — translates core icon identifiers to GTK symbolic icons.
 
-use gtk4::prelude::*;
 use gtk4::Widget;
+use gtk4::prelude::*;
 
 /// Map a core icon name to a GTK `Image` widget using Adwaita symbolic icons.
 ///

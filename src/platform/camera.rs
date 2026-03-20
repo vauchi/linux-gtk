@@ -10,9 +10,9 @@
 mod inner {
     use std::cell::RefCell;
     use std::rc::Rc;
+    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc;
-    use std::sync::Arc;
 
     use gtk4::glib;
     use gtk4::prelude::*;
@@ -161,9 +161,9 @@ mod inner {
     ///
     /// Captures frames, sends them for preview, and decodes QR codes.
     fn capture_loop(tx: &mpsc::Sender<CameraMsg>, stop: &AtomicBool) -> Result<(), String> {
+        use nokhwa::Camera;
         use nokhwa::pixel_format::RgbFormat;
         use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
-        use nokhwa::Camera;
 
         let requested =
             RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
