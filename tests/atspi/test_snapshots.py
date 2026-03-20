@@ -83,6 +83,7 @@ def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> flo
     result = subprocess.run(
         [
             "compare",
+            "-fuzz", "2%",    # Allow 2% color diff (anti-aliasing tolerance)
             "-metric", "AE",  # Absolute Error (pixel count)
             baseline_path,
             actual_path,
