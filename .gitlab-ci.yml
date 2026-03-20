@@ -102,7 +102,9 @@ test:
 # AT-SPI accessibility + widget tree tests
 test:a11y:
   stage: test
-  needs: [build]
+  needs:
+    - job: build
+      optional: true
   tags: [linux, self-hosted]
   script:
     - chmod +x tests/atspi/run-tests.sh
@@ -125,7 +127,9 @@ test:a11y:
 # To regenerate: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots
 test:snapshots:
   stage: test
-  needs: [build]
+  needs:
+    - job: build
+      optional: true
   tags: [linux, self-hosted]
   script:
     - chmod +x tests/atspi/run-tests.sh
