@@ -6,3 +6,11 @@
 .DS_Store
 __pycache__/
 .pytest_cache/
+
+# Secrets & credentials (never commit)
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+service-account*.json
