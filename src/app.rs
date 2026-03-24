@@ -187,7 +187,6 @@ fn screen_label(screen: &AppScreen) -> &str {
         AppScreen::EmergencyShred => "Emergency Shred",
         AppScreen::DeliveryStatus => "Delivery Status",
         AppScreen::Sync => "Sync",
-        AppScreen::TorSettings => "Tor Settings",
         AppScreen::Recovery => "Recovery",
         AppScreen::Groups => "Groups",
         AppScreen::Privacy => "Privacy",

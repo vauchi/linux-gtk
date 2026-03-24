@@ -161,8 +161,8 @@ pub fn handle_app_engine_result(
         ActionResult::ExchangeCommands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
-        ActionResult::TorCommand { .. } => {
-            // Tor commands are dispatched at the app layer; re-render for state changes.
+        ActionResult::PreviewAs { .. } | ActionResult::ShowContactPicker => {
+            // Resolved to NavigateTo by AppEngine before reaching here; re-render as fallback.
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
     }

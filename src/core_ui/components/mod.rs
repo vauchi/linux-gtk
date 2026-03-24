@@ -4,6 +4,7 @@
 //! Component renderers — one GTK4 widget per `Component` enum variant.
 
 mod action_list;
+mod banner;
 mod card_preview;
 mod confirmation_dialog;
 mod contact_list;
@@ -136,5 +137,10 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             editing,
             validation_error,
         } => editable_text::render(id, label, value, editing, validation_error, on_action),
+        Component::Banner {
+            text,
+            action_label,
+            action_id,
+        } => banner::render(text, action_label, action_id, on_action),
     }
 }
