@@ -6,7 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Frame, Label, Orientation, Widget};
-use vauchi_core::ui::{QrMode, UserAction};
+use vauchi_app::ui::{QrMode, UserAction};
 
 use super::super::screen_renderer::OnAction;
 use crate::platform::hardware;

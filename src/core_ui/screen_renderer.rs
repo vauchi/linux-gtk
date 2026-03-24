@@ -15,10 +15,10 @@ use std::rc::Rc;
 
 use std::collections::HashSet;
 
-use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
-use vauchi_core::ui::{
+use vauchi_app::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
+use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
 
 use crate::platform::hardware;
 
@@ -114,13 +114,13 @@ pub fn handle_app_engine_result(
         ActionResult::OpenContact { contact_id } => {
             app_engine
                 .borrow_mut()
-                .navigate_to(vauchi_core::ui::AppScreen::ContactDetail { contact_id });
+                .navigate_to(vauchi_app::ui::AppScreen::ContactDetail { contact_id });
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::EditContact { contact_id } => {
             app_engine
                 .borrow_mut()
-                .navigate_to(vauchi_core::ui::AppScreen::ContactEdit { contact_id });
+                .navigate_to(vauchi_app::ui::AppScreen::ContactEdit { contact_id });
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::OpenUrl { url } => {
@@ -134,13 +134,13 @@ pub fn handle_app_engine_result(
         ActionResult::StartDeviceLink => {
             app_engine
                 .borrow_mut()
-                .navigate_to(vauchi_core::ui::AppScreen::DeviceLinking);
+                .navigate_to(vauchi_app::ui::AppScreen::DeviceLinking);
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::StartBackupImport => {
             app_engine
                 .borrow_mut()
-                .navigate_to(vauchi_core::ui::AppScreen::Backup);
+                .navigate_to(vauchi_app::ui::AppScreen::Backup);
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::RequestCamera => {

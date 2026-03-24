@@ -6,7 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
-use vauchi_core::ui::Status;
+use vauchi_app::ui::Status;
 
 pub fn render(
     id: &str,

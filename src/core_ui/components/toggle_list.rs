@@ -6,7 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget};
-use vauchi_core::ui::{ToggleItem, UserAction};
+use vauchi_app::ui::{ToggleItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
 

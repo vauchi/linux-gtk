@@ -12,7 +12,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
-use vauchi_core::ui::{InputType, UserAction};
+use vauchi_app::ui::{InputType, UserAction};
 
 use super::super::screen_renderer::OnAction;
 

@@ -8,7 +8,7 @@ use gtk4::prelude::*;
 use gtk4::{
     Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
 };
-use vauchi_core::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
+use vauchi_app::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
 
 use super::super::screen_renderer::OnAction;
 

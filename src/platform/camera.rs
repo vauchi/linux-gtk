@@ -19,8 +19,8 @@ mod inner {
     use libadwaita as adw;
     use libadwaita::prelude::*;
 
+    use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::ui::AppEngine;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 

@@ -6,7 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, Widget};
-use vauchi_core::ui::InfoItem;
+use vauchi_app::ui::InfoItem;
 
 pub fn render(id: &str, icon: &Option<String>, title: &str, items: &[InfoItem]) -> Widget {
     let frame = Frame::builder().css_classes(["card"]).build();

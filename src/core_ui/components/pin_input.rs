@@ -11,7 +11,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use std::cell::RefCell;
 use std::rc::Rc;
-use vauchi_core::ui::UserAction;
+use vauchi_app::ui::UserAction;
 
 use super::super::screen_renderer::OnAction;
 

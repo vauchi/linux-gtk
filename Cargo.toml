@@ -22,6 +22,7 @@ nfc = ["dep:pcsc"]
 
 [dependencies]
 vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
+vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["network-native-tls"] }
 gtk4 = "0.9"
 libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = "0.14"

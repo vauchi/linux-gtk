@@ -23,8 +23,8 @@ mod inner {
     use gtk4::glib;
     use libadwaita as adw;
 
+    use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::ui::AppEngine;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 

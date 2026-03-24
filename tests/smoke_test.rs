@@ -6,8 +6,8 @@
 //! Tests verify that all AppEngine screens produce valid ScreenModels
 //! and that action handling returns expected results.
 
+use vauchi_app::ui::*;
 use vauchi_core::api::{Vauchi, VauchiConfig};
-use vauchi_core::ui::*;
 
 // ── Test helpers ────────────────────────────────────────────────────
 

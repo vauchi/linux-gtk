@@ -23,7 +23,7 @@ mod text_input;
 mod toggle_list;
 
 use gtk4::Widget;
-use vauchi_core::ui::Component;
+use vauchi_app::ui::Component;
 
 use super::screen_renderer::OnAction;
 

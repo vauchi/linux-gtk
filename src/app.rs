@@ -10,7 +10,7 @@ use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_core::ui::{AppEngine, AppScreen};
+use vauchi_app::ui::{AppEngine, AppScreen};
 
 use crate::core_ui::screen_renderer;
 use crate::platform;

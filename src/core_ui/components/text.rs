@@ -5,7 +5,7 @@
 
 use gtk4::prelude::*;
 use gtk4::{Label, Widget};
-use vauchi_core::ui::TextStyle;
+use vauchi_app::ui::TextStyle;
 
 pub fn render(id: &str, content: &str, style: &TextStyle) -> Widget {
     let css_class = match style {
