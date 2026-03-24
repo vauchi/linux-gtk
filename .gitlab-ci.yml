@@ -86,7 +86,7 @@ test:
     - !reference [.self-hosted, before_script]
   script:
     - cargo test
-  allow_failure: true  # GTK4 dev libs may not be on all runners
+  # GTK4 dev libs required on runners — enforced to surface infra gaps
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
@@ -109,7 +109,6 @@ test:a11y:
   script:
     - chmod +x tests/atspi/run-tests.sh
     - tests/atspi/run-tests.sh -v --tb=short -k "not test_snapshots"
-  allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
