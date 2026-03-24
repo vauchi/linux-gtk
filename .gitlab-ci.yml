@@ -36,21 +36,15 @@ lint:machete:
   extends: [.linux-runner-nocache, .lint-machete-job, .timeout-quick]
 
 lint:fmt:
-  extends: [.linux-runner, .validation-rust, .timeout-quick]
-  stage: lint
-  script:
-    - cargo fmt --check
+  extends: [.linux-runner, .lint-format, .validation-rust, .timeout-quick]
 
 lint:clippy:
-  extends: [.linux-runner, .validation-rust, .timeout-standard]
-  stage: lint
+  extends: [.linux-runner, .lint-clippy, .validation-rust, .timeout-standard]
   needs:
     - job: lint:fmt
       optional: true
   before_script:
     - !reference [.self-hosted, before_script]
-  script:
-    - cargo clippy -- -D warnings
 
 build:
   extends: [.linux-runner, .timeout-standard]
