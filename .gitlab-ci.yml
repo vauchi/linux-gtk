@@ -75,7 +75,9 @@ build:
 test:
   extends: [.linux-runner, .timeout-standard]
   stage: test
-  needs: [build]
+  needs:
+    - job: lint:fmt
+      optional: true
   before_script:
     - !reference [.self-hosted, before_script]
   script:
