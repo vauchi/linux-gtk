@@ -11,7 +11,9 @@
 #[cfg(feature = "ble")]
 mod inner {
     use std::cell::RefCell;
+    use std::collections::HashMap;
     use std::rc::Rc;
+    use std::sync::Mutex as StdMutex;
     use std::sync::mpsc;
 
     use gtk4::glib;
@@ -21,6 +23,16 @@ mod inner {
     use vauchi_core::exchange::ExchangeHardwareEvent;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
+
+    /// Persistent BLE connection state shared across connect/write/read/disconnect calls.
+    struct BleConnection {
+        runtime: tokio::runtime::Runtime,
+        _session: bluer::Session,
+        device: bluer::Device,
+        characteristics: HashMap<String, bluer::gatt::remote::Characteristic>,
+    }
+
+    static BLE_CONNECTION: StdMutex<Option<BleConnection>> = StdMutex::new(None);
 
     /// Start scanning for vauchi BLE peripherals.
     ///
@@ -142,8 +154,60 @@ mod inner {
                     return;
                 }
             };
-            let result = rt.block_on(connect_device(&device_id_for_thread));
-            tx.send(result).ok();
+
+            let result = rt.block_on(async {
+                let addr: bluer::Address = device_id_for_thread
+                    .parse()
+                    .map_err(|e| format!("Invalid address: {}", e))?;
+
+                let session = bluer::Session::new()
+                    .await
+                    .map_err(|e| format!("BlueZ session: {}", e))?;
+                let adapter = session
+                    .default_adapter()
+                    .await
+                    .map_err(|e| format!("No BLE adapter: {}", e))?;
+
+                let device = adapter.device(addr).map_err(|e| format!("Device: {}", e))?;
+                device
+                    .connect()
+                    .await
+                    .map_err(|e| format!("Connect failed: {}", e))?;
+
+                // Discover GATT services and cache characteristics by UUID
+                let mut characteristics = HashMap::new();
+                let services = device
+                    .services()
+                    .await
+                    .map_err(|e| format!("GATT discovery: {}", e))?;
+
+                for service in services {
+                    if let Ok(chars) = service.characteristics().await {
+                        for c in chars {
+                            if let Ok(uuid) = c.uuid().await {
+                                characteristics.insert(uuid.to_string().to_lowercase(), c);
+                            }
+                        }
+                    }
+                }
+
+                Ok::<_, String>((session, device, characteristics))
+            });
+
+            match result {
+                Ok((session, device, characteristics)) => {
+                    *BLE_CONNECTION.lock().unwrap() = Some(BleConnection {
+                        runtime: rt,
+                        _session: session,
+                        device,
+                        characteristics,
+                    });
+                    tx.send(Ok(())).ok();
+                }
+                Err(e) => {
+                    tx.send(Err(e)).ok();
+                }
+            }
         });
 
         let device_id_for_event = device_id;
@@ -188,14 +252,24 @@ mod inner {
         let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
         std::thread::spawn(move || {
-            let rt = match tokio::runtime::Runtime::new() {
-                Ok(rt) => rt,
-                Err(e) => {
-                    tx.send(Err(format!("Tokio runtime: {}", e))).ok();
-                    return;
-                }
+            let guard = BLE_CONNECTION.lock().unwrap();
+            let Some(conn) = guard.as_ref() else {
+                tx.send(Err("No active BLE connection".into())).ok();
+                return;
             };
-            let result = rt.block_on(write_char(&uuid, &data));
+            let Some(char) = conn.characteristics.get(&uuid.to_lowercase()).cloned() else {
+                tx.send(Err(format!("Characteristic {} not found", uuid)))
+                    .ok();
+                return;
+            };
+            let handle = conn.runtime.handle().clone();
+            drop(guard); // Release lock before blocking
+
+            let result = handle.block_on(async move {
+                char.write(&data)
+                    .await
+                    .map_err(|e| format!("GATT write: {}", e))
+            });
             tx.send(result).ok();
         });
 
@@ -232,14 +306,22 @@ mod inner {
         let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
         std::thread::spawn(move || {
-            let rt = match tokio::runtime::Runtime::new() {
-                Ok(rt) => rt,
-                Err(e) => {
-                    tx.send(Err(format!("Tokio runtime: {}", e))).ok();
-                    return;
-                }
+            let guard = BLE_CONNECTION.lock().unwrap();
+            let Some(conn) = guard.as_ref() else {
+                tx.send(Err("No active BLE connection".into())).ok();
+                return;
             };
-            let result = rt.block_on(read_char(&uuid));
+            let Some(char) = conn.characteristics.get(&uuid.to_lowercase()).cloned() else {
+                tx.send(Err(format!("Characteristic {} not found", uuid)))
+                    .ok();
+                return;
+            };
+            let handle = conn.runtime.handle().clone();
+            drop(guard);
+
+            let result = handle.block_on(async move {
+                char.read().await.map_err(|e| format!("GATT read: {}", e))
+            });
             tx.send(result).ok();
         });
 
@@ -273,9 +355,12 @@ mod inner {
 
     /// Disconnect from the current BLE device.
     pub fn disconnect(toast_overlay: &adw::ToastOverlay) {
-        // BlueZ handles disconnect when adapter/device is dropped.
-        // For explicit disconnect, we'd cache the device handle in a
-        // session struct. For now, just notify the user.
+        let prev = BLE_CONNECTION.lock().unwrap().take();
+        if let Some(conn) = prev {
+            // Disconnect the device on the connection's runtime before dropping
+            let _ = conn.runtime.block_on(conn.device.disconnect());
+            // Runtime + session + device + chars dropped here
+        }
         let toast = adw::Toast::new("BLE disconnected");
         toast_overlay.add_toast(toast);
     }
@@ -380,42 +465,6 @@ mod inner {
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
         Ok(())
-    }
-
-    async fn connect_device(device_id: &str) -> Result<(), String> {
-        let addr: bluer::Address = device_id
-            .parse()
-            .map_err(|e| format!("Invalid address: {}", e))?;
-
-        let session = bluer::Session::new()
-            .await
-            .map_err(|e| format!("BlueZ session: {}", e))?;
-        let adapter = session
-            .default_adapter()
-            .await
-            .map_err(|e| format!("No BLE adapter: {}", e))?;
-
-        let device = adapter.device(addr).map_err(|e| format!("Device: {}", e))?;
-        device
-            .connect()
-            .await
-            .map_err(|e| format!("Connect failed: {}", e))?;
-
-        Ok(())
-    }
-
-    async fn write_char(uuid: &str, data: &[u8]) -> Result<(), String> {
-        // In a full implementation, we'd cache the connected device and
-        // look up the characteristic by UUID on its GATT services.
-        // For now, this is a placeholder that will be wired when the
-        // BLE session management is complete.
-        let _ = (uuid, data);
-        Err("GATT write requires active connection (session management TODO)".into())
-    }
-
-    async fn read_char(uuid: &str) -> Result<Vec<u8>, String> {
-        let _ = uuid;
-        Err("GATT read requires active connection (session management TODO)".into())
     }
 }
 
