@@ -31,7 +31,9 @@ use super::screen_renderer::OnAction;
 /// Render a `Component` to a GTK4 widget, wiring interactive signals via `on_action`.
 pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
     match component {
-        Component::Text { id, content, style } => text::render(id, content, style),
+        Component::Text {
+            id, content, style, ..
+        } => text::render(id, content, style),
         Component::TextInput {
             id,
             label,
@@ -40,6 +42,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             max_length,
             validation_error,
             input_type,
+            ..
         } => text_input::render(
             id,
             label,
@@ -50,42 +53,47 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             input_type,
             on_action,
         ),
-        Component::ToggleList { id, label, items } => {
-            toggle_list::render(id, label, items, on_action)
-        }
+        Component::ToggleList {
+            id, label, items, ..
+        } => toggle_list::render(id, label, items, on_action),
         Component::FieldList {
             id,
             fields,
             visibility_mode,
             available_groups,
+            ..
         } => field_list::render(id, fields, visibility_mode, available_groups, on_action),
         Component::CardPreview {
             name,
             fields,
             group_views,
             selected_group,
+            ..
         } => card_preview::render(name, fields, group_views, selected_group, on_action),
         Component::InfoPanel {
             id,
             icon,
             title,
             items,
+            ..
         } => info_panel::render(id, icon, title, items),
         Component::ContactList {
             id,
             contacts,
             searchable,
+            ..
         } => contact_list::render(id, contacts, searchable, on_action),
-        Component::SettingsGroup { id, label, items } => {
-            settings_group::render(id, label, items, on_action)
-        }
-        Component::ActionList { id, items } => action_list::render(id, items, on_action),
+        Component::SettingsGroup {
+            id, label, items, ..
+        } => settings_group::render(id, label, items, on_action),
+        Component::ActionList { id, items, .. } => action_list::render(id, items, on_action),
         Component::StatusIndicator {
             id,
             icon,
             title,
             detail,
             status,
+            ..
         } => status_indicator::render(id, icon, title, detail, status),
         Component::PinInput {
             id,
@@ -101,6 +109,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             data,
             mode,
             label,
+            ..
         } => qr_code::render(id, data, mode, label, on_action),
         Component::ConfirmationDialog {
             id,
@@ -108,6 +117,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             message,
             confirm_text,
             destructive,
+            ..
         } => confirmation_dialog::render(id, title, message, confirm_text, destructive, on_action),
         Component::Divider => divider::render(),
         Component::ShowToast {
@@ -122,6 +132,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             confirm_text,
             cancel_text,
             destructive,
+            ..
         } => inline_confirm::render(
             id,
             warning,
@@ -136,11 +147,13 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             value,
             editing,
             validation_error,
+            ..
         } => editable_text::render(id, label, value, editing, validation_error, on_action),
         Component::Banner {
             text,
             action_label,
             action_id,
+            ..
         } => banner::render(text, action_label, action_id, on_action),
     }
 }

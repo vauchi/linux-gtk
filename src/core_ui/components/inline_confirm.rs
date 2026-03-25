@@ -31,6 +31,7 @@ pub fn render(
     // Warning icon + text
     let warning_box = GtkBox::new(Orientation::Horizontal, 8);
     let icon = Label::builder().label("⚠").build();
+    icon.update_property(&[Property::Label("Warning")]);
     warning_box.append(&icon);
     let warning_label = Label::builder()
         .label(warning)

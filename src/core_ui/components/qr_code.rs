@@ -102,9 +102,9 @@ fn render_display(container: &GtkBox, data: &str) {
 
             qr_area.append(&drawing_area);
         }
-        Err(_) => {
+        Err(e) => {
             let error_label = Label::builder()
-                .label("Failed to generate QR code")
+                .label(format!("Failed to generate QR code: {e}"))
                 .css_classes(["error"])
                 .build();
             qr_area.append(&error_label);
@@ -130,6 +130,7 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction) {
         .label("📷")
         .css_classes(["title-1"])
         .build();
+    icon.update_property(&[Property::Label("Camera")]);
     scan_area.append(&icon);
 
     let has_cam = hardware::has_camera();

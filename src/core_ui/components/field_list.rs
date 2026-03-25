@@ -72,7 +72,7 @@ pub fn render(
 /// Render a simple show/hide toggle button for the field.
 fn render_show_hide_toggle(row: &GtkBox, field: &FieldDisplay, on_action: &OnAction) {
     let is_visible = matches!(field.visibility, UiFieldVisibility::Shown);
-    let vis_text = if is_visible { "Visible" } else { "Hidden" };
+    let vis_text = if is_visible { "Hide" } else { "Show" };
 
     let vis_btn = Button::builder()
         .label(vis_text)

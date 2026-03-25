@@ -32,6 +32,7 @@ pub fn render(
         .margin_top(8)
         .margin_bottom(8)
         .build();
+    icon.update_property(&[Property::Label("Information")]);
     container.append(&icon);
 
     // Message

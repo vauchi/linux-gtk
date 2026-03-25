@@ -99,6 +99,7 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
                     .halign(gtk4::Align::End)
                     .css_classes(["dim-label"])
                     .build();
+                arrow.update_property(&[Property::Label("")]);
                 row.append(&arrow);
             }
             SettingsItemKind::Destructive { label } => {

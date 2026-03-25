@@ -41,14 +41,15 @@ pub fn render(
     let entries: Rc<RefCell<Vec<Entry>>> = Rc::new(RefCell::new(Vec::new()));
     let pin_length = *length;
 
-    for _ in 0..pin_length {
+    for i in 0..pin_length {
+        let digit_label = format!("PIN digit {} of {}", i + 1, pin_length);
         let digit_entry = Entry::builder()
             .max_length(1)
             .width_chars(2)
             .halign(gtk4::Align::Center)
             .input_purpose(gtk4::InputPurpose::Digits)
             .build();
-        digit_entry.update_property(&[Property::Label(label)]);
+        digit_entry.update_property(&[Property::Label(&digit_label)]);
 
         if *masked {
             digit_entry.set_visibility(false);
