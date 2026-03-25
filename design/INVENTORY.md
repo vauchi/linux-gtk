@@ -3,7 +3,7 @@
 
 # gVauchi (GTK) — Design Inventory
 
-## Components (17 types)
+## Components (18 types)
 
 All components are rendered by `src/core_ui/components/mod.rs` via `render_component()`.
 Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita widgets.
@@ -11,7 +11,7 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 | # | Component | File | GTK Widget(s) | Interactive | Used On |
 |---|-----------|------|---------------|-------------|---------|
 | 1 | Text | `text.rs` | `gtk4::Label` | No | All screens (titles, descriptions) |
-| 2 | TextInput | `text_input.rs` | `gtk4::Entry` | Yes (TextChanged on Enter/focus-leave) | Onboarding, Settings, TorSettings |
+| 2 | TextInput | `text_input.rs` | `gtk4::Entry` | Yes (TextChanged on Enter/focus-leave) | Onboarding, Settings |
 | 3 | PinInput | `pin_input.rs` | `gtk4::Entry` (password mode) | Yes (TextChanged, auto-advance) | Lock, DuressPin |
 | 4 | ToggleList | `toggle_list.rs` | `gtk4::CheckButton` (multiple) | Yes (ItemToggled) | Onboarding (groups), Exchange (group preselect) |
 | 5 | ContactList | `contact_list.rs` | `gtk4::ListBox` + search Entry | Yes (ListItemSelected) | Contacts |
@@ -27,8 +27,9 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 | 15 | InlineConfirm | `inline_confirm.rs` | `gtk4::Box` with warning + confirm/cancel | Yes (ActionPressed) | EmergencyShred |
 | 16 | ShowToast | `show_toast.rs` | `adw::Toast` via ToastOverlay | Yes (undo action) | Post-delete, post-save |
 | 17 | Divider | `divider.rs` | `gtk4::Separator` (horizontal) | No | Various (visual separator) |
+| 18 | Banner | `banner.rs` | `gtk4::Box` (horizontal, label + button) | Yes (ActionPressed) | Informational bar with optional action |
 
-## Screens (18 + catch-all)
+## Screens (17 + catch-all)
 
 Navigation via sidebar `gtk4::ListBox`. Screen rendering through `AppEngine::navigate_to()` → `ScreenModel` → `render_screen_model()`.
 
@@ -47,11 +48,10 @@ Navigation via sidebar `gtk4::ListBox`. Screen rendering through `AppEngine::nav
 | 11 | EmergencyShred | "Emergency Shred" | InlineConfirm, ConfirmationDialog, Text | Always available |
 | 12 | DeliveryStatus | "Delivery Status" | StatusIndicator, ContactList | Always available |
 | 13 | Sync | "Sync" | StatusIndicator, ActionList | Always available |
-| 14 | TorSettings | "Tor Settings" | SettingsGroup, TextInput | Always available |
-| 15 | Recovery | "Recovery" | InfoPanel, ActionList | Always available |
-| 16 | Groups | "Groups" | ToggleList, ActionList | Always available |
-| 17 | Privacy | "Privacy" | SettingsGroup, ActionList | Always available |
-| 18 | Support | "Support" | InfoPanel, ActionList | Always available |
+| 14 | Recovery | "Recovery" | InfoPanel, ActionList | Always available |
+| 15 | Groups | "Groups" | ToggleList, ActionList | Always available |
+| 16 | Privacy | "Privacy" | SettingsGroup, ActionList | Always available |
+| 17 | Support | "Support" | InfoPanel, ActionList | Always available |
 
 ## Workflows (7)
 
@@ -97,7 +97,6 @@ Settings → SettingsGroup items
   → Manage devices (DeviceLinking)
   → Duress PIN (DuressPin)
   → Emergency wipe (EmergencyShred)
-  → Relay URL (TorSettings)
 ```
 
 ### W6: Device Linking
@@ -124,10 +123,18 @@ Groups → View groups list (ToggleList)
 | Camera | `platform/camera.rs` | `camera` (optional) | `/dev/video*` | QR scanning via nokhwa + rqrr |
 | BLE | `platform/ble.rs` | `ble` (default) | `/sys/class/bluetooth/` | BlueZ via bluer + tokio |
 | Audio | `platform/audio.rs` | `audio` (default) | `/proc/asound/cards` | Ultrasonic via CPAL |
-| NFC | `platform/hardware.rs` | — | `/dev/nfc*` | Detection only, no integration |
+| NFC | `platform/nfc.rs` | `nfc` (optional) | `/dev/nfc*` | PC/SC exchange via pcsclite (SELECT AID + EXCHANGE APDU) |
 
 ## Accessibility Status
 
-**Current: No accessibility labels set.** All widgets use default GTK4 AT-SPI exposure (widget type + visual text only). No `update_property()`, no `set_accessible_role()`, no custom accessible names.
+**Current: AT-SPI labels set on all interactive widgets.** Every component uses `update_property(&[Property::Label(...)])` with descriptive text. Key coverage:
 
-**Needed for AT-SPI testing:** Every interactive widget needs `Property::Label` set with descriptive text matching its purpose.
+- Navigation sidebar: `Property::Label("Navigation")`
+- All list widgets: `Property::Label("Contacts")`, `Property::Label("Fields")`, `Property::Label("Actions")`
+- Text inputs: `Property::Label(label)` + `Property::Placeholder(...)`
+- QR code: `AccessibleRole::Img` + `Property::Label("QR code for contact exchange")`
+- Settings toggles: per-item `Property::Label`
+- Divider: `AccessibleRole::Separator`
+- All other components: `Property::Label(title)` or `Property::Label(warning)`
+
+AT-SPI tests in `tests/atspi/` verify the accessibility tree.

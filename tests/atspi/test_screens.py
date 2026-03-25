@@ -25,7 +25,6 @@ SIDEBAR_SCREENS = [
     "Emergency Shred",
     "Delivery Status",
     "Sync",
-    "Tor Settings",
     "Recovery",
     "Groups",
     "Privacy",

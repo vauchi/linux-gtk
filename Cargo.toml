@@ -49,6 +49,13 @@ ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
 [dev-dependencies]
 tempfile = "3.0"
 
+# Release profile: optimized binary (matches cli/tui)
+[profile.release]
+lto = true
+strip = true
+panic = "abort"
+overflow-checks = true
+
 # Development profile: fast builds, backtraces work (matches core)
 [profile.dev]
 debug = "line-tables-only"

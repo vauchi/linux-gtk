@@ -68,7 +68,7 @@ class TestNavigateAllScreens:
     SCREENS = [
         "My Info", "Contacts", "Exchange", "Settings", "Help",
         "Backup", "Device Linking", "Duress PIN", "Emergency Shred",
-        "Delivery Status", "Sync", "Tor Settings", "Recovery",
+        "Delivery Status", "Sync", "Recovery",
         "Groups", "Privacy", "Support",
     ]
 
