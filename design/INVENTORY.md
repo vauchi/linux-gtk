@@ -3,7 +3,7 @@
 
 # gVauchi (GTK) — Design Inventory
 
-## Components (18 types)
+## Components (16 types)
 
 All components are rendered by `src/core_ui/components/mod.rs` via `render_component()`.
 Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita widgets.
@@ -18,16 +18,14 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 | 6 | FieldList | `field_list.rs` | `gtk4::ListBox` with group headers | Yes (ListItemSelected) | MyInfo, ContactDetail |
 | 7 | CardPreview | `card_preview.rs` | `gtk4::Frame` with group tabs | Yes (GroupViewSelected) | MyInfo, ContactDetail |
 | 8 | QrCode | `qr_code.rs` | `gtk4::DrawingArea` (cairo) or Entry+Button | Yes (scan/paste) | Exchange |
-| 9 | ConfirmationDialog | `confirmation_dialog.rs` | `gtk4::Box` with confirm/cancel buttons | Yes (ActionPressed) | EmergencyShred, DuressPin |
-| 10 | InfoPanel | `info_panel.rs` | `gtk4::Box` with icon + title + items | No | Help, Support, Recovery |
-| 11 | StatusIndicator | `status_indicator.rs` | `gtk4::Box` with icon + label | No | DeliveryStatus, Sync |
-| 12 | ActionList | `action_list.rs` | `gtk4::ListBox` of buttons | Yes (ActionPressed) | Settings, Backup, DeviceLinking |
-| 13 | SettingsGroup | `settings_group.rs` | `adw::PreferencesGroup` with toggles/buttons | Yes (ActionPressed, ItemToggled) | Settings, Privacy |
-| 14 | EditableText | `editable_text.rs` | `gtk4::Label` ↔ `gtk4::Entry` toggle | Yes (TextChanged) | MyInfo (name editing) |
-| 15 | InlineConfirm | `inline_confirm.rs` | `gtk4::Box` with warning + confirm/cancel | Yes (ActionPressed) | EmergencyShred |
-| 16 | ShowToast | `show_toast.rs` | `adw::Toast` via ToastOverlay | Yes (undo action) | Post-delete, post-save |
-| 17 | Divider | `divider.rs` | `gtk4::Separator` (horizontal) | No | Various (visual separator) |
-| 18 | Banner | `banner.rs` | `gtk4::Box` (horizontal, label + button) | Yes (ActionPressed) | Informational bar with optional action |
+| 9 | InfoPanel | `info_panel.rs` | `gtk4::Box` with icon + title + items | No | Help, Support, Recovery |
+| 10 | StatusIndicator | `status_indicator.rs` | `gtk4::Box` with icon + label | No | DeliveryStatus, Sync |
+| 11 | ActionList | `action_list.rs` | `gtk4::ListBox` of buttons | Yes (ActionPressed) | Settings, Backup, DeviceLinking |
+| 12 | SettingsGroup | `settings_group.rs` | `adw::PreferencesGroup` with toggles/buttons | Yes (ActionPressed, ItemToggled) | Settings, Privacy |
+| 13 | EditableText | `editable_text.rs` | `gtk4::Label` ↔ `gtk4::Entry` toggle | Yes (TextChanged) | MyInfo (name editing) |
+| 14 | InlineConfirm | `inline_confirm.rs` | `gtk4::Box` with warning + confirm/cancel | Yes (ActionPressed) | EmergencyShred |
+| 15 | Divider | `divider.rs` | `gtk4::Separator` (horizontal) | No | Various (visual separator) |
+| 16 | Banner | `banner.rs` | `gtk4::Box` (horizontal, label + button) | Yes (ActionPressed) | Informational bar with optional action |
 
 ## Screens (17 + catch-all)
 
@@ -44,8 +42,8 @@ Navigation via sidebar `gtk4::ListBox`. Screen rendering through `AppEngine::nav
 | 7 | Backup | "Backup" | ActionList, TextInput, InfoPanel | Always available |
 | 8 | Lock | "Lock" | PinInput, Text | Password set |
 | 9 | DeviceLinking | "Device Linking" | QrCode, ActionList, StatusIndicator | Always available |
-| 10 | DuressPin | "Duress PIN" | PinInput, ConfirmationDialog, Text | Always available |
-| 11 | EmergencyShred | "Emergency Shred" | InlineConfirm, ConfirmationDialog, Text | Always available |
+| 10 | DuressPin | "Duress PIN" | PinInput, Text | Always available |
+| 11 | EmergencyShred | "Emergency Shred" | InlineConfirm, Text | Always available |
 | 12 | DeliveryStatus | "Delivery Status" | StatusIndicator, ContactList | Always available |
 | 13 | Sync | "Sync" | StatusIndicator, ActionList | Always available |
 | 14 | Recovery | "Recovery" | InfoPanel, ActionList | Always available |
@@ -79,7 +77,7 @@ Exchange screen → Show QR (QrCode display)
 Contacts → Select contact (ContactList)
   → Contact detail (CardPreview, FieldList)
   → Edit fields → Save
-  → Delete contact (ConfirmationDialog)
+  → Delete contact (InlineConfirm)
 ```
 
 ### W4: Backup

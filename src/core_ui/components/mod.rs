@@ -6,7 +6,6 @@
 mod action_list;
 mod banner;
 mod card_preview;
-mod confirmation_dialog;
 mod contact_list;
 mod divider;
 mod editable_text;
@@ -17,7 +16,6 @@ mod inline_confirm;
 mod pin_input;
 mod qr_code;
 mod settings_group;
-mod show_toast;
 mod status_indicator;
 mod text;
 mod text_input;
@@ -111,21 +109,7 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             label,
             ..
         } => qr_code::render(id, data, mode, label, on_action),
-        Component::ConfirmationDialog {
-            id,
-            title,
-            message,
-            confirm_text,
-            destructive,
-            ..
-        } => confirmation_dialog::render(id, title, message, confirm_text, destructive, on_action),
         Component::Divider => divider::render(),
-        Component::ShowToast {
-            id,
-            message,
-            undo_action_id,
-            ..
-        } => show_toast::render(id, message, undo_action_id, on_action),
         Component::InlineConfirm {
             id,
             warning,
