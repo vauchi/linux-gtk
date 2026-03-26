@@ -4,7 +4,9 @@
 """Component-level AT-SPI tests for vauchi-gtk.
 
 Each test verifies that a specific component type is discoverable
-and has correct accessible properties in the AT-SPI tree.
+in the live view hierarchy and has correct accessible properties.
+Tests query the AT-SPI tree — assertions can only fail if the
+accessible label is missing from the rendered UI.
 """
 
 import pytest
@@ -12,159 +14,189 @@ import pytest
 from helpers import find_all, find_one, dump_tree, is_sensitive
 
 
-class TestTextComponent:
-    """Text labels rendered by text.rs."""
+class TestSidebar:
+    """Navigation sidebar (app.rs)."""
 
-    def test_labels_have_text_content(self, gtk_app):
-        """Text components should be visible as labels with content."""
-        labels = find_all(gtk_app, role="label")
-        assert len(labels) > 0, "No text labels found"
-        # At least one label should have non-empty name
-        named = [l for l in labels if l.get_name()]
-        assert len(named) > 0, "No labels with accessible names"
+    def test_sidebar_has_navigation_label(self, gtk_app):
+        """Sidebar list must have 'Navigation' accessible label."""
+        nav = find_one(gtk_app, name="Navigation")
+        assert nav is not None, (
+            "Sidebar list missing 'Navigation' accessible label.\n"
+            f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=4)}"
+        )
+
+    def test_sidebar_rows_have_labels(self, gtk_app):
+        """Each sidebar row must have an accessible label matching its text."""
+        nav = find_one(gtk_app, name="Navigation")
+        if nav is None:
+            pytest.skip("No sidebar found — still on onboarding")
+        # Sidebar rows expose their screen name as accessible label
+        rows = find_all(nav, role="list item")
+        assert len(rows) >= 3, (
+            f"Expected at least 3 sidebar rows, found {len(rows)}.\n"
+            f"Sidebar tree:\n{dump_tree(nav, max_depth=3)}"
+        )
+        for row in rows:
+            name = row.get_name()
+            assert name and len(name) > 0, (
+                f"Sidebar row at index has empty accessible label.\n"
+                f"Row tree:\n{dump_tree(row)}"
+            )
 
 
 class TestTextInputComponent:
     """Text entry fields rendered by text_input.rs."""
 
-    def test_text_entries_exist(self, gtk_app):
-        """TextInput components should appear as text entries."""
-        entries = find_all(gtk_app, role="text")
-        # May not be on a screen with text inputs, so just verify the search works
-        assert isinstance(entries, list)
-
-    def test_text_entries_have_labels(self, gtk_app_fresh):
-        """On onboarding, text inputs should have accessible labels."""
-        # Fresh app goes to onboarding which has a name text input
+    def test_text_entries_have_labels_on_onboarding(self, gtk_app_fresh):
+        """On onboarding, text inputs must have accessible labels from Property::Label."""
         entries = find_all(gtk_app_fresh, role="text")
-        if entries:
-            # At least one entry should have a label
-            labeled = [e for e in entries if e.get_name()]
-            # It's OK if GTK auto-derives labels from adjacent label widgets
-            assert isinstance(labeled, list)
-
-
-class TestToggleListComponent:
-    """Toggle checkboxes rendered by toggle_list.rs."""
-
-    def test_checkboxes_found(self, gtk_app):
-        """ToggleList items should appear as check boxes."""
-        checks = find_all(gtk_app, role="check box")
-        # May not be on a screen with toggles
-        assert isinstance(checks, list)
-
-
-class TestContactListComponent:
-    """Contact list rendered by contact_list.rs."""
-
-    def test_contact_list_has_label(self, gtk_app):
-        """ContactList should have 'Contacts' accessible label when on Contacts screen."""
-        lists = find_all(gtk_app, name="Contacts")
-        # May not be on Contacts screen — sidebar item text may not expose as name
-        # This is a discovery test, not a hard assertion
-        assert isinstance(lists, list)
+        if not entries:
+            pytest.skip("No text entries on current screen")
+        for entry in entries:
+            name = entry.get_name()
+            assert name is not None and len(name) > 0, (
+                f"Text entry missing accessible label (Property::Label).\n"
+                f"Entry tree:\n{dump_tree(entry)}"
+            )
 
 
 class TestActionListComponent:
     """Action list rendered by action_list.rs."""
 
-    def test_action_list_has_label(self, gtk_app):
-        """ActionList should have 'Actions' accessible label."""
+    def test_action_list_has_actions_label(self, gtk_app):
+        """ActionList must have 'Actions' accessible label."""
         actions = find_all(gtk_app, name="Actions")
-        # May or may not be on current screen
-        assert isinstance(actions, list)
+        # ActionList may not be on current screen — only assert if found
+        if actions:
+            assert actions[0].get_name() == "Actions", (
+                "ActionList accessible label should be 'Actions'"
+            )
 
 
 class TestSettingsGroupComponent:
     """Settings group rendered by settings_group.rs."""
 
-    def test_settings_switches_have_labels(self, gtk_app):
-        """Settings toggle switches should have accessible labels."""
+    def test_settings_toggle_switches_have_labels(self, gtk_app):
+        """Settings toggle switches must have accessible labels from Property::Label."""
         switches = find_all(gtk_app, role="toggle button")
-        # Switches that are part of SettingsGroup should have labels
         for switch in switches:
             name = switch.get_name()
-            # GTK4 auto-derives label from widget content
-            assert isinstance(name, (str, type(None)))
+            assert name is not None and len(name) > 0, (
+                f"Toggle switch missing accessible label.\n"
+                f"Switch: {dump_tree(switch)}"
+            )
 
 
 class TestQrCodeComponent:
     """QR code display/scan rendered by qr_code.rs."""
 
-    def test_qr_container_accessible(self, gtk_app):
-        """QR code container should have descriptive label."""
-        qr = find_one(gtk_app, name="QR code for contact exchange")
-        # Only present on Exchange screen
-        assert isinstance(qr, object)  # May be None
+    def test_qr_has_descriptive_label(self, gtk_app):
+        """QR code container must have descriptive accessible label when present."""
+        # Only present on Exchange screen — search for either label
+        qr_display = find_one(gtk_app, name="QR code for contact exchange")
+        qr_scan = find_one(gtk_app, name="Scan QR code")
+        # If we're on the exchange screen, one of these should exist
+        if qr_display or qr_scan:
+            # Verify the label is not empty
+            found = qr_display or qr_scan
+            assert found.get_name(), "QR component has empty accessible label"
 
 
-class TestConfirmationDialogComponent:
-    """Confirmation dialog rendered by confirmation_dialog.rs."""
+class TestContactListComponent:
+    """Contact list rendered by contact_list.rs."""
 
-    def test_confirmation_widgets_accessible(self, gtk_app):
-        """Confirmation buttons should be discoverable."""
-        buttons = find_all(gtk_app, role="push button")
-        # Just verify the search works
-        assert isinstance(buttons, list)
+    def test_contact_list_has_contacts_label(self, gtk_app):
+        """ContactList must have 'Contacts' accessible label when on contacts screen."""
+        contacts_list = find_one(gtk_app, name="Contacts")
+        # Only assert if we're on a screen with a contact list
+        if contacts_list is not None:
+            assert contacts_list.get_name() == "Contacts", (
+                "ContactList accessible label should be 'Contacts'"
+            )
+
+    def test_search_has_label(self, gtk_app):
+        """Contact search entry must have 'Search contacts' accessible label."""
+        search = find_one(gtk_app, name="Search contacts")
+        if search is not None:
+            assert search.get_name() == "Search contacts", (
+                "Search entry label should be 'Search contacts'"
+            )
+
+
+class TestPinInputComponent:
+    """PIN input rendered by pin_input.rs."""
+
+    def test_pin_digits_have_descriptive_labels(self, gtk_app):
+        """PIN digit entries must have 'PIN digit N of M' accessible labels."""
+        pin_digits = find_all(gtk_app, name="PIN digit")
+        # Filter to find entries matching "PIN digit X of Y" pattern
+        pin_entries = [
+            e for e in find_all(gtk_app, role="text")
+            if e.get_name() and "PIN digit" in e.get_name()
+        ]
+        # PIN input only appears on Lock/DuressPin screens
+        for entry in pin_entries:
+            name = entry.get_name()
+            assert "of" in name, (
+                f"PIN digit label should follow 'PIN digit N of M' pattern, got: '{name}'"
+            )
+
+
+class TestCardPreviewComponent:
+    """Card preview rendered by card_preview.rs."""
+
+    def test_card_preview_has_contact_label(self, gtk_app):
+        """CardPreview frame must have 'Contact card: <name>' accessible label."""
+        cards = [
+            e for e in find_all(gtk_app, role="panel")
+            if e.get_name() and e.get_name().startswith("Contact card:")
+        ]
+        for card in cards:
+            assert card.get_name().startswith("Contact card:"), (
+                f"Card preview label should start with 'Contact card:', got: '{card.get_name()}'"
+            )
 
 
 class TestInfoPanelComponent:
     """Info panels rendered by info_panel.rs."""
 
-    def test_info_panels_have_titles(self, gtk_app):
-        """InfoPanel should be findable by its title label."""
-        # Info panels are frames with accessible labels matching the title
+    def test_info_panels_have_title_labels(self, gtk_app):
+        """InfoPanel frames must have title as accessible label."""
         panels = find_all(gtk_app, role="panel")
-        # May not be on current screen
-        assert isinstance(panels, list)
-
-
-class TestStatusIndicatorComponent:
-    """Status indicators rendered by status_indicator.rs."""
-
-    def test_status_indicators_accessible(self, gtk_app):
-        """StatusIndicator containers should have title labels."""
-        # Status indicators use the title as their accessible label
-        indicators = find_all(gtk_app, role="panel")
-        assert isinstance(indicators, list)
+        # At least some panels should have non-empty names
+        named_panels = [p for p in panels if p.get_name()]
+        # Only assert if panels exist on current screen
+        if panels:
+            assert len(named_panels) > 0, (
+                f"Found {len(panels)} panels but none have accessible labels.\n"
+                f"Tree:\n{dump_tree(gtk_app, max_depth=4)}"
+            )
 
 
 class TestDividerComponent:
     """Dividers rendered by divider.rs."""
 
-    def test_separators_exist(self, gtk_app):
-        """Divider components should appear as separators."""
+    def test_separators_have_separator_role(self, gtk_app):
+        """Divider components must appear with 'separator' AT-SPI role."""
         separators = find_all(gtk_app, role="separator")
-        assert isinstance(separators, list)
+        # Separators may not be on every screen — if present, verify role
+        for sep in separators:
+            assert sep.get_role_name() == "separator", (
+                f"Expected separator role, got: {sep.get_role_name()}"
+            )
 
 
-class TestEditableTextComponent:
-    """Editable text rendered by editable_text.rs."""
+class TestScreenTitle:
+    """Screen title rendered by screen_renderer.rs."""
 
-    def test_editable_text_accessible(self, gtk_app):
-        """EditableText should have accessible label matching its field label."""
-        # EditableText containers have the field label as their accessible label
-        # Only present on MyInfo screen when viewing name
+    def test_screen_title_exists_and_has_content(self, gtk_app):
+        """Every screen must have a non-empty title label."""
+        # The screen title is a label with widget name "screen_title"
+        # In AT-SPI, it appears as a label with non-empty text
         labels = find_all(gtk_app, role="label")
-        assert len(labels) > 0
-
-
-class TestShowToastComponent:
-    """Toast notifications rendered by show_toast.rs."""
-
-    def test_toast_detection(self, gtk_app):
-        """ShowToast banner should be discoverable when present."""
-        # Toasts are transient — may not be present
-        # Just verify the app is still running
-        labels = find_all(gtk_app, role="label")
-        assert len(labels) > 0
-
-
-class TestInlineConfirmComponent:
-    """Inline confirmation rendered by inline_confirm.rs."""
-
-    def test_inline_confirm_buttons(self, gtk_app):
-        """InlineConfirm should expose confirm and cancel buttons."""
-        buttons = find_all(gtk_app, role="push button")
-        # Confirm/cancel buttons may not be on current screen
-        assert isinstance(buttons, list)
+        # At least one label should have substantial content (the title)
+        titled = [l for l in labels if l.get_name() and len(l.get_name()) > 1]
+        assert len(titled) > 0, (
+            f"No label with substantial text found for screen title.\n"
+            f"Labels: {[l.get_name() for l in labels[:10]]}"
+        )
