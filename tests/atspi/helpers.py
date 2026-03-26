@@ -11,6 +11,17 @@ gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
 
+def wait_until(predicate, timeout=2.0, interval=0.05, message=""):
+    """Poll predicate until truthy or timeout. Raises AssertionError on timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = predicate()
+        if result:
+            return result
+        time.sleep(interval)  # Small poll interval is acceptable
+    raise AssertionError(message or f"Condition not met within {timeout}s")
+
+
 def find_app(name: str, timeout: float = 10.0) -> Atspi.Accessible | None:
     """Find an application in the AT-SPI tree by name."""
     deadline = time.monotonic() + timeout
@@ -20,7 +31,7 @@ def find_app(name: str, timeout: float = 10.0) -> Atspi.Accessible | None:
             child = desktop.get_child_at_index(i)
             if child and child.get_name() == name:
                 return child
-        time.sleep(0.3)
+        time.sleep(0.05)
     return None
 
 
@@ -157,7 +168,7 @@ def wait_for_element(
         result = find_one(root, role, name)
         if result is not None:
             return result
-        time.sleep(0.3)
+        time.sleep(0.05)
     return None
 
 

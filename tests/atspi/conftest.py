@@ -6,11 +6,10 @@
 import os
 import subprocess
 import tempfile
-import time
 
 import pytest
 
-from helpers import find_app, find_all, find_one, dump_tree, wait_for_element
+from helpers import find_app, find_all, find_one, dump_tree, wait_for_element, wait_until
 
 
 @pytest.fixture(scope="session")
@@ -111,7 +110,16 @@ def _complete_onboarding(app_root):
         action = create_btn.get_action_iface()
         if action and action.get_n_actions() > 0:
             action.do_action(0)
-            time.sleep(1.5)  # Wait for identity creation + screen transition
+            # Poll until the onboarding screen transitions away (sidebar appears)
+            try:
+                wait_until(
+                    lambda: find_one(app_root, name="Navigation") is not None,
+                    timeout=5.0,
+                    interval=0.1,
+                    message="App should transition past onboarding after identity creation",
+                )
+            except AssertionError:
+                pass  # Best-effort — tests will still run on onboarding if this fails
     except Exception:
         pass  # Best-effort — tests will still run on onboarding if this fails
 

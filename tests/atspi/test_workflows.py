@@ -6,8 +6,6 @@
 Each test exercises a complete user journey across multiple screens.
 """
 
-import time
-
 import pytest
 
 from helpers import (
@@ -17,6 +15,7 @@ from helpers import (
     set_text,
     get_label_text,
     wait_for_element,
+    wait_until,
     dump_tree,
 )
 
@@ -35,8 +34,7 @@ class TestOnboardingWorkflow:
         """Onboarding should have a name input field."""
         entries = find_all(gtk_app_fresh, role="text")
         # Onboarding screen should have at least one text entry (name field)
-        # Note: may depend on which step of onboarding is shown
-        assert isinstance(entries, list)
+        assert len(entries) > 0, "Onboarding should have at least one text input (name field)"
 
 
 class TestNavigationWorkflow:
@@ -53,9 +51,11 @@ class TestNavigationWorkflow:
         assert initial_count > 0, "No labels found initially"
 
         # The app should still have labels after any navigation
-        time.sleep(0.5)
-        labels_after = find_all(gtk_app, role="label")
-        assert len(labels_after) > 0, "App became unresponsive"
+        wait_until(
+            lambda: len(find_all(gtk_app, role="label")) > 0,
+            timeout=2.0,
+            message="App became unresponsive — no labels found after navigation",
+        )
 
 
 class TestExchangeWorkflow:
@@ -66,9 +66,9 @@ class TestExchangeWorkflow:
         # Look for QR-related accessible labels
         qr_display = find_one(gtk_app, name="QR code for contact exchange")
         qr_scan = find_one(gtk_app, name="Scan QR code")
-        # At least one should exist if on Exchange screen
-        # (may not be on Exchange screen by default)
-        assert isinstance(qr_display, object)  # May be None
+        # At least one QR element should exist on the Exchange screen
+        assert qr_display is not None or qr_scan is not None, \
+            "Exchange screen should have either QR display or scan element"
 
 
 class TestSettingsWorkflow:
@@ -77,8 +77,8 @@ class TestSettingsWorkflow:
     def test_settings_has_toggles(self, gtk_app):
         """Settings screen should have toggle switches for preferences."""
         toggles = find_all(gtk_app, role="toggle button")
-        # May or may not have toggles depending on current screen
-        assert isinstance(toggles, list)
+        # Settings screen should have preference toggles
+        assert len(toggles) > 0, "Settings should have at least one toggle switch"
 
 
 class TestHardwareDegradation:

@@ -18,11 +18,10 @@ Usage:
 
 import os
 import shutil
-import time
 
 import pytest
 
-from helpers import find_all, find_one, dump_tree
+from helpers import find_all, find_one, dump_tree, wait_until
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -64,7 +63,14 @@ def _navigate_to(app, screen_label):
                 action = item.get_action_iface()
                 if action and action.get_n_actions() > 0:
                     action.do_action(0)
-                    time.sleep(0.8)
+                    try:
+                        wait_until(
+                            lambda: len(find_all(app, role="label", max_depth=10)) > 0,
+                            timeout=3.0,
+                            message=f"Screen should render after navigating to {screen_label}",
+                        )
+                    except AssertionError:
+                        pass  # Best-effort navigation
                     return
             except Exception:
                 pass
@@ -122,7 +128,11 @@ class TestScreenSnapshots:
     def test_screen_snapshot(self, gtk_app, screen):
         """Screenshot each screen and compare against baseline."""
         _navigate_to(gtk_app, screen)
-        time.sleep(0.5)
+        wait_until(
+            lambda: len(find_all(gtk_app, role="label", max_depth=10)) > 0,
+            timeout=2.0,
+            message=f"Screen '{screen}' should have content before screenshot",
+        )
 
         filename = _screen_filename(screen)
         os.makedirs(ACTUAL_DIR, exist_ok=True)

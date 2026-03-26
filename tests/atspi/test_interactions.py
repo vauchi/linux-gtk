@@ -11,8 +11,6 @@ Note on AT-SPI roles: GTK4/libadwaita buttons expose as "button"
 (not "push button") in AT-SPI. Images use "image" role.
 """
 
-import time
-
 import pytest
 
 from helpers import (
@@ -20,6 +18,7 @@ from helpers import (
     find_one,
     click_button,
     wait_for_element,
+    wait_until,
     dump_tree,
     is_sensitive,
 )
@@ -49,7 +48,14 @@ def navigate_to(app, screen_label, timeout=3.0):
                     action = item.get_action_iface()
                     if action and action.get_n_actions() > 0:
                         action.do_action(0)
-                        time.sleep(0.5)
+                        try:
+                            wait_until(
+                                lambda: len(find_all(app, role="label", max_depth=10)) > 0,
+                                timeout=2.0,
+                                message=f"Screen should have labels after navigating to {screen_label}",
+                            )
+                        except AssertionError:
+                            pass  # Best-effort navigation
                         return True
                 except Exception:
                     pass
@@ -94,7 +100,11 @@ class TestExchangeQR:
     def test_exchange_has_qr_image(self, gtk_app):
         """Exchange screen should contain a QR image or related content."""
         navigate_to(gtk_app, "Exchange")
-        time.sleep(0.5)
+        wait_until(
+            lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
+            timeout=2.0,
+            message="Exchange screen should have labels after navigation",
+        )
 
         # QR DrawingArea has AccessibleRole::Img + label
         images = find_all(gtk_app, role="image", max_depth=15)
@@ -123,7 +133,11 @@ class TestCardPreviewTabs:
     def test_my_info_has_tab_buttons(self, gtk_app):
         """My Info screen should have group tab toggle buttons."""
         navigate_to(gtk_app, "My Info")
-        time.sleep(0.5)
+        wait_until(
+            lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
+            timeout=2.0,
+            message="My Info screen should have labels after navigation",
+        )
 
         toggles = find_all(gtk_app, role="toggle button", max_depth=15)
         all_tab = find_one(gtk_app, name="All")
@@ -156,7 +170,11 @@ class TestInlineConfirm:
     def test_emergency_shred_has_confirm_buttons(self, gtk_app):
         """Emergency Shred screen should show confirm and cancel buttons."""
         navigate_to(gtk_app, "Emergency Shred")
-        time.sleep(0.5)
+        wait_until(
+            lambda: len(find_all(gtk_app, role="button", max_depth=15)) > 0,
+            timeout=2.0,
+            message="Emergency Shred screen should have buttons after navigation",
+        )
 
         # GTK4 buttons use "button" role (not "push button")
         buttons = find_all(gtk_app, role="button", max_depth=15)
@@ -185,7 +203,11 @@ class TestQRScan:
     def test_exchange_has_text_input(self, gtk_app):
         """Exchange screen should have a text entry for QR paste input."""
         navigate_to(gtk_app, "Exchange")
-        time.sleep(0.5)
+        wait_until(
+            lambda: len(find_all(gtk_app, role="label", max_depth=10)) > 0,
+            timeout=2.0,
+            message="Exchange screen should have content after navigation",
+        )
 
         entries = find_all(gtk_app, role="text", max_depth=15)
         labels = find_all(gtk_app, role="label", max_depth=10)
