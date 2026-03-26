@@ -150,6 +150,28 @@ test:snapshots:
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+# Manual snapshot regeneration — run via GitLab UI to update baselines.
+# Trigger: Pipelines → Run pipeline → REGENERATE_SNAPSHOTS=1
+test:snapshots:record:
+  stage: test
+  needs:
+    - job: build
+      optional: true
+  tags: [linux, self-hosted]
+  variables:
+    UPDATE_SNAPSHOTS: "1"
+  script:
+    - chmod +x tests/atspi/run-tests.sh
+    - tests/atspi/run-tests.sh -v --tb=short -k "test_snapshots"
+  artifacts:
+    when: always
+    paths:
+      - tests/atspi/snapshots/baseline/
+    expire_in: 90 days
+  rules:
+    - if: $REGENERATE_SNAPSHOTS == "1"
+      when: manual
+
 # ============================================================
 # Security Stage (change-based, parallel with test)
 # ============================================================
