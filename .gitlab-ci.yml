@@ -38,22 +38,22 @@ lint:duplicates:
 lint:machete:
   extends: [.linux-runner-nocache, .lint-machete-job, .timeout-quick]
 
-lint:fmt:
+lint:format:
   extends: [.linux-runner, .lint-format, .validation-rust, .timeout-quick]
 
 lint:clippy:
   extends: [.linux-runner, .lint-clippy, .validation-rust, .timeout-standard]
   needs:
-    - job: lint:fmt
+    - job: lint:format
       optional: true
   before_script:
     - !reference [.self-hosted, before_script]
 
-build:
+build:app:
   extends: [.linux-runner, .timeout-standard]
   stage: build
   needs:
-    - job: lint:fmt
+    - job: lint:format
       optional: true
   before_script:
     - !reference [.self-hosted, before_script]
@@ -75,11 +75,11 @@ build:
           - "rust-toolchain.toml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-test:
+test:unit:
   extends: [.linux-runner, .timeout-standard]
   stage: test
   needs:
-    - job: lint:fmt
+    - job: lint:format
       optional: true
   before_script:
     - !reference [.self-hosted, before_script]
@@ -102,7 +102,7 @@ test:
 test:a11y:
   stage: test
   needs:
-    - job: build
+    - job: build:app
       optional: true
   tags: [linux, self-hosted]
   script:
@@ -126,7 +126,7 @@ test:a11y:
 test:snapshots:
   stage: test
   needs:
-    - job: build
+    - job: build:app
       optional: true
   tags: [linux, self-hosted]
   script:
@@ -155,7 +155,7 @@ test:snapshots:
 test:snapshots:record:
   stage: test
   needs:
-    - job: build
+    - job: build:app
       optional: true
   tags: [linux, self-hosted]
   variables:
@@ -180,7 +180,7 @@ test:snapshots:record:
 semgrep-sast:
   tags: [docker]
   needs:
-    - job: lint:fmt
+    - job: lint:format
       optional: true
     - job: lint:clippy
       optional: true
@@ -197,7 +197,7 @@ semgrep-sast:
 secret_detection:
   tags: [docker]
   needs:
-    - job: lint:fmt
+    - job: lint:format
       optional: true
     - job: lint:clippy
       optional: true
