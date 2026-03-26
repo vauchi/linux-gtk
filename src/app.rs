@@ -10,6 +10,7 @@ use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{AppEngine, AppScreen};
 
 use crate::core_ui::screen_renderer;
@@ -24,6 +25,9 @@ pub fn run() {
 }
 
 fn build_ui(app: &adw::Application) {
+    // Apply core theme colors via CSS provider (runtime-switchable)
+    crate::core_ui::theme::apply_default_theme();
+
     let vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
     let app_engine = Rc::new(RefCell::new(AppEngine::new(vauchi)));
 
@@ -135,12 +139,12 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         labels
     };
 
-    let new_labels: Vec<&str> = screens.iter().map(screen_label).collect();
+    let new_labels: Vec<String> = screens.iter().map(screen_label).collect();
     if current_labels.len() == new_labels.len()
         && current_labels
             .iter()
             .zip(new_labels.iter())
-            .all(|(a, b)| a.as_str() == *b)
+            .all(|(a, b)| a.as_str() == b.as_str())
     {
         return; // Same screen IDs — no rebuild needed
     }
@@ -154,9 +158,9 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         let name = screen_label(screen);
         let row = gtk4::ListBoxRow::builder().build();
         // Expose row label to AT-SPI so assistive tech can navigate sidebar
-        row.update_property(&[gtk4::accessible::Property::Label(name)]);
+        row.update_property(&[gtk4::accessible::Property::Label(&name)]);
         let label = Label::builder()
-            .label(name)
+            .label(&name)
             .halign(gtk4::Align::Start)
             .margin_top(8)
             .margin_bottom(8)
@@ -172,26 +176,32 @@ pub fn refresh_sidebar(list_box: &ListBox, app_engine: &Rc<RefCell<AppEngine>>) 
     populate_sidebar(list_box, &app_engine.borrow().available_screens());
 }
 
-fn screen_label(screen: &AppScreen) -> &str {
+/// Returns a localized label for a sidebar screen entry.
+///
+/// Uses core i18n keys (e.g., `nav.contacts`) where available,
+/// falling back to English for screens without dedicated keys.
+fn screen_label(screen: &AppScreen) -> String {
+    let locale = Locale::default();
     match screen {
-        AppScreen::Onboarding => "Onboarding",
-        AppScreen::MyInfo => "My Info",
-        AppScreen::Contacts => "Contacts",
-        AppScreen::Exchange => "Exchange",
-        AppScreen::Settings => "Settings",
-        AppScreen::Help => "Help",
-        AppScreen::Backup => "Backup",
-        AppScreen::Lock => "Lock",
-        AppScreen::DeviceLinking => "Device Linking",
-        AppScreen::DuressPin => "Duress PIN",
-        AppScreen::EmergencyShred => "Emergency Shred",
-        AppScreen::DeliveryStatus => "Delivery Status",
-        AppScreen::Sync => "Sync",
-        AppScreen::Recovery => "Recovery",
-        AppScreen::Groups => "Groups",
-        AppScreen::Privacy => "Privacy",
-        AppScreen::Support => "Support",
-        AppScreen::More => "More",
-        _ => "Other",
+        AppScreen::MyInfo => i18n::get_string(locale, "nav.myCard"),
+        AppScreen::Contacts => i18n::get_string(locale, "nav.contacts"),
+        AppScreen::Exchange => i18n::get_string(locale, "nav.exchange"),
+        AppScreen::Settings => i18n::get_string(locale, "nav.settings"),
+        AppScreen::Help => i18n::get_string(locale, "nav.help"),
+        AppScreen::Groups => i18n::get_string(locale, "nav.groups"),
+        AppScreen::Recovery => i18n::get_string(locale, "nav.recovery"),
+        AppScreen::More => i18n::get_string(locale, "nav.more"),
+        // Screens without dedicated i18n keys — use English fallback
+        AppScreen::Onboarding => "Onboarding".to_string(),
+        AppScreen::Backup => "Backup".to_string(),
+        AppScreen::Lock => "Lock".to_string(),
+        AppScreen::DeviceLinking => "Device Linking".to_string(),
+        AppScreen::DuressPin => "Duress PIN".to_string(),
+        AppScreen::EmergencyShred => "Emergency Shred".to_string(),
+        AppScreen::DeliveryStatus => "Delivery Status".to_string(),
+        AppScreen::Sync => "Sync".to_string(),
+        AppScreen::Privacy => "Privacy".to_string(),
+        AppScreen::Support => "Support".to_string(),
+        _ => "Other".to_string(),
     }
 }

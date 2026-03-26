@@ -7,3 +7,4 @@
 
 pub mod components;
 pub mod screen_renderer;
+pub mod theme;
