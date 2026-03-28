@@ -60,7 +60,7 @@ fn build_ui(app: &adw::Application) {
     toast_overlay.set_hexpand(true);
 
     // Navigation sidebar
-    let sidebar = build_sidebar(&app_engine, &content, &toast_overlay);
+    let (sidebar, sidebar_list) = build_sidebar(&app_engine, &content, &toast_overlay);
     body.append(&sidebar);
     body.append(&toast_overlay);
 
@@ -77,6 +77,48 @@ fn build_ui(app: &adw::Application) {
         .content(&root)
         .build();
 
+    // Keyboard shortcuts: Alt+1..5 navigate sidebar screens
+    let key_ctrl = gtk4::EventControllerKey::new();
+    {
+        let app_engine = app_engine.clone();
+        let content = content.clone();
+        let toast_overlay = toast_overlay.clone();
+        let sidebar_list = sidebar_list.clone();
+        key_ctrl.connect_key_pressed(move |_, key, _, modifier| {
+            if !modifier.contains(gtk4::gdk::ModifierType::ALT_MASK) {
+                return gtk4::glib::Propagation::Proceed;
+            }
+            let index = match key {
+                gtk4::gdk::Key::_1 => Some(0),
+                gtk4::gdk::Key::_2 => Some(1),
+                gtk4::gdk::Key::_3 => Some(2),
+                gtk4::gdk::Key::_4 => Some(3),
+                gtk4::gdk::Key::_5 => Some(4),
+                _ => None,
+            };
+            if let Some(idx) = index {
+                let screens = app_engine.borrow().available_screens();
+                if let Some(screen) = screens.get(idx).cloned() {
+                    app_engine.borrow_mut().navigate_to(screen);
+                    screen_renderer::render_app_engine_screen(
+                        &content,
+                        &app_engine,
+                        &toast_overlay,
+                        Some(&sidebar_list),
+                    );
+                    if let Some(row) = sidebar_list.row_at_index(idx as i32) {
+                        sidebar_list.select_row(Some(&row));
+                    }
+                }
+            }
+            match index {
+                Some(_) => gtk4::glib::Propagation::Stop,
+                None => gtk4::glib::Propagation::Proceed,
+            }
+        });
+    }
+    window.add_controller(key_ctrl);
+
     window.present();
 }
 
@@ -84,7 +126,7 @@ fn build_sidebar(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
-) -> GtkBox {
+) -> (GtkBox, ListBox) {
     let sidebar = GtkBox::new(Orientation::Vertical, 0);
     sidebar.set_width_request(200);
     sidebar.add_css_class("navigation-sidebar");
@@ -116,7 +158,7 @@ fn build_sidebar(
     });
 
     sidebar.append(&list_box);
-    sidebar
+    (sidebar, list_box)
 }
 
 /// Rebuild the sidebar rows from the current available screens.
