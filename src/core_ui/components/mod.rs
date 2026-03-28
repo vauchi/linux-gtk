@@ -139,5 +139,10 @@ pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
             action_id,
             ..
         } => banner::render(text, action_label, action_id, on_action),
+        _ => gtk4::Label::builder()
+            .label("[unsupported component]")
+            .css_classes(["dim-label"])
+            .build()
+            .into(),
     }
 }

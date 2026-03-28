@@ -13,6 +13,7 @@ pub fn render(id: &str, content: &str, style: &TextStyle) -> Widget {
         TextStyle::Subtitle => "title-3",
         TextStyle::Body => "body",
         TextStyle::Caption => "caption",
+        _ => "body",
     };
 
     let label = Label::builder()

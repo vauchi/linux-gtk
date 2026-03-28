@@ -29,7 +29,7 @@ pub fn render(
             container.update_property(&[Property::Label("QR code for contact exchange")]);
             render_display(&container, data);
         }
-        QrMode::Scan => {
+        QrMode::Scan | _ => {
             container.update_property(&[Property::Label("Scan QR code")]);
             render_scan(&container, id, on_action);
         }

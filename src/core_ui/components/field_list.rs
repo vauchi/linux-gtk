@@ -61,6 +61,7 @@ pub fn render(
             VisibilityMode::PerGroup => {
                 render_per_group_toggles(&row, field, available_groups, on_action);
             }
+            _ => {}
         }
 
         list_box.append(&row);
@@ -104,7 +105,7 @@ fn render_per_group_toggles(
     let active_groups: Vec<&str> = match &field.visibility {
         UiFieldVisibility::Groups(groups) => groups.iter().map(|s| s.as_str()).collect(),
         UiFieldVisibility::Shown => available_groups.iter().map(|s| s.as_str()).collect(),
-        UiFieldVisibility::Hidden => vec![],
+        UiFieldVisibility::Hidden | _ => vec![],
     };
 
     let group_box = GtkBox::new(Orientation::Horizontal, 4);

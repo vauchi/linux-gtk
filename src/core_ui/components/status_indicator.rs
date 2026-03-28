@@ -54,7 +54,7 @@ pub fn render(
         Status::InProgress => ("In Progress", "accent"),
         Status::Success => ("Success", "success"),
         Status::Failed => ("Failed", "error"),
-        Status::Warning => ("Warning", "warning"),
+        Status::Warning | _ => ("Warning", "warning"),
     };
 
     let badge = Label::builder()

@@ -110,6 +110,7 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
                     .build();
                 row.append(&action_label);
             }
+            _ => {}
         }
 
         list_box.append(&row);

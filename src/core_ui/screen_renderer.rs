@@ -171,6 +171,10 @@ pub fn handle_app_engine_result(
             // Resolved to NavigateTo by AppEngine before reaching here; re-render as fallback.
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
+        _ => {
+            // Future ActionResult variant — re-render as safe fallback.
+            render_app_engine_screen(container, app_engine, toast_overlay, None);
+        }
     }
 }
 
@@ -374,6 +378,9 @@ fn handle_exchange_commands(
                 // PC/SC polling is one-shot (returns after first exchange),
                 // so deactivate is a no-op. The background thread exits on
                 // its own after success or failure.
+            }
+            _ => {
+                // Future exchange command — no-op until implemented.
             }
         }
     }
@@ -605,7 +612,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
                 btn.add_css_class("destructive-action");
                 btn.add_css_class("pill");
             }
-            ActionStyle::Secondary => {}
+            ActionStyle::Secondary | _ => {}
         }
 
         let on_action = on_action.clone();

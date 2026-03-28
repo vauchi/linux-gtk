@@ -53,7 +53,7 @@ pub fn render(
         InputType::Password => entry.set_visibility(false),
         InputType::Email => entry.set_input_purpose(gtk4::InputPurpose::Email),
         InputType::Phone => entry.set_input_purpose(gtk4::InputPurpose::Phone),
-        InputType::Text => {}
+        InputType::Text | _ => {}
     }
 
     // Emit TextChanged on Enter key (activate signal)
