@@ -61,7 +61,7 @@ build:app:
     - cargo build --release
   artifacts:
     paths:
-      - target/release/vauchi-gtk
+      - target/release/gvauchi
     expire_in: 1 week
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
