@@ -29,7 +29,7 @@ def gtk_binary():
         if os.path.isfile(path) and os.access(path, os.X_OK):
             return path
 
-    pytest.skip("gvauchi binary not found — run 'just build linux-gtk' first")
+    pytest.fail("gvauchi binary not found — run 'just build linux-gtk' first")
 
 
 @pytest.fixture

@@ -103,7 +103,6 @@ test:a11y:
   stage: test
   needs:
     - job: build:app
-      optional: true
   tags: [linux, self-hosted]
   script:
     - chmod +x tests/atspi/run-tests.sh
@@ -127,7 +126,6 @@ test:snapshots:
   stage: test
   needs:
     - job: build:app
-      optional: true
   tags: [linux, self-hosted]
   script:
     - chmod +x tests/atspi/run-tests.sh
@@ -156,7 +154,6 @@ test:snapshots:record:
   stage: test
   needs:
     - job: build:app
-      optional: true
   tags: [linux, self-hosted]
   variables:
     UPDATE_SNAPSHOTS: "1"
