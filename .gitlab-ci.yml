@@ -62,6 +62,7 @@ build:app:
   artifacts:
     paths:
       - target/release/gvauchi
+      - target/release/seed-identity
     expire_in: 1 week
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

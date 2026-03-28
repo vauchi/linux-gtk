@@ -3,7 +3,6 @@
 
 """Pytest fixtures for AT-SPI GUI testing of gvauchi."""
 
-import ctypes
 import os
 import subprocess
 import tempfile
@@ -13,73 +12,37 @@ import pytest
 from helpers import find_app
 
 
-def _find_cabi_lib():
-    """Locate libvauchi_cabi.so — needed to pre-seed identity."""
+def _find_seed_binary():
+    """Locate seed-identity binary (built alongside gvauchi)."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.dirname(os.path.dirname(script_dir))
     workspace = os.path.dirname(repo_dir)
     for base in [repo_dir, workspace]:
-        for sub in ["core/target/release", "core/target/debug",
-                     "target/release", "target/debug"]:
-            path = os.path.join(base, sub, "libvauchi_cabi.so")
-            if os.path.isfile(path):
+        for profile in ["release", "debug"]:
+            path = os.path.join(base, "target", profile, "seed-identity")
+            if os.path.isfile(path) and os.access(path, os.X_OK):
                 return path
-    # CI: LD_LIBRARY_PATH may have it
-    ld = os.environ.get("LD_LIBRARY_PATH", "")
-    for d in ld.split(":"):
-        path = os.path.join(d, "libvauchi_cabi.so")
-        if os.path.isfile(path):
-            return path
     return None
 
 
 def _seed_identity(data_dir):
-    """Create a test identity via CABI so the app starts past onboarding.
+    """Create a test identity so the app starts past onboarding.
 
-    Drives the onboarding state machine headlessly (no GUI needed):
-    create_new → get_started → name → continue → skip → continue →
-    skip backup → start → my_info.
+    Runs the seed-identity binary which drives the onboarding state
+    machine headlessly: create_new → name → skip → start → my_info.
     """
-    cabi_path = _find_cabi_lib()
-    if not cabi_path:
+    seed_bin = _find_seed_binary()
+    if not seed_bin:
         return False
 
     vauchi_dir = os.path.join(data_dir, "vauchi")
     os.makedirs(vauchi_dir, exist_ok=True)
 
-    lib = ctypes.CDLL(cabi_path)
-    lib.vauchi_app_create_with_config.restype = ctypes.c_void_p
-    lib.vauchi_app_create_with_config.argtypes = [
-        ctypes.c_char_p, ctypes.c_char_p,
-    ]
-    lib.vauchi_app_handle_action.restype = ctypes.c_char_p
-    lib.vauchi_app_handle_action.argtypes = [
-        ctypes.c_void_p, ctypes.c_char_p,
-    ]
-    lib.vauchi_app_destroy.argtypes = [ctypes.c_void_p]
-
-    app = lib.vauchi_app_create_with_config(
-        vauchi_dir.encode(), None,
+    result = subprocess.run(
+        [seed_bin, vauchi_dir],
+        capture_output=True, timeout=10,
     )
-    if not app:
-        return False
-
-    actions = [
-        '{"ActionPressed":{"action_id":"create_new"}}',
-        '{"ActionPressed":{"action_id":"get_started"}}',
-        '{"TextChanged":{"component_id":"display_name",'
-        '"value":"Test User"}}',
-        '{"ActionPressed":{"action_id":"continue"}}',
-        '{"ActionPressed":{"action_id":"skip_to_finish"}}',
-        '{"ActionPressed":{"action_id":"continue"}}',
-        '{"ActionPressed":{"action_id":"skip"}}',
-        '{"ActionPressed":{"action_id":"start"}}',
-    ]
-    for a in actions:
-        lib.vauchi_app_handle_action(app, a.encode())
-
-    lib.vauchi_app_destroy(app)
-    return True
+    return result.returncode == 0
 
 
 @pytest.fixture(scope="session")
