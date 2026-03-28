@@ -9,8 +9,11 @@
 //!
 //! Usage: seed-identity <data-dir>
 
+use std::sync::Arc;
+
 use vauchi_app::ui::{AppEngine, UserAction, WorkflowEngine};
 use vauchi_core::api::{Vauchi, VauchiConfig};
+use vauchi_core::storage::{PlatformKeyring, SecureStorage};
 
 fn main() {
     let data_dir = std::env::args().nth(1).unwrap_or_else(|| {
@@ -21,7 +24,15 @@ fn main() {
     std::fs::create_dir_all(&data_dir).expect("create data dir");
     let db_path = std::path::Path::new(&data_dir).join("vauchi.db");
     let config = VauchiConfig::with_storage_path(db_path);
-    let vauchi = Vauchi::new(config).expect("init vauchi");
+
+    // Match the app's init_vauchi() — try keyring first, fall back
+    // to config-derived key. This ensures the seeded db is readable
+    // by the GTK app regardless of keyring availability.
+    let vauchi = match detect_secure_storage() {
+        Some(ss) => Vauchi::with_secure_storage(config, ss),
+        None => Vauchi::new(config),
+    }
+    .expect("init vauchi");
 
     if vauchi.has_identity() {
         eprintln!("Identity already exists in {data_dir}");
@@ -67,4 +78,16 @@ fn main() {
         "Seeded identity in {data_dir} — screen: {}",
         screen.screen_id
     );
+}
+
+/// Detect keyring availability — mirrors platform::init::detect_secure_storage().
+fn detect_secure_storage() -> Option<Arc<dyn SecureStorage>> {
+    let keyring = PlatformKeyring::new("vauchi");
+    match keyring.save_key("__vauchi_probe__", &[0x42]) {
+        Ok(()) => {
+            let _ = keyring.delete_key("__vauchi_probe__");
+            Some(Arc::new(keyring))
+        }
+        Err(_) => None,
+    }
 }
