@@ -168,3 +168,9 @@ text. Key coverage:
 - All other components: `Property::Label(title)` or `Property::Label(warning)`
 
 AT-SPI tests in `tests/atspi/` verify the accessibility tree.
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Alt+1..5 | Navigate to sidebar screen (My Card, Contacts, Exchange, Groups, More) |
