@@ -202,6 +202,7 @@ fn screen_label(screen: &AppScreen) -> String {
         AppScreen::Sync => "Sync".to_string(),
         AppScreen::Privacy => "Privacy".to_string(),
         AppScreen::Support => "Support".to_string(),
+        AppScreen::VerifyFingerprint { .. } => "Verify Fingerprint".to_string(),
         _ => "Other".to_string(),
     }
 }
