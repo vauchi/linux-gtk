@@ -23,19 +23,24 @@ fn main() {
 
     std::fs::create_dir_all(&data_dir).expect("create data dir");
     let db_path = std::path::Path::new(&data_dir).join("vauchi.db");
-    let config = VauchiConfig::with_storage_path(db_path);
 
-    // Match the app's init_vauchi() — try keyring first, fall back
-    // to config-derived key. This ensures the seeded db is readable
-    // by the GTK app regardless of keyring availability.
-    let vauchi = match detect_secure_storage() {
-        Some(ss) => Vauchi::with_secure_storage(config, ss),
+    let ss = detect_secure_storage();
+    let keyring_used = ss.is_some();
+    eprintln!(
+        "[seed] keyring={}, db={}",
+        if keyring_used { "yes" } else { "no" },
+        db_path.display(),
+    );
+
+    let config = VauchiConfig::with_storage_path(db_path.clone());
+    let vauchi = match ss {
+        Some(s) => Vauchi::with_secure_storage(config, s),
         None => Vauchi::new(config),
     }
     .expect("init vauchi");
 
     if vauchi.has_identity() {
-        eprintln!("Identity already exists in {data_dir}");
+        eprintln!("[seed] identity already exists");
         return;
     }
 
@@ -74,13 +79,28 @@ fn main() {
     }
 
     let screen = engine.current_screen();
-    eprintln!(
-        "Seeded identity in {data_dir} — screen: {}",
-        screen.screen_id
-    );
+    eprintln!("[seed] final screen: {}", screen.screen_id);
+
+    // Drop engine to flush db writes
+    drop(engine);
+
+    // Verify: reopen db and confirm identity persisted
+    let config2 = VauchiConfig::with_storage_path(db_path);
+    let verify = match detect_secure_storage() {
+        Some(s) => Vauchi::with_secure_storage(config2, s),
+        None => Vauchi::new(config2),
+    }
+    .expect("reopen for verification");
+
+    if verify.has_identity() {
+        eprintln!("[seed] VERIFIED: identity persists after reopen");
+    } else {
+        eprintln!("[seed] FAILED: identity did NOT persist");
+        std::process::exit(1);
+    }
 }
 
-/// Detect keyring availability — mirrors platform::init::detect_secure_storage().
+/// Detect keyring — mirrors platform::init::detect_secure_storage().
 fn detect_secure_storage() -> Option<Arc<dyn SecureStorage>> {
     let keyring = PlatformKeyring::new("vauchi");
     match keyring.save_key("__vauchi_probe__", &[0x42]) {
