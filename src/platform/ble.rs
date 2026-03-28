@@ -34,6 +34,20 @@ mod inner {
 
     static BLE_CONNECTION: StdMutex<Option<BleConnection>> = StdMutex::new(None);
 
+    /// Lock BLE_CONNECTION, recovering from poisoning by clearing stale state.
+    ///
+    /// If a previous holder panicked, the connection is likely stale.
+    /// Clearing it lets connect() establish a fresh session instead of
+    /// crashing the app on every subsequent BLE operation.
+    fn lock_ble_connection() -> std::sync::MutexGuard<'static, Option<BleConnection>> {
+        BLE_CONNECTION.lock().unwrap_or_else(|poisoned| {
+            eprintln!("[BLE] Recovered from poisoned mutex");
+            let mut guard = poisoned.into_inner();
+            *guard = None;
+            guard
+        })
+    }
+
     /// Start scanning for vauchi BLE peripherals.
     ///
     /// Discovers nearby devices advertising the vauchi service UUID.
@@ -196,7 +210,7 @@ mod inner {
 
             match result {
                 Ok((session, device, characteristics)) => {
-                    *BLE_CONNECTION.lock().unwrap() = Some(BleConnection {
+                    *lock_ble_connection() = Some(BleConnection {
                         runtime: rt,
                         _session: session,
                         device,
@@ -252,7 +266,7 @@ mod inner {
         let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
         std::thread::spawn(move || {
-            let guard = BLE_CONNECTION.lock().unwrap();
+            let guard = lock_ble_connection();
             let Some(conn) = guard.as_ref() else {
                 tx.send(Err("No active BLE connection".into())).ok();
                 return;
@@ -306,7 +320,7 @@ mod inner {
         let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
         std::thread::spawn(move || {
-            let guard = BLE_CONNECTION.lock().unwrap();
+            let guard = lock_ble_connection();
             let Some(conn) = guard.as_ref() else {
                 tx.send(Err("No active BLE connection".into())).ok();
                 return;
@@ -355,7 +369,7 @@ mod inner {
 
     /// Disconnect from the current BLE device.
     pub fn disconnect(toast_overlay: &adw::ToastOverlay) {
-        let prev = BLE_CONNECTION.lock().unwrap().take();
+        let prev = lock_ble_connection().take();
         if let Some(conn) = prev {
             // Disconnect the device on the connection's runtime before dropping
             let _ = conn.runtime.block_on(conn.device.disconnect());
