@@ -1,4 +1,6 @@
 #!/usr/bin/make -f
+# SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 export CARGO_HOME = $(CURDIR)/debian/.cargo
 
