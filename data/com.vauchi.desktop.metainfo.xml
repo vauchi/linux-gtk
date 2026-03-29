@@ -13,6 +13,6 @@
   <url type="homepage">https://vauchi.app</url>
   <url type="bugtracker">https://gitlab.com/vauchi/linux-gtk/-/issues</url>
   <provides>
-    <binary>vauchi-gtk</binary>
+    <binary>gvauchi</binary>
   </provides>
 </component>
