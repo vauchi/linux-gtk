@@ -6,6 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Frame, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{QrMode, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -19,19 +20,20 @@ pub fn render(
     mode: &QrMode,
     label: &Option<String>,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 8);
+    let container = GtkBox::new(Orientation::Vertical, tokens.spacing.sm as i32);
     container.set_halign(gtk4::Align::Center);
     container.set_widget_name(id);
 
     match mode {
         QrMode::Display => {
             container.update_property(&[Property::Label("QR code for contact exchange")]);
-            render_display(&container, data);
+            render_display(&container, data, tokens);
         }
         QrMode::Scan | _ => {
             container.update_property(&[Property::Label("Scan QR code")]);
-            render_scan(&container, id, on_action);
+            render_scan(&container, id, on_action, tokens);
         }
     }
 
@@ -48,14 +50,17 @@ pub fn render(
     container.upcast()
 }
 
-fn render_display(container: &GtkBox, data: &str) {
+fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
+    let xs = tokens.spacing.xs as i32;
+    let md = tokens.spacing.md as i32;
+
     let qr_frame = Frame::builder().css_classes(["card"]).build();
 
-    let qr_area = GtkBox::new(Orientation::Vertical, 4);
-    qr_area.set_margin_top(16);
-    qr_area.set_margin_bottom(16);
-    qr_area.set_margin_start(16);
-    qr_area.set_margin_end(16);
+    let qr_area = GtkBox::new(Orientation::Vertical, xs);
+    qr_area.set_margin_top(md);
+    qr_area.set_margin_bottom(md);
+    qr_area.set_margin_start(md);
+    qr_area.set_margin_end(md);
     qr_area.set_halign(gtk4::Align::Center);
 
     match qrcode::QrCode::new(data) {
@@ -115,14 +120,17 @@ fn render_display(container: &GtkBox, data: &str) {
     container.append(&qr_frame);
 }
 
-fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction) {
+fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &DesignTokens) {
+    let sm = tokens.spacing.sm as i32;
+    let lg = tokens.spacing.lg as i32;
+
     let scan_frame = Frame::builder().css_classes(["card"]).build();
 
     let scan_area = GtkBox::new(Orientation::Vertical, 12);
-    scan_area.set_margin_top(24);
-    scan_area.set_margin_bottom(24);
-    scan_area.set_margin_start(24);
-    scan_area.set_margin_end(24);
+    scan_area.set_margin_top(lg);
+    scan_area.set_margin_bottom(lg);
+    scan_area.set_margin_start(lg);
+    scan_area.set_margin_end(lg);
     scan_area.set_halign(gtk4::Align::Center);
 
     // Icon + instruction
@@ -149,7 +157,7 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction) {
     scan_area.append(&instruction_label);
 
     // Paste input row
-    let paste_row = GtkBox::new(Orientation::Horizontal, 8);
+    let paste_row = GtkBox::new(Orientation::Horizontal, sm);
     paste_row.set_halign(gtk4::Align::Center);
 
     let entry = Entry::builder()

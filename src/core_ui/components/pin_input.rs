@@ -11,6 +11,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use std::cell::RefCell;
 use std::rc::Rc;
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::UserAction;
 
 use super::super::screen_renderer::OnAction;
@@ -22,8 +23,11 @@ pub fn render(
     masked: &bool,
     validation_error: &Option<String>,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 8);
+    let sm = tokens.spacing.sm as i32;
+
+    let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
     // Label
@@ -35,7 +39,7 @@ pub fn render(
     container.append(&lbl);
 
     // Pin digit entries in a horizontal row
-    let pin_row = GtkBox::new(Orientation::Horizontal, 8);
+    let pin_row = GtkBox::new(Orientation::Horizontal, sm);
     pin_row.set_halign(gtk4::Align::Center);
 
     let entries: Rc<RefCell<Vec<Entry>>> = Rc::new(RefCell::new(Vec::new()));

@@ -6,6 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::Status;
 
 pub fn render(
@@ -14,12 +15,15 @@ pub fn render(
     title: &str,
     detail: &Option<String>,
     status: &Status,
+    tokens: &DesignTokens,
 ) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+
     let container = GtkBox::new(Orientation::Horizontal, 12);
     container.set_widget_name(id);
     container.update_property(&[Property::Label(title)]);
-    container.set_margin_top(8);
-    container.set_margin_bottom(8);
+    container.set_margin_top(sm);
+    container.set_margin_bottom(sm);
 
     // Optional icon
     if let Some(icon_name) = icon {

@@ -12,6 +12,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{InputType, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -26,8 +27,9 @@ pub fn render(
     validation_error: &Option<String>,
     input_type: &InputType,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 4);
+    let container = GtkBox::new(Orientation::Vertical, tokens.spacing.xs as i32);
     container.set_widget_name(id);
 
     // Label

@@ -5,17 +5,27 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::UserAction;
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(text: &str, action_label: &str, action_id: &str, on_action: &OnAction) -> Widget {
+pub fn render(
+    text: &str,
+    action_label: &str,
+    action_id: &str,
+    on_action: &OnAction,
+    tokens: &DesignTokens,
+) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+    let md = tokens.spacing.md as i32;
+
     let container = GtkBox::new(Orientation::Horizontal, 12);
     container.add_css_class("banner");
-    container.set_margin_top(8);
-    container.set_margin_bottom(8);
-    container.set_margin_start(16);
-    container.set_margin_end(16);
+    container.set_margin_top(sm);
+    container.set_margin_bottom(sm);
+    container.set_margin_start(md);
+    container.set_margin_end(md);
 
     let label = Label::builder()
         .label(text)

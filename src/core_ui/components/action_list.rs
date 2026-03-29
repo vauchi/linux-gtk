@@ -6,11 +6,17 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{ActionListItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widget {
+pub fn render(
+    id: &str,
+    items: &[ActionListItem],
+    on_action: &OnAction,
+    tokens: &DesignTokens,
+) -> Widget {
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::Single)
         .css_classes(["boxed-list"])
@@ -18,12 +24,16 @@ pub fn render(id: &str, items: &[ActionListItem], on_action: &OnAction) -> Widge
     list_box.set_widget_name(id);
     list_box.update_property(&[Property::Label("Actions")]);
 
+    let sm = tokens.spacing.sm as i32;
+    let list_start = tokens.spacing_direction.list_item_start as i32;
+    let list_end = tokens.spacing_direction.list_item_end as i32;
+
     let item_ids: Vec<String> = items.iter().map(|item| item.id.clone()).collect();
 
     for item in items {
-        let row = GtkBox::new(Orientation::Horizontal, 8);
-        row.set_margin_top(8);
-        row.set_margin_bottom(8);
+        let row = GtkBox::new(Orientation::Horizontal, sm);
+        row.set_margin_top(list_start);
+        row.set_margin_bottom(list_end);
         row.set_margin_start(12);
         row.set_margin_end(12);
 

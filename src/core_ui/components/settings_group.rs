@@ -6,12 +6,23 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SelectionMode, Switch, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{SettingsItem, SettingsItemKind, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnAction) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 8);
+pub fn render(
+    id: &str,
+    label: &str,
+    items: &[SettingsItem],
+    on_action: &OnAction,
+    tokens: &DesignTokens,
+) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+    let list_start = tokens.spacing_direction.list_item_start as i32;
+    let list_end = tokens.spacing_direction.list_item_end as i32;
+
+    let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
     // Group header
@@ -42,9 +53,9 @@ pub fn render(id: &str, label: &str, items: &[SettingsItem], on_action: &OnActio
         .collect();
 
     for item in items {
-        let row = GtkBox::new(Orientation::Horizontal, 8);
-        row.set_margin_top(8);
-        row.set_margin_bottom(8);
+        let row = GtkBox::new(Orientation::Horizontal, sm);
+        row.set_margin_top(list_start);
+        row.set_margin_bottom(list_end);
         row.set_margin_start(12);
         row.set_margin_end(12);
 

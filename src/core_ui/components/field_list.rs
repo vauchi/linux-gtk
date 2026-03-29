@@ -8,6 +8,7 @@ use gtk4::prelude::*;
 use gtk4::{
     Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
 };
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
 
 use super::super::screen_renderer::OnAction;
@@ -18,6 +19,7 @@ pub fn render(
     visibility_mode: &VisibilityMode,
     available_groups: &[String],
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::None)
@@ -25,10 +27,14 @@ pub fn render(
         .build();
     list_box.update_property(&[Property::Label("Fields")]);
 
+    let sm = tokens.spacing.sm as i32;
+    let list_start = tokens.spacing_direction.list_item_start as i32;
+    let list_end = tokens.spacing_direction.list_item_end as i32;
+
     for field in fields {
-        let row = GtkBox::new(Orientation::Horizontal, 8);
-        row.set_margin_top(8);
-        row.set_margin_bottom(8);
+        let row = GtkBox::new(Orientation::Horizontal, sm);
+        row.set_margin_top(list_start);
+        row.set_margin_bottom(list_end);
         row.set_margin_start(12);
         row.set_margin_end(12);
 
@@ -59,7 +65,13 @@ pub fn render(
                 render_show_hide_toggle(&row, field, on_action);
             }
             VisibilityMode::PerGroup => {
-                render_per_group_toggles(&row, field, available_groups, on_action);
+                render_per_group_toggles(
+                    &row,
+                    field,
+                    available_groups,
+                    on_action,
+                    tokens.spacing.xs as i32,
+                );
             }
             _ => {}
         }
@@ -101,6 +113,7 @@ fn render_per_group_toggles(
     field: &FieldDisplay,
     available_groups: &[String],
     on_action: &OnAction,
+    group_spacing: i32,
 ) {
     let active_groups: Vec<&str> = match &field.visibility {
         UiFieldVisibility::Groups(groups) => groups.iter().map(|s| s.as_str()).collect(),
@@ -108,7 +121,7 @@ fn render_per_group_toggles(
         UiFieldVisibility::Hidden | _ => vec![],
     };
 
-    let group_box = GtkBox::new(Orientation::Horizontal, 4);
+    let group_box = GtkBox::new(Orientation::Horizontal, group_spacing);
     group_box.set_valign(gtk4::Align::Center);
 
     for group_name in available_groups {

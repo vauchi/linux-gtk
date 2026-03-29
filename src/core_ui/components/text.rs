@@ -5,9 +5,11 @@
 
 use gtk4::prelude::*;
 use gtk4::{Label, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::TextStyle;
 
-pub fn render(id: &str, content: &str, style: &TextStyle) -> Widget {
+pub fn render(id: &str, content: &str, style: &TextStyle, tokens: &DesignTokens) -> Widget {
+    let _ = tokens;
     let css_class = match style {
         TextStyle::Title => "title-1",
         TextStyle::Subtitle => "title-3",

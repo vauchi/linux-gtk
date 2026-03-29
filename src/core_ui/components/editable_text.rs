@@ -9,6 +9,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::UserAction;
 
 use super::super::screen_renderer::OnAction;
@@ -20,8 +21,12 @@ pub fn render(
     editing: &bool,
     validation_error: &Option<String>,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 4);
+    let xs = tokens.spacing.xs as i32;
+    let sm = tokens.spacing.sm as i32;
+
+    let container = GtkBox::new(Orientation::Vertical, xs);
     container.set_widget_name(id);
     container.update_property(&[Property::Label(label)]);
 
@@ -35,7 +40,7 @@ pub fn render(
 
     if *editing {
         // Edit mode: text entry + save button
-        let edit_row = GtkBox::new(Orientation::Horizontal, 8);
+        let edit_row = GtkBox::new(Orientation::Horizontal, sm);
 
         let entry = Entry::builder().text(value).hexpand(true).build();
         entry.update_property(&[Property::Label(label)]);
@@ -94,7 +99,7 @@ pub fn render(
         }
     } else {
         // Display mode: value text + edit button
-        let display_row = GtkBox::new(Orientation::Horizontal, 8);
+        let display_row = GtkBox::new(Orientation::Horizontal, sm);
 
         let value_label = Label::builder()
             .label(value)

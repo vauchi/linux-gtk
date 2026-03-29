@@ -35,12 +35,10 @@ pub fn render_component(
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
-    // TODO(design-tokens): thread tokens to individual component renderers
-    let _ = tokens;
     match component {
         Component::Text {
             id, content, style, ..
-        } => text::render(id, content, style),
+        } => text::render(id, content, style, tokens),
         Component::TextInput {
             id,
             label,
@@ -59,41 +57,51 @@ pub fn render_component(
             validation_error,
             input_type,
             on_action,
+            tokens,
         ),
         Component::ToggleList {
             id, label, items, ..
-        } => toggle_list::render(id, label, items, on_action),
+        } => toggle_list::render(id, label, items, on_action, tokens),
         Component::FieldList {
             id,
             fields,
             visibility_mode,
             available_groups,
             ..
-        } => field_list::render(id, fields, visibility_mode, available_groups, on_action),
+        } => field_list::render(
+            id,
+            fields,
+            visibility_mode,
+            available_groups,
+            on_action,
+            tokens,
+        ),
         Component::CardPreview {
             name,
             fields,
             group_views,
             selected_group,
             ..
-        } => card_preview::render(name, fields, group_views, selected_group, on_action),
+        } => card_preview::render(name, fields, group_views, selected_group, on_action, tokens),
         Component::InfoPanel {
             id,
             icon,
             title,
             items,
             ..
-        } => info_panel::render(id, icon, title, items),
+        } => info_panel::render(id, icon, title, items, tokens),
         Component::ContactList {
             id,
             contacts,
             searchable,
             ..
-        } => contact_list::render(id, contacts, searchable, on_action),
+        } => contact_list::render(id, contacts, searchable, on_action, tokens),
         Component::SettingsGroup {
             id, label, items, ..
-        } => settings_group::render(id, label, items, on_action),
-        Component::ActionList { id, items, .. } => action_list::render(id, items, on_action),
+        } => settings_group::render(id, label, items, on_action, tokens),
+        Component::ActionList { id, items, .. } => {
+            action_list::render(id, items, on_action, tokens)
+        }
         Component::StatusIndicator {
             id,
             icon,
@@ -101,7 +109,7 @@ pub fn render_component(
             detail,
             status,
             ..
-        } => status_indicator::render(id, icon, title, detail, status),
+        } => status_indicator::render(id, icon, title, detail, status, tokens),
         Component::PinInput {
             id,
             label,
@@ -110,15 +118,23 @@ pub fn render_component(
             masked,
             validation_error,
             ..
-        } => pin_input::render(id, label, length, masked, validation_error, on_action),
+        } => pin_input::render(
+            id,
+            label,
+            length,
+            masked,
+            validation_error,
+            on_action,
+            tokens,
+        ),
         Component::QrCode {
             id,
             data,
             mode,
             label,
             ..
-        } => qr_code::render(id, data, mode, label, on_action),
-        Component::Divider => divider::render(),
+        } => qr_code::render(id, data, mode, label, on_action, tokens),
+        Component::Divider => divider::render(tokens),
         Component::InlineConfirm {
             id,
             warning,
@@ -133,6 +149,7 @@ pub fn render_component(
             cancel_text,
             destructive,
             on_action,
+            tokens,
         ),
         Component::EditableText {
             id,
@@ -141,13 +158,21 @@ pub fn render_component(
             editing,
             validation_error,
             ..
-        } => editable_text::render(id, label, value, editing, validation_error, on_action),
+        } => editable_text::render(
+            id,
+            label,
+            value,
+            editing,
+            validation_error,
+            on_action,
+            tokens,
+        ),
         Component::Banner {
             text,
             action_label,
             action_id,
             ..
-        } => banner::render(text, action_label, action_id, on_action),
+        } => banner::render(text, action_label, action_id, on_action, tokens),
         _ => gtk4::Label::builder()
             .label("[unsupported component]")
             .css_classes(["dim-label"])

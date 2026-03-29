@@ -6,6 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{ContactItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -15,8 +16,14 @@ pub fn render(
     contacts: &[ContactItem],
     searchable: &bool,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 8);
+    let sm = tokens.spacing.sm as i32;
+    let list_start = tokens.spacing_direction.list_item_start as i32;
+    let list_end = tokens.spacing_direction.list_item_end as i32;
+    let touch_min = tokens.touch_target.minimum as i32;
+
+    let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
     // Optional search entry
@@ -50,16 +57,16 @@ pub fn render(
 
     for contact in contacts {
         let row = GtkBox::new(Orientation::Horizontal, 12);
-        row.set_margin_top(8);
-        row.set_margin_bottom(8);
+        row.set_margin_top(list_start);
+        row.set_margin_bottom(list_end);
         row.set_margin_start(12);
         row.set_margin_end(12);
 
         // Avatar initials circle
         let avatar = Label::builder()
             .label(&contact.avatar_initials)
-            .width_request(40)
-            .height_request(40)
+            .width_request(touch_min)
+            .height_request(touch_min)
             .halign(gtk4::Align::Center)
             .valign(gtk4::Align::Center)
             .css_classes(["title-4"])

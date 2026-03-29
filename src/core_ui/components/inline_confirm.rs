@@ -6,6 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Frame, Label, Orientation, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::UserAction;
 
 use super::super::screen_renderer::OnAction;
@@ -17,19 +18,23 @@ pub fn render(
     cancel_text: &str,
     destructive: &bool,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+    let md = tokens.spacing.md as i32;
+
     let frame = Frame::builder().css_classes(["card"]).build();
     frame.set_widget_name(id);
     frame.update_property(&[Property::Label(warning)]);
 
     let container = GtkBox::new(Orientation::Vertical, 12);
-    container.set_margin_top(16);
-    container.set_margin_bottom(16);
-    container.set_margin_start(16);
-    container.set_margin_end(16);
+    container.set_margin_top(md);
+    container.set_margin_bottom(md);
+    container.set_margin_start(md);
+    container.set_margin_end(md);
 
     // Warning icon + text
-    let warning_box = GtkBox::new(Orientation::Horizontal, 8);
+    let warning_box = GtkBox::new(Orientation::Horizontal, sm);
     let icon = Label::builder().label("⚠").build();
     icon.update_property(&[Property::Label("Warning")]);
     warning_box.append(&icon);
@@ -46,7 +51,7 @@ pub fn render(
     container.append(&warning_box);
 
     // Button row
-    let button_box = GtkBox::new(Orientation::Horizontal, 8);
+    let button_box = GtkBox::new(Orientation::Horizontal, sm);
     button_box.set_halign(gtk4::Align::End);
 
     // Cancel button

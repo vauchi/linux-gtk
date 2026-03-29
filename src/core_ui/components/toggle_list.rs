@@ -6,12 +6,21 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{ToggleItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(id: &str, label: &str, items: &[ToggleItem], on_action: &OnAction) -> Widget {
-    let container = GtkBox::new(Orientation::Vertical, 8);
+pub fn render(
+    id: &str,
+    label: &str,
+    items: &[ToggleItem],
+    on_action: &OnAction,
+    tokens: &DesignTokens,
+) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+
+    let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
     // Header label
@@ -31,10 +40,10 @@ pub fn render(id: &str, label: &str, items: &[ToggleItem], on_action: &OnAction)
 
     for item in items {
         let row_box = GtkBox::new(Orientation::Vertical, 2);
-        row_box.set_margin_top(8);
-        row_box.set_margin_bottom(8);
-        row_box.set_margin_start(8);
-        row_box.set_margin_end(8);
+        row_box.set_margin_top(sm);
+        row_box.set_margin_bottom(sm);
+        row_box.set_margin_start(sm);
+        row_box.set_margin_end(sm);
 
         let check = CheckButton::builder()
             .label(&item.label)

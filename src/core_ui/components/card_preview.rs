@@ -6,6 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{FieldDisplay, GroupCardView, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -16,16 +17,20 @@ pub fn render(
     group_views: &[GroupCardView],
     selected_group: &Option<String>,
     on_action: &OnAction,
+    tokens: &DesignTokens,
 ) -> Widget {
+    let sm = tokens.spacing.sm as i32;
+    let md = tokens.spacing.md as i32;
+
     let frame = Frame::builder().css_classes(["card"]).build();
     frame.set_widget_name("card_preview");
     frame.update_property(&[Property::Label(&format!("Contact card: {}", name))]);
 
-    let container = GtkBox::new(Orientation::Vertical, 8);
-    container.set_margin_top(16);
-    container.set_margin_bottom(16);
-    container.set_margin_start(16);
-    container.set_margin_end(16);
+    let container = GtkBox::new(Orientation::Vertical, sm);
+    container.set_margin_top(md);
+    container.set_margin_bottom(md);
+    container.set_margin_start(md);
+    container.set_margin_end(md);
 
     // Name header
     let name_label = Label::builder()
@@ -40,8 +45,8 @@ pub fn render(
 
     // Group tabs
     if !group_views.is_empty() {
-        let tab_bar = GtkBox::new(Orientation::Horizontal, 4);
-        tab_bar.set_margin_top(8);
+        let tab_bar = GtkBox::new(Orientation::Horizontal, tokens.spacing.xs as i32);
+        tab_bar.set_margin_top(sm);
 
         // "All" tab
         let all_btn = ToggleButton::builder()
@@ -89,7 +94,7 @@ pub fn render(
 
 fn render_fields(container: &GtkBox, fields: &[FieldDisplay]) {
     for field in fields {
-        let field_row = GtkBox::new(Orientation::Horizontal, 8);
+        let field_row = GtkBox::new(Orientation::Horizontal, 8); // inner field spacing
 
         let label = Label::builder()
             .label(format!("{}:", field.label))
