@@ -5,6 +5,7 @@
 //!
 //! Renders `ScreenModel` using GTK4 widgets. Maps GTK signals to `UserAction`.
 
+pub mod action_dispatcher;
 pub mod components;
 pub mod screen_renderer;
 pub mod theme;
