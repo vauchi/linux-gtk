@@ -22,12 +22,21 @@ mod text_input;
 mod toggle_list;
 
 use gtk4::Widget;
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::Component;
 
 use super::screen_renderer::OnAction;
 
 /// Render a `Component` to a GTK4 widget, wiring interactive signals via `on_action`.
-pub fn render_component(component: &Component, on_action: &OnAction) -> Widget {
+///
+/// `tokens` provides design-system spacing/radius values from ScreenModel.
+pub fn render_component(
+    component: &Component,
+    on_action: &OnAction,
+    tokens: &DesignTokens,
+) -> Widget {
+    // TODO(design-tokens): thread tokens to individual component renderers
+    let _ = tokens;
     match component {
         Component::Text {
             id, content, style, ..

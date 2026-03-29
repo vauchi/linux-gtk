@@ -15,6 +15,7 @@ use std::rc::Rc;
 
 use std::collections::HashSet;
 
+use vauchi_app::DesignTokens;
 use vauchi_app::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
@@ -525,10 +526,14 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         .hscrollbar_policy(gtk4::PolicyType::Never)
         .build();
     let inner = GtkBox::new(Orientation::Vertical, 0);
-    inner.set_margin_start(24);
-    inner.set_margin_end(24);
+    let tokens = &screen.tokens;
+    let lg = tokens.spacing.lg as i32;
+    let sm = tokens.spacing.sm as i32;
+    let xs = tokens.spacing.xs as i32;
+    inner.set_margin_start(lg);
+    inner.set_margin_end(lg);
     inner.set_margin_top(0);
-    inner.set_margin_bottom(24);
+    inner.set_margin_bottom(lg);
     scrolled.set_child(Some(&inner));
     container.append(&scrolled);
 
@@ -550,7 +555,7 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .label(&progress_text)
             .halign(gtk4::Align::Start)
             .css_classes(["dim-label", "caption"])
-            .margin_bottom(4)
+            .margin_bottom(xs)
             .build();
         content.append(&progress_label);
     }
@@ -560,8 +565,8 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
         .label(&screen.title)
         .css_classes(["title-1"])
         .halign(gtk4::Align::Start)
-        .margin_top(8)
-        .margin_bottom(4)
+        .margin_top(sm)
+        .margin_bottom(xs)
         .build();
     title.set_widget_name("screen_title");
     content.append(&title);
@@ -573,23 +578,23 @@ fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnA
             .css_classes(["dim-label"])
             .halign(gtk4::Align::Start)
             .wrap(true)
-            .margin_bottom(12)
+            .margin_bottom(tokens.border_radius.md_lg as i32)
             .build();
         content.append(&sub);
     }
 
-    // Components — with vertical spacing
+    // Components — with vertical spacing from tokens
     for component in &screen.components {
-        let widget = components::render_component(component, on_action);
-        widget.set_margin_top(8);
-        widget.set_margin_bottom(8);
+        let widget = components::render_component(component, on_action, tokens);
+        widget.set_margin_top(sm);
+        widget.set_margin_bottom(sm);
         content.append(&widget);
     }
 
     // Action buttons — respect engine's enabled state, but also dynamically
     // update sensitivity as the user types (without re-rendering).
-    let button_box = GtkBox::new(Orientation::Horizontal, 12);
-    button_box.set_margin_top(24);
+    let button_box = GtkBox::new(Orientation::Horizontal, tokens.border_radius.md_lg as i32);
+    button_box.set_margin_top(lg);
     button_box.set_halign(gtk4::Align::End);
 
     // Collect buttons that need dynamic sensitivity (Primary buttons depend on input)
