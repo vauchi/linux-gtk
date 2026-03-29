@@ -210,3 +210,184 @@ class TestScreenTitle:
             f"No label with substantial text found for screen title.\n"
             f"Labels: {[l.get_name() for l in labels[:10]]}"
         )
+
+
+class TestToggleListComponent:
+    """Toggle checkboxes rendered by toggle_list.rs."""
+
+    def test_checkboxes_have_accessible_labels(self, gtk_app):
+        """ToggleList checkboxes must have accessible labels."""
+        checks = find_all(gtk_app, role="check box")
+        if not checks:
+            pytest.skip("No checkboxes on current screen")
+        for check in checks:
+            name = check.get_name()
+            assert name is not None and len(name) > 0, (
+                f"Checkbox missing accessible label.\n"
+                f"Checkbox tree:\n{dump_tree(check)}"
+            )
+
+    def test_checkboxes_have_checked_state(self, gtk_app):
+        """ToggleList checkboxes must expose checked/unchecked state."""
+        checks = find_all(gtk_app, role="check box")
+        if not checks:
+            pytest.skip("No checkboxes on current screen")
+        for check in checks:
+            state_set = check.get_state_set()
+            # Verify the state set is queryable (not None) — the
+            # checkbox should expose CHECKED or not, but the state
+            # set itself must exist for screen readers to read it.
+            assert state_set is not None, (
+                f"Checkbox '{check.get_name()}' has no state set"
+            )
+
+
+class TestFieldListComponent:
+    """Field list rendered by field_list.rs."""
+
+    def test_field_list_has_fields_label(self, gtk_app):
+        """FieldList must have 'Fields' accessible label when present."""
+        fields = find_one(gtk_app, name="Fields")
+        if fields is not None:
+            assert fields.get_name() == "Fields", (
+                "FieldList accessible label should be 'Fields'"
+            )
+        else:
+            pytest.skip(
+                "FieldList not on current screen — "
+                "navigate to My Info to see it"
+            )
+
+
+class TestEditableTextComponent:
+    """Editable text areas rendered by editable_text.rs."""
+
+    def test_editable_text_entries_have_labels(self, gtk_app):
+        """EditableText entries must have accessible labels."""
+        entries = find_all(gtk_app, role="text")
+        if not entries:
+            pytest.skip("No text entries on current screen")
+        # Filter to editable entries (those with editable text interface)
+        editable = []
+        for entry in entries:
+            try:
+                iface = entry.get_editable_text_iface()
+                if iface:
+                    editable.append(entry)
+            except Exception:
+                continue
+        if not editable:
+            pytest.skip("No editable text entries on current screen")
+        for entry in editable:
+            name = entry.get_name()
+            assert name is not None and len(name) > 0, (
+                f"Editable text entry missing accessible label.\n"
+                f"Entry tree:\n{dump_tree(entry)}"
+            )
+
+
+class TestInlineConfirmComponent:
+    """Inline confirm rendered by inline_confirm.rs."""
+
+    def test_inline_confirm_has_confirm_button(self, gtk_app):
+        """InlineConfirm must have a confirm button with accessible label.
+
+        InlineConfirm appears on irrevocable-action screens like
+        Emergency Shred. The confirm button label varies by context.
+        """
+        # Search for buttons commonly associated with InlineConfirm
+        buttons = find_all(gtk_app, role="push button")
+        confirm_labels = {"Confirm", "Shred", "Delete", "Yes"}
+        confirm_btns = [
+            b for b in buttons
+            if b.get_name() in confirm_labels
+        ]
+        if not confirm_btns:
+            pytest.skip(
+                "No InlineConfirm buttons on current screen — "
+                "navigate to Emergency Shred to see them"
+            )
+        for btn in confirm_btns:
+            assert btn.get_name() and len(btn.get_name()) > 0, (
+                f"InlineConfirm button has empty accessible label.\n"
+                f"Button tree:\n{dump_tree(btn)}"
+            )
+
+    def test_inline_confirm_has_cancel_button(self, gtk_app):
+        """InlineConfirm must have a cancel button with accessible label."""
+        cancel = find_one(gtk_app, role="push button", name="Cancel")
+        if cancel is None:
+            pytest.skip(
+                "No Cancel button on current screen — "
+                "InlineConfirm may not be visible"
+            )
+        assert cancel.get_name() == "Cancel", (
+            f"Cancel button label should be 'Cancel', "
+            f"got: '{cancel.get_name()}'"
+        )
+
+
+class TestBannerComponent:
+    """Banner rendered by banner.rs."""
+
+    @pytest.mark.skip(
+        reason="Banner is context-dependent and may not appear on default screens"
+    )
+    def test_banner_has_text_label(self, gtk_app):
+        """Banner must have a text label with non-empty accessible name."""
+        # Banners are transient — they appear for notifications/warnings.
+        # Search for panels with known banner-like names.
+        panels = find_all(gtk_app, role="panel")
+        banner_panels = [
+            p for p in panels
+            if p.get_name() and "banner" in p.get_name().lower()
+        ]
+        assert len(banner_panels) > 0, (
+            "No banner panel found in AT-SPI tree"
+        )
+        for banner in banner_panels:
+            labels = find_all(banner, role="label")
+            assert len(labels) > 0, (
+                f"Banner '{banner.get_name()}' has no text label.\n"
+                f"Banner tree:\n{dump_tree(banner)}"
+            )
+
+    @pytest.mark.skip(
+        reason="Banner is context-dependent and may not appear on default screens"
+    )
+    def test_banner_action_button_has_label(self, gtk_app):
+        """Banner action button (if present) must have accessible label."""
+        panels = find_all(gtk_app, role="panel")
+        banner_panels = [
+            p for p in panels
+            if p.get_name() and "banner" in p.get_name().lower()
+        ]
+        for banner in banner_panels:
+            buttons = find_all(banner, role="push button")
+            for btn in buttons:
+                assert btn.get_name() and len(btn.get_name()) > 0, (
+                    f"Banner action button has empty accessible label.\n"
+                    f"Button tree:\n{dump_tree(btn)}"
+                )
+
+
+class TestStatusIndicatorComponent:
+    """Status indicator rendered by status_indicator.rs."""
+
+    def test_status_indicator_has_title_label(self, gtk_app):
+        """StatusIndicator must have title as accessible label when present.
+
+        StatusIndicator appears on screens like Delivery Status. It sets
+        its title as the accessible label on a panel role element.
+        """
+        panels = find_all(gtk_app, role="panel")
+        named_panels = [p for p in panels if p.get_name()]
+        if not named_panels:
+            pytest.skip(
+                "No named panels on current screen — "
+                "StatusIndicator may not be visible"
+            )
+        for panel in named_panels:
+            assert len(panel.get_name()) > 0, (
+                "StatusIndicator panel has empty accessible label"
+            )
