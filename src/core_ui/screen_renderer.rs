@@ -15,7 +15,6 @@ use std::rc::Rc;
 
 use std::collections::HashSet;
 
-use vauchi_app::DesignTokens;
 use vauchi_app::ui::{
     ActionResult, ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine,
 };
