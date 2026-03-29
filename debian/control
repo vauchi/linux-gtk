@@ -1,0 +1,24 @@
+Source: vauchi-gtk
+Section: net
+Priority: optional
+Maintainer: Mattia Egloff <mattia.egloff@pm.me>
+Build-Depends: debhelper-compat (= 13),
+               cargo,
+               rustc,
+               libgtk-4-dev,
+               libadwaita-1-dev,
+               libqrencode-dev,
+               pkg-config
+Standards-Version: 4.6.2
+Homepage: https://vauchi.app
+Vcs-Git: https://gitlab.com/vauchi/linux-gtk.git
+Vcs-Browser: https://gitlab.com/vauchi/linux-gtk
+Rules-Requires-Root: no
+
+Package: vauchi-gtk
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Privacy-focused updatable contact cards (GTK desktop)
+ Vauchi lets you exchange updatable contact cards in person.
+ End-to-end encrypted and decentralized. This package provides
+ the native Linux desktop client built with GTK4 and libadwaita.

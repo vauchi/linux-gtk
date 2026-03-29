@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Vauchi
+GenericName=Contact Card Manager
+Comment=Privacy-focused updatable contact cards via in-person exchange
+Exec=gvauchi
+Icon=com.vauchi.desktop
+Terminal=false
+Categories=Network;ContactManagement;GTK;
+Keywords=contacts;privacy;encrypted;exchange;qr;
+StartupWMClass=com.vauchi.desktop
+StartupNotify=true

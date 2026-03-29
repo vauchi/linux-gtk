@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+
+export CARGO_HOME = $(CURDIR)/debian/.cargo
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --features "audio,ble,camera"
+
+override_dh_auto_install:
+	install -Dm 755 target/release/gvauchi \
+		debian/vauchi-gtk/usr/bin/gvauchi
+	install -Dm 644 data/com.vauchi.desktop.desktop \
+		debian/vauchi-gtk/usr/share/applications/com.vauchi.desktop.desktop
+	install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
+		debian/vauchi-gtk/usr/share/metainfo/com.vauchi.desktop.metainfo.xml
+
+override_dh_auto_test:
+	# Tests require a running D-Bus session and display; skip in build.
+	true
+
+override_dh_auto_clean:
+	cargo clean || true
+	rm -rf debian/.cargo

@@ -1,0 +1,40 @@
+pkgname=vauchi-gtk
+pkgver=0.5.0
+pkgrel=1
+pkgdesc='Privacy-focused updatable contact cards (GTK desktop)'
+arch=('x86_64' 'aarch64')
+url='https://vauchi.app'
+license=('GPL-3.0-or-later')
+depends=('gtk4' 'libadwaita' 'qrencode')
+makedepends=('cargo' 'rust' 'pkg-config')
+optdepends=(
+    'bluez: Bluetooth Low Energy exchange support'
+    'pcsclite: NFC exchange support via USB reader'
+)
+source=("git+https://gitlab.com/vauchi/linux-gtk.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${srcdir}/linux-gtk"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "${srcdir}/linux-gtk"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release --features "audio,ble,camera"
+}
+
+package() {
+    cd "${srcdir}/linux-gtk"
+    install -Dm 755 target/release/gvauchi \
+        "${pkgdir}/usr/bin/gvauchi"
+    install -Dm 644 data/com.vauchi.desktop.desktop \
+        "${pkgdir}/usr/share/applications/com.vauchi.desktop.desktop"
+    install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
+        "${pkgdir}/usr/share/metainfo/com.vauchi.desktop.metainfo.xml"
+    install -Dm 644 LICENSE \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
