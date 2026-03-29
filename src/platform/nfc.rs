@@ -23,6 +23,7 @@ mod inner {
     use gtk4::glib;
     use libadwaita as adw;
 
+    use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
 
@@ -68,7 +69,8 @@ mod inner {
         let toast_overlay = toast_overlay.clone();
         let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
-        let toast = adw::Toast::new("Waiting for NFC tap…");
+        let msg = i18n::get_string(Locale::default(), "platform.nfc_waiting");
+        let toast = adw::Toast::new(&msg);
         toast.set_timeout(5);
         toast_overlay.add_toast(toast);
 
@@ -94,7 +96,12 @@ mod inner {
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
-                    let toast = adw::Toast::new(&format!("NFC exchange failed: {}", e));
+                    let msg = i18n::get_string_with_args(
+                        Locale::default(),
+                        "platform.nfc_exchange_failed",
+                        &[("error", &e)],
+                    );
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }

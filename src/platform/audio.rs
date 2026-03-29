@@ -16,6 +16,7 @@ mod inner {
     use gtk4::glib;
     use libadwaita as adw;
 
+    use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
     use vauchi_core::exchange::{AudioBackend, AudioConfig, CpalAudioBackend};
@@ -42,12 +43,19 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok(())) => {
-                    let toast = adw::Toast::new("Ultrasonic challenge emitted");
+                    let msg =
+                        i18n::get_string(Locale::default(), "platform.audio_challenge_emitted");
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let toast = adw::Toast::new(&format!("Audio emit failed: {}", e));
+                    let msg = i18n::get_string_with_args(
+                        Locale::default(),
+                        "platform.audio_emit_failed",
+                        &[("error", &e)],
+                    );
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }
@@ -98,7 +106,12 @@ mod inner {
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
-                    let toast = adw::Toast::new(&format!("Audio listen failed: {}", e));
+                    let msg = i18n::get_string_with_args(
+                        Locale::default(),
+                        "platform.audio_listen_failed",
+                        &[("error", &e)],
+                    );
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }

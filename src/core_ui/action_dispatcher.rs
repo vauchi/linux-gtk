@@ -13,6 +13,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{ActionResult, AppEngine, UserAction, WorkflowEngine};
 use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
 
@@ -81,7 +82,11 @@ pub(crate) fn handle_app_engine_result(
                 &url,
                 None::<&gtk4::gio::AppLaunchContext>,
             ) {
-                show_alert(container, "Could not open link", e.message());
+                show_alert(
+                    container,
+                    &i18n::get_string(Locale::default(), "platform.error_could_not_open_link"),
+                    e.message(),
+                );
             }
         }
         ActionResult::StartDeviceLink => {
@@ -168,8 +173,11 @@ fn handle_exchange_commands(
                     {
                         let _ = data;
                         if notified_unavailable.insert("audio") {
-                            let toast =
-                                adw::Toast::new("Audio detected — built without audio feature");
+                            let msg = i18n::get_string(
+                                Locale::default(),
+                                "platform.audio_built_without_feature",
+                            );
+                            let toast = adw::Toast::new(&msg);
                             toast_overlay.add_toast(toast);
                         }
                     }
@@ -192,8 +200,11 @@ fn handle_exchange_commands(
                     {
                         let _ = timeout_ms;
                         if notified_unavailable.insert("audio") {
-                            let toast =
-                                adw::Toast::new("Audio detected — built without audio feature");
+                            let msg = i18n::get_string(
+                                Locale::default(),
+                                "platform.audio_built_without_feature",
+                            );
+                            let toast = adw::Toast::new(&msg);
                             toast_overlay.add_toast(toast);
                         }
                     }
@@ -222,8 +233,11 @@ fn handle_exchange_commands(
                     {
                         let _ = service_uuid;
                         if notified_unavailable.insert("ble") {
-                            let toast =
-                                adw::Toast::new("Bluetooth detected — built without BLE feature");
+                            let msg = i18n::get_string(
+                                Locale::default(),
+                                "platform.ble_built_without_feature",
+                            );
+                            let toast = adw::Toast::new(&msg);
                             toast_overlay.add_toast(toast);
                         }
                     }
@@ -318,8 +332,11 @@ fn handle_exchange_commands(
                     {
                         let _ = payload;
                         if notified_unavailable.insert("nfc") {
-                            let toast =
-                                adw::Toast::new("NFC reader detected — built without NFC feature");
+                            let msg = i18n::get_string(
+                                Locale::default(),
+                                "platform.nfc_built_without_feature",
+                            );
+                            let toast = adw::Toast::new(&msg);
                             toast_overlay.add_toast(toast);
                         }
                     }
@@ -347,7 +364,12 @@ fn report_hardware_unavailable(
     toast_overlay: &adw::ToastOverlay,
     transport: &str,
 ) {
-    let toast = adw::Toast::new(&format!("{} not yet available on desktop", transport));
+    let msg = i18n::get_string_with_args(
+        Locale::default(),
+        "platform.hardware_not_available",
+        &[("transport", transport)],
+    );
+    let toast = adw::Toast::new(&msg);
     toast_overlay.add_toast(toast);
 
     // Notify core so the session can fall back to another transport
@@ -395,29 +417,30 @@ fn show_qr_paste_dialog(
         None => return,
     };
 
+    let locale = Locale::default();
     let body = if hardware::has_camera() {
-        "Camera detected but scanning integration is not yet available.\n\
-         Scan the other device's QR code with your phone, \
-         copy the data, and paste it below."
+        i18n::get_string(locale, "platform.qr_camera_not_available")
     } else {
-        "No camera detected on this device.\n\
-         Scan the other device's QR code with your phone, \
-         copy the data, and paste it below."
+        i18n::get_string(locale, "platform.qr_no_camera")
     };
+    let title = i18n::get_string(locale, "platform.qr_paste_dialog_title");
 
-    let dialog = adw::MessageDialog::new(Some(&window), Some("Paste QR Code Data"), Some(body));
+    let dialog = adw::MessageDialog::new(Some(&window), Some(&title), Some(&body));
 
     // Text entry for pasting QR data
+    let placeholder = i18n::get_string(locale, "platform.qr_paste_placeholder");
     let entry = gtk4::Entry::builder()
-        .placeholder_text("Paste QR code data here…")
+        .placeholder_text(&placeholder)
         .hexpand(true)
         .margin_start(24)
         .margin_end(24)
         .build();
     dialog.set_extra_child(Some(&entry));
 
-    dialog.add_response("cancel", "Cancel");
-    dialog.add_response("confirm", "Confirm");
+    let cancel_label = i18n::get_string(locale, "platform.button_cancel");
+    let confirm_label = i18n::get_string(locale, "platform.button_confirm");
+    dialog.add_response("cancel", &cancel_label);
+    dialog.add_response("confirm", &confirm_label);
     dialog.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
     dialog.set_default_response(Some("confirm"));
     dialog.set_close_response("cancel");
@@ -433,7 +456,8 @@ fn show_qr_paste_dialog(
             {
                 let data = entry.text().to_string();
                 if data.trim().is_empty() {
-                    let toast = adw::Toast::new("No QR data entered");
+                    let msg = i18n::get_string(Locale::default(), "platform.error_no_qr_data");
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     return;
                 }

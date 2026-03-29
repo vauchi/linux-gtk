@@ -19,6 +19,7 @@ mod inner {
     use libadwaita as adw;
     use libadwaita::prelude::*;
 
+    use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
 
@@ -65,12 +66,13 @@ mod inner {
         let stop_for_thread = stop.clone();
 
         // Build the preview dialog
-        let dialog = adw::MessageDialog::new(
-            Some(&window),
-            Some("Scan QR Code"),
-            Some("Point your camera at the other device's QR code."),
-        );
-        dialog.add_response("cancel", "Cancel");
+        let locale = Locale::default();
+        let title = i18n::get_string(locale, "platform.qr_scan_title");
+        let instruction = i18n::get_string(locale, "platform.qr_scan_instruction_camera");
+        let cancel_label = i18n::get_string(locale, "platform.button_cancel");
+
+        let dialog = adw::MessageDialog::new(Some(&window), Some(&title), Some(&instruction));
+        dialog.add_response("cancel", &cancel_label);
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
 
@@ -138,7 +140,12 @@ mod inner {
                     Ok(CameraMsg::Error(e)) => {
                         stop_for_poll.store(true, Ordering::SeqCst);
                         dialog.close();
-                        let toast = adw::Toast::new(&format!("Camera error: {}", e));
+                        let msg = i18n::get_string_with_args(
+                            Locale::default(),
+                            "platform.camera_error",
+                            &[("error", &e)],
+                        );
+                        let toast = adw::Toast::new(&msg);
                         toast_overlay.add_toast(toast);
                         return glib::ControlFlow::Break;
                     }

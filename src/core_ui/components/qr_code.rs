@@ -7,6 +7,7 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Frame, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{QrMode, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -138,18 +139,20 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &Desi
         .label("📷")
         .css_classes(["title-1"])
         .build();
-    icon.update_property(&[Property::Label("Camera")]);
+    let locale = Locale::default();
+    let camera_label = i18n::get_string(locale, "platform.qr_scan_title");
+    icon.update_property(&[Property::Label(&camera_label)]);
     scan_area.append(&icon);
 
     let has_cam = hardware::has_camera();
     let instruction = if has_cam {
-        "Point your camera at the other device's QR code, or paste the data below."
+        i18n::get_string(locale, "platform.qr_scan_instruction_paste")
     } else {
-        "No camera detected. Scan the QR code with your phone and paste the data below."
+        i18n::get_string(locale, "platform.qr_no_camera_paste")
     };
 
     let instruction_label = Label::builder()
-        .label(instruction)
+        .label(&instruction)
         .halign(gtk4::Align::Center)
         .wrap(true)
         .css_classes(["dim-label"])
@@ -160,15 +163,17 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &Desi
     let paste_row = GtkBox::new(Orientation::Horizontal, sm);
     paste_row.set_halign(gtk4::Align::Center);
 
+    let paste_placeholder = i18n::get_string(locale, "platform.qr_paste_data");
     let entry = Entry::builder()
-        .placeholder_text("Paste QR data…")
+        .placeholder_text(&paste_placeholder)
         .width_chars(30)
         .build();
     entry.update_property(&[Property::Label("QR data input")]);
     paste_row.append(&entry);
 
+    let submit_label = i18n::get_string(locale, "platform.qr_submit");
     let submit_btn = Button::builder()
-        .label("Submit")
+        .label(&submit_label)
         .css_classes(["suggested-action"])
         .build();
     submit_btn.update_property(&[Property::Label("Submit QR data")]);

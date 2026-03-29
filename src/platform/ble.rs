@@ -19,6 +19,7 @@ mod inner {
     use gtk4::glib;
     use libadwaita as adw;
 
+    use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
 
@@ -63,7 +64,8 @@ mod inner {
         let toast_overlay = toast_overlay.clone();
         let (tx, rx) = mpsc::channel::<Result<Vec<ExchangeHardwareEvent>, String>>();
 
-        let scan_toast = adw::Toast::new("Scanning for nearby devices…");
+        let msg = i18n::get_string(Locale::default(), "platform.ble_scanning");
+        let scan_toast = adw::Toast::new(&msg);
         scan_toast.set_timeout(3);
         toast_overlay.add_toast(scan_toast);
 
@@ -102,7 +104,12 @@ mod inner {
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
-                    let toast = adw::Toast::new(&format!("BLE scan failed: {}", e));
+                    let msg = i18n::get_string_with_args(
+                        Locale::default(),
+                        "platform.ble_scan_failed",
+                        &[("error", &e)],
+                    );
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }
@@ -132,12 +139,19 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             match rx.try_recv() {
                 Ok(Ok(())) => {
-                    let toast = adw::Toast::new("BLE advertising started");
+                    let msg =
+                        i18n::get_string(Locale::default(), "platform.ble_advertising_started");
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let toast = adw::Toast::new(&format!("BLE advertise failed: {}", e));
+                    let msg = i18n::get_string_with_args(
+                        Locale::default(),
+                        "platform.ble_advertise_failed",
+                        &[("error", &e)],
+                    );
+                    let toast = adw::Toast::new(&msg);
                     toast_overlay.add_toast(toast);
                     glib::ControlFlow::Break
                 }
@@ -375,7 +389,8 @@ mod inner {
             let _ = conn.runtime.block_on(conn.device.disconnect());
             // Runtime + session + device + chars dropped here
         }
-        let toast = adw::Toast::new("BLE disconnected");
+        let msg = i18n::get_string(Locale::default(), "platform.ble_disconnected");
+        let toast = adw::Toast::new(&msg);
         toast_overlay.add_toast(toast);
     }
 
