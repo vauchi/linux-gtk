@@ -11,7 +11,7 @@ accessible label is missing from the rendered UI.
 
 import pytest
 
-from helpers import find_all, find_one, dump_tree, is_sensitive
+from helpers import find_all, find_one, dump_tree
 
 
 class TestSidebar:
@@ -101,9 +101,8 @@ class TestQrCodeComponent:
         qr_display = find_one(gtk_app, name="QR code for contact exchange")
         qr_scan = find_one(gtk_app, name="Scan QR code")
         # If we're on the exchange screen, one of these should exist
-        if qr_display or qr_scan:
-            # Verify the label is not empty
-            found = qr_display or qr_scan
+        found = qr_display or qr_scan
+        if found is not None:
             assert found.get_name(), "QR component has empty accessible label"
 
 
@@ -133,7 +132,6 @@ class TestPinInputComponent:
 
     def test_pin_digits_have_descriptive_labels(self, gtk_app):
         """PIN digit entries must have 'PIN digit N of M' accessible labels."""
-        pin_digits = find_all(gtk_app, name="PIN digit")
         # Filter to find entries matching "PIN digit X of Y" pattern
         pin_entries = [
             e for e in find_all(gtk_app, role="text")
