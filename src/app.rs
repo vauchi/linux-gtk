@@ -24,11 +24,32 @@ pub fn run() {
     app.run();
 }
 
+/// Check if `--reset-for-testing` was passed (DEBUG builds only).
+/// Creates a test identity so the app skips onboarding and lands on home.
+fn maybe_seed_test_identity(vauchi: &mut vauchi_core::api::Vauchi) {
+    if !cfg!(debug_assertions) {
+        return;
+    }
+    let reset = std::env::args().any(|a| a == "--reset-for-testing");
+    if !reset {
+        return;
+    }
+    if vauchi.has_identity() {
+        eprintln!("[vauchi] --reset-for-testing: identity already exists, skipping");
+        return;
+    }
+    match vauchi.create_identity("Test User") {
+        Ok(()) => eprintln!("[vauchi] --reset-for-testing: test identity created"),
+        Err(e) => eprintln!("[vauchi] --reset-for-testing: failed to create identity: {e}"),
+    }
+}
+
 fn build_ui(app: &adw::Application) {
     // Apply core theme colors via CSS provider (runtime-switchable)
     crate::core_ui::theme::apply_default_theme();
 
-    let vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
+    let mut vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
+    maybe_seed_test_identity(&mut vauchi);
     let app_engine = Rc::new(RefCell::new(AppEngine::new(vauchi)));
 
     // Navigate to dynamic default screen (MyInfo with 0 contacts, Contacts with >=1)
