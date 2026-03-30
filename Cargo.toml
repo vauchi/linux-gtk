@@ -52,6 +52,7 @@ pcsc = { version = "2", optional = true }
 ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
 
 [dev-dependencies]
+serde_json = "1"
 tempfile = "3.0"
 
 # Release profile: optimized binary (matches cli/tui)
