@@ -86,7 +86,7 @@ test:unit:
   before_script:
     - !reference [.self-hosted, before_script]
   script:
-    - cargo test
+    - cargo nextest run --profile ci
   # GTK4 dev libs required on runners — enforced to surface infra gaps
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -258,7 +258,7 @@ verify:upstream-compat:
     - !reference [.self-hosted, before_script]
     - sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libadwaita-1-dev 2>/dev/null || true
   script:
-    - cargo test
+    - cargo nextest run --profile ci
   allow_failure: true  # GTK4 dev libs may not be on all runners
 
 # Runs when core creates a dev/RC tag and triggers this repo.
@@ -271,7 +271,7 @@ verify:upstream-prerelease:
     - !reference [.self-hosted, before_script]
     - sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libadwaita-1-dev 2>/dev/null || true
   script:
-    - cargo test
+    - cargo nextest run --profile ci
   allow_failure: true  # GTK4 dev libs may not be on all runners
 
 # ============================================================
