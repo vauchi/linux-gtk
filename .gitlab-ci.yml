@@ -283,6 +283,7 @@ verify:upstream-prerelease:
 package:deb:
   stage: package
   image: debian:bookworm
+  tags: [docker]
   needs:
     - job: build:app
       optional: true
@@ -305,6 +306,7 @@ package:deb:
 package:rpm:
   stage: package
   image: fedora:40
+  tags: [docker]
   needs:
     - job: build:app
       optional: true

@@ -3,12 +3,37 @@
 
 """Keyboard navigation and interaction tests via AT-SPI."""
 
+import time
+
 import gi
+import pytest
 
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
 from helpers import find_all, find_one, is_sensitive, dump_tree
+
+
+# Sidebar screens in order (first 5 correspond to Alt+1..5)
+SIDEBAR_SCREENS = ["My Info", "Contacts", "Exchange", "Settings", "Help"]
+
+# X11 keycodes for digits 1-5
+_KEYCODES = {1: 10, 2: 11, 3: 12, 4: 13, 5: 14}
+
+
+def _send_alt_key(digit: int) -> None:
+    """Synthesize an Alt+<digit> keystroke via AT-SPI.
+
+    Presses Alt, then the digit key, then releases both.
+    Uses X11 keycodes which work under Xvfb (CI) and X11 sessions.
+    """
+    keycode = _KEYCODES[digit]
+    # Press Alt (keycode 64 = Left Alt on X11)
+    Atspi.generate_keyboard_event(64, "", Atspi.KeySynthType.PRESS)
+    Atspi.generate_keyboard_event(keycode, "", Atspi.KeySynthType.PRESSRELEASE)
+    Atspi.generate_keyboard_event(64, "", Atspi.KeySynthType.RELEASE)
+    # Allow the toolkit to process the event
+    time.sleep(0.3)
 
 
 class TestKeyboardNavigation:
@@ -83,3 +108,48 @@ class TestAccessibleTree:
         # This test exists for debugging — print the tree
         print(f"\n=== AT-SPI Tree ===\n{tree}\n=== End ===")
         assert len(tree) > 0
+
+
+class TestSidebarShortcuts:
+    """Verify Alt+1..5 keyboard shortcuts switch sidebar tabs."""
+
+    @pytest.mark.parametrize(
+        "digit, expected_screen",
+        [(i + 1, name) for i, name in enumerate(SIDEBAR_SCREENS)],
+        ids=[f"Alt+{i + 1}-{name}" for i, name in enumerate(SIDEBAR_SCREENS)],
+    )
+    def test_alt_shortcut_navigates_to_screen(self, gtk_app, digit, expected_screen):
+        """Alt+<digit> should navigate to the corresponding sidebar screen."""
+        _send_alt_key(digit)
+
+        # After the shortcut, the sidebar should have the expected screen selected
+        sidebar = find_one(gtk_app, name="Navigation")
+        assert sidebar is not None, (
+            f"Sidebar not found after Alt+{digit}.\n"
+            f"Tree:\n{dump_tree(gtk_app, 5)}"
+        )
+
+        # Verify the selected row matches the expected screen.
+        # GTK4 marks the selected ListBoxRow with SELECTED state.
+        items = find_all(sidebar, role="list item", max_depth=5)
+        selected = [
+            item for item in items
+            if item.get_state_set().contains(Atspi.StateType.SELECTED)
+        ]
+        if selected:
+            selected_name = selected[0].get_name()
+            # The row name or a child label should contain the screen name
+            labels = find_all(selected[0], role="label", max_depth=3)
+            label_texts = [lb.get_name() for lb in labels]
+            assert expected_screen in label_texts or selected_name == expected_screen, (
+                f"Alt+{digit}: expected '{expected_screen}', "
+                f"got selected='{selected_name}' labels={label_texts}.\n"
+                f"Sidebar tree:\n{dump_tree(sidebar, 4)}"
+            )
+        else:
+            # Fallback: check that screen content is visible in the main area
+            screen_node = find_one(gtk_app, name=expected_screen)
+            assert screen_node is not None, (
+                f"Alt+{digit}: no SELECTED sidebar item and no '{expected_screen}' "
+                f"element found.\nTree:\n{dump_tree(gtk_app, 5)}"
+            )
