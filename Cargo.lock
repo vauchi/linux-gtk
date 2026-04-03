@@ -3835,7 +3835,7 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.11.2"
+version = "0.13.0"
 dependencies = [
  "hex",
  "reqwest",
@@ -3851,7 +3851,7 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.11.2"
+version = "0.13.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -3913,7 +3913,7 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.11.2"
+version = "0.13.0"
 dependencies = [
  "serde",
  "serde_json",

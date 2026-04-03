@@ -5,7 +5,7 @@
 
 use gtk4::accessible::Property;
 use gtk4::prelude::*;
-use gtk4::{self, Box as GtkBox, Label, ListBox, Orientation, SelectionMode};
+use gtk4::{self, Box as GtkBox, Label, ListBox, Orientation, SelectionMode, gio};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -89,6 +89,9 @@ fn build_ui(app: &adw::Application) {
 
     // Render initial screen
     screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
+
+    // Register import action (needs app_engine + content + toast_overlay)
+    register_import_action(app, &app_engine, &content, &toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -266,5 +269,115 @@ fn screen_label(screen: &AppScreen) -> String {
         AppScreen::Support => i18n::get_string(locale, "nav.support"),
         AppScreen::VerifyFingerprint { .. } => i18n::get_string(locale, "nav.verifyFingerprint"),
         _ => "Other".to_string(),
+    }
+}
+
+/// Register the "Import Contacts" action on the application.
+///
+/// Opens a native file chooser for `.vcf` files, calls
+/// `Vauchi::import_contacts_from_vcf`, and shows results via toast.
+fn register_import_action(
+    app: &adw::Application,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let action = gio::SimpleAction::new("import-contacts", None);
+
+    let app_engine = app_engine.clone();
+    let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
+    action.connect_activate(move |_, _| {
+        open_import_dialog(&content, &app_engine, &toast_overlay);
+    });
+
+    app.add_action(&action);
+    app.set_accels_for_action("app.import-contacts", &["<Ctrl>i"]);
+}
+
+/// Open a file chooser dialog and import the selected vCard file.
+fn open_import_dialog(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let window = match container
+        .root()
+        .and_then(|r| r.downcast::<gtk4::Window>().ok())
+    {
+        Some(w) => w,
+        None => return,
+    };
+
+    let filter = gtk4::FileFilter::new();
+    filter.add_pattern("*.vcf");
+    filter.set_name(Some("vCard Files (.vcf)"));
+
+    let filters = gio::ListStore::new::<gtk4::FileFilter>();
+    filters.append(&filter);
+
+    let dialog = gtk4::FileDialog::builder()
+        .title("Import Contacts")
+        .filters(&filters)
+        .build();
+
+    let app_engine = app_engine.clone();
+    let container = container.clone();
+    let toast_overlay = toast_overlay.clone();
+
+    dialog.open(
+        Some(&window),
+        None::<&gio::Cancellable>,
+        move |result| match result {
+            Ok(file) => {
+                if let Some(path) = file.path() {
+                    handle_import_file(&path, &container, &app_engine, &toast_overlay);
+                }
+            }
+            Err(_) => {
+                // User cancelled the dialog — no action needed.
+            }
+        },
+    );
+}
+
+/// Read a vCard file and import its contacts via the core API.
+fn handle_import_file(
+    path: &std::path::Path,
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let data = match std::fs::read(path) {
+        Ok(d) => d,
+        Err(e) => {
+            let toast = adw::Toast::new(&format!("Could not read file: {e}"));
+            toast_overlay.add_toast(toast);
+            return;
+        }
+    };
+
+    let engine = app_engine.borrow();
+    match engine.vauchi().import_contacts_from_vcf(&data) {
+        Ok(result) => {
+            let msg = if result.skipped > 0 {
+                format!(
+                    "Imported {} contact(s), skipped {}",
+                    result.imported, result.skipped
+                )
+            } else {
+                format!("Imported {} contact(s)", result.imported)
+            };
+            let toast = adw::Toast::new(&msg);
+            toast_overlay.add_toast(toast);
+
+            // Re-render to reflect newly imported contacts
+            drop(engine);
+            screen_renderer::render_app_engine_screen(container, app_engine, toast_overlay, None);
+        }
+        Err(e) => {
+            let toast = adw::Toast::new(&format!("Import failed: {e}"));
+            toast_overlay.add_toast(toast);
+        }
     }
 }

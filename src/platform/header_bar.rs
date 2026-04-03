@@ -15,6 +15,7 @@ pub fn build(app: &adw::Application) -> adw::HeaderBar {
     register_actions(app);
 
     let menu = gio::Menu::new();
+    menu.append(Some("Import Contacts…"), Some("app.import-contacts"));
     menu.append(Some("About Vauchi"), Some("app.about"));
     menu.append(Some("Quit"), Some("app.quit"));
 
@@ -55,7 +56,7 @@ fn register_actions(app: &adw::Application) {
             if let Some(window) = app.active_window() {
                 about.set_transient_for(Some(&window));
                 about.set_modal(true);
-                about.show();
+                about.present();
             }
         });
     }
