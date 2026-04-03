@@ -21,6 +21,8 @@ pub fn render(
     let sm = tokens.spacing.sm as i32;
     let list_start = tokens.spacing_direction.list_item_start as i32;
     let list_end = tokens.spacing_direction.list_item_end as i32;
+    let inline_start = tokens.spacing_direction.list_item_inline_start as i32;
+    let inline_end = tokens.spacing_direction.list_item_inline_end as i32;
     let touch_min = tokens.touch_target.minimum as i32;
 
     let container = GtkBox::new(Orientation::Vertical, sm);
@@ -56,11 +58,11 @@ pub fn render(
     let contact_ids: Vec<String> = contacts.iter().map(|c| c.id.clone()).collect();
 
     for contact in contacts {
-        let row = GtkBox::new(Orientation::Horizontal, 12);
+        let row = GtkBox::new(Orientation::Horizontal, inline_start);
         row.set_margin_top(list_start);
         row.set_margin_bottom(list_end);
-        row.set_margin_start(12);
-        row.set_margin_end(12);
+        row.set_margin_start(inline_start);
+        row.set_margin_end(inline_end);
 
         // Avatar initials circle
         let avatar = Label::builder()

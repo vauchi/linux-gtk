@@ -21,6 +21,8 @@ pub fn render(
     let sm = tokens.spacing.sm as i32;
     let list_start = tokens.spacing_direction.list_item_start as i32;
     let list_end = tokens.spacing_direction.list_item_end as i32;
+    let inline_start = tokens.spacing_direction.list_item_inline_start as i32;
+    let inline_end = tokens.spacing_direction.list_item_inline_end as i32;
 
     let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
@@ -56,8 +58,8 @@ pub fn render(
         let row = GtkBox::new(Orientation::Horizontal, sm);
         row.set_margin_top(list_start);
         row.set_margin_bottom(list_end);
-        row.set_margin_start(12);
-        row.set_margin_end(12);
+        row.set_margin_start(inline_start);
+        row.set_margin_end(inline_end);
 
         let item_label = Label::builder()
             .label(&item.label)
