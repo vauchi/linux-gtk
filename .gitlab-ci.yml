@@ -22,6 +22,7 @@ include:
       - '/ci-templates/badges.yml'
       - '/ci-templates/github-mirror.yml'
       - '/ci-templates/vrt-upload.yml'
+      - '/ci-templates/coverage.yml'
 
 stages:
   - lint
@@ -176,6 +177,16 @@ test:snapshots:record:
   rules:
     - if: $REGENERATE_SNAPSHOTS == "1"
       when: manual
+
+# Coverage: cargo-llvm-cov on main merges (not MRs)
+coverage:workspace:
+  extends: [.coverage-job, .linux-runner, .timeout-long]
+  before_script:
+    - !reference [.self-hosted, before_script]
+    - sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libadwaita-1-dev 2>/dev/null || true
+  variables:
+    COVERAGE_REPO_LABEL: "linux-gtk"
+    COVERAGE_EXTRA_FLAGS: "--no-default-features"
 
 # ============================================================
 # Security Stage (change-based, parallel with test)
