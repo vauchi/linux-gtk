@@ -13,7 +13,8 @@ use std::rc::Rc;
 use std::sync::mpsc;
 
 use vauchi_app::i18n::{self, Locale};
-use vauchi_app::ui::{AppEngine, AppScreen};
+use vauchi_app::ui::{AppEngine, AppScreen, WorkflowEngine};
+use vauchi_core::api::VauchiEvent;
 
 use crate::core_ui::screen_renderer;
 use crate::platform;
@@ -197,35 +198,97 @@ fn build_sidebar(
 /// The handler runs on whatever thread dispatches the event (often a sync
 /// background thread). An `mpsc` channel bridges to the GTK main loop via
 /// `glib::timeout_add_local`. Multiple events between polls are coalesced
-/// into a single re-render.
+/// into a single re-render. Only events affecting the current screen
+/// trigger a re-render (selective invalidation via `affected_screens`).
 fn register_event_handler(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
 ) {
-    let (tx, rx) = mpsc::channel::<()>();
+    let (tx, rx) = mpsc::channel::<Vec<String>>();
 
     // Handler is Send+Sync — runs on the dispatching thread.
+    // Maps events to affected screen IDs before sending.
     app_engine
         .borrow()
         .vauchi()
-        .add_event_handler(std::sync::Arc::new(move |_| {
-            let _ = tx.send(());
+        .add_event_handler(std::sync::Arc::new(move |event: VauchiEvent| {
+            let ids = affected_screens(&event);
+            if !ids.is_empty() {
+                let _ = tx.send(ids);
+            }
         }));
 
     let app_engine = app_engine.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
     glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-        let mut had_event = false;
-        while rx.try_recv().is_ok() {
-            had_event = true;
+        let mut all_ids = Vec::new();
+        while let Ok(ids) = rx.try_recv() {
+            all_ids.extend(ids);
         }
-        if had_event {
-            screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
+        if !all_ids.is_empty() {
+            let current_id = app_engine.borrow().current_screen().screen_id;
+            if all_ids.contains(&current_id) {
+                screen_renderer::render_app_engine_screen(
+                    &content,
+                    &app_engine,
+                    &toast_overlay,
+                    None,
+                );
+            }
         }
         glib::ControlFlow::Continue
     });
+}
+
+/// Map a `VauchiEvent` to the screen IDs it invalidates.
+///
+/// Mirrors `affected_screens` in `platform_app_engine.rs` — kept in sync
+/// manually since linux-gtk uses direct Rust (no UniFFI).
+fn affected_screens(event: &VauchiEvent) -> Vec<String> {
+    match event {
+        VauchiEvent::ContactAdded { .. }
+        | VauchiEvent::ContactUpdated { .. }
+        | VauchiEvent::ContactRemoved { .. }
+        | VauchiEvent::ContactHidden { .. }
+        | VauchiEvent::ContactUnhidden { .. }
+        | VauchiEvent::ContactBlocked { .. }
+        | VauchiEvent::ContactUnblocked { .. }
+        | VauchiEvent::ContactSoftDeleted { .. }
+        | VauchiEvent::ContactArchived { .. }
+        | VauchiEvent::ContactUnarchived { .. } => {
+            vec!["contacts".into(), "contact_detail".into()]
+        }
+        VauchiEvent::OwnCardUpdated { .. } => vec!["my_info".into()],
+        VauchiEvent::SyncStateChanged { .. }
+        | VauchiEvent::SyncProgress { .. }
+        | VauchiEvent::LabelSyncCompleted { .. } => {
+            vec!["sync".into(), "contacts".into()]
+        }
+        VauchiEvent::MessageDelivered { .. }
+        | VauchiEvent::MessageFailed { .. }
+        | VauchiEvent::DeliveryStatusUpdate { .. }
+        | VauchiEvent::PreExpiryWarning { .. } => {
+            vec!["delivery_status".into()]
+        }
+        VauchiEvent::ConnectionStateChanged { .. }
+        | VauchiEvent::RelayHealthChanged { .. }
+        | VauchiEvent::RelayFailover { .. } => {
+            vec!["sync".into()]
+        }
+        VauchiEvent::IncomingUpdate { .. } => {
+            vec!["contacts".into(), "contact_detail".into()]
+        }
+        VauchiEvent::VisibilityChanged { .. } => {
+            vec!["my_info".into(), "contacts".into()]
+        }
+        VauchiEvent::EmergencyAlertReceived { .. } | VauchiEvent::EmergencyBroadcastSent { .. } => {
+            vec!["contacts".into()]
+        }
+        VauchiEvent::DowngradeDetected { .. } | VauchiEvent::Error { .. } => vec![],
+        _ => vec![],
+    }
 }
 
 /// Rebuild the sidebar rows from the current available screens.
