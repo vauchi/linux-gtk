@@ -213,9 +213,10 @@ fn register_event_handler(
         .borrow()
         .vauchi()
         .add_event_handler(std::sync::Arc::new(move |event: VauchiEvent| {
-            let ids = affected_screens(&event);
+            let ids = vauchi_app::ui::affected_screens(&event);
             if !ids.is_empty() {
-                let _ = tx.send(ids);
+                let owned: Vec<String> = ids.into_iter().map(String::from).collect();
+                let _ = tx.send(owned);
             }
         }));
 
@@ -240,55 +241,6 @@ fn register_event_handler(
         }
         glib::ControlFlow::Continue
     });
-}
-
-/// Map a `VauchiEvent` to the screen IDs it invalidates.
-///
-/// Mirrors `affected_screens` in `platform_app_engine.rs` — kept in sync
-/// manually since linux-gtk uses direct Rust (no UniFFI).
-fn affected_screens(event: &VauchiEvent) -> Vec<String> {
-    match event {
-        VauchiEvent::ContactAdded { .. }
-        | VauchiEvent::ContactUpdated { .. }
-        | VauchiEvent::ContactRemoved { .. }
-        | VauchiEvent::ContactHidden { .. }
-        | VauchiEvent::ContactUnhidden { .. }
-        | VauchiEvent::ContactBlocked { .. }
-        | VauchiEvent::ContactUnblocked { .. }
-        | VauchiEvent::ContactSoftDeleted { .. }
-        | VauchiEvent::ContactArchived { .. }
-        | VauchiEvent::ContactUnarchived { .. } => {
-            vec!["contacts".into(), "contact_detail".into()]
-        }
-        VauchiEvent::OwnCardUpdated { .. } => vec!["my_info".into()],
-        VauchiEvent::SyncStateChanged { .. }
-        | VauchiEvent::SyncProgress { .. }
-        | VauchiEvent::LabelSyncCompleted { .. } => {
-            vec!["sync".into(), "contacts".into()]
-        }
-        VauchiEvent::MessageDelivered { .. }
-        | VauchiEvent::MessageFailed { .. }
-        | VauchiEvent::DeliveryStatusUpdate { .. }
-        | VauchiEvent::PreExpiryWarning { .. } => {
-            vec!["delivery_status".into()]
-        }
-        VauchiEvent::ConnectionStateChanged { .. }
-        | VauchiEvent::RelayHealthChanged { .. }
-        | VauchiEvent::RelayFailover { .. } => {
-            vec!["sync".into()]
-        }
-        VauchiEvent::IncomingUpdate { .. } => {
-            vec!["contacts".into(), "contact_detail".into()]
-        }
-        VauchiEvent::VisibilityChanged { .. } => {
-            vec!["my_info".into(), "contacts".into()]
-        }
-        VauchiEvent::EmergencyAlertReceived { .. } | VauchiEvent::EmergencyBroadcastSent { .. } => {
-            vec!["contacts".into()]
-        }
-        VauchiEvent::DowngradeDetected { .. } | VauchiEvent::Error { .. } => vec![],
-        _ => vec![],
-    }
 }
 
 /// Rebuild the sidebar rows from the current available screens.
