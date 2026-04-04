@@ -4,11 +4,13 @@
 //! Application entry point and GTK4 setup.
 
 use gtk4::accessible::Property;
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{self, Box as GtkBox, Label, ListBox, Orientation, SelectionMode, gio};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::mpsc;
 
 use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{AppEngine, AppScreen};
@@ -89,6 +91,11 @@ fn build_ui(app: &adw::Application) {
 
     // Render initial screen
     screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
+
+    // Register event handler for background screen invalidation (Plan 2C).
+    // Core events (sync, contact updates, etc.) re-render the active screen
+    // so the UI stays current without waiting for user interaction.
+    register_event_handler(&app_engine, &content, &toast_overlay);
 
     // Register import action (needs app_engine + content + toast_overlay)
     register_import_action(app, &app_engine, &content, &toast_overlay);
@@ -183,6 +190,42 @@ fn build_sidebar(
 
     sidebar.append(&list_box);
     (sidebar, list_box)
+}
+
+/// Register a `VauchiEvent` handler that re-renders the current screen.
+///
+/// The handler runs on whatever thread dispatches the event (often a sync
+/// background thread). An `mpsc` channel bridges to the GTK main loop via
+/// `glib::timeout_add_local`. Multiple events between polls are coalesced
+/// into a single re-render.
+fn register_event_handler(
+    app_engine: &Rc<RefCell<AppEngine>>,
+    content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let (tx, rx) = mpsc::channel::<()>();
+
+    // Handler is Send+Sync — runs on the dispatching thread.
+    app_engine
+        .borrow()
+        .vauchi()
+        .add_event_handler(std::sync::Arc::new(move |_| {
+            let _ = tx.send(());
+        }));
+
+    let app_engine = app_engine.clone();
+    let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
+    glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+        let mut had_event = false;
+        while rx.try_recv().is_ok() {
+            had_event = true;
+        }
+        if had_event {
+            screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
+        }
+        glib::ControlFlow::Continue
+    });
 }
 
 /// Rebuild the sidebar rows from the current available screens.
