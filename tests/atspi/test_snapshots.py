@@ -21,7 +21,7 @@ import shutil
 
 import pytest
 
-from helpers import click_button, dump_tree, find_all, find_one, wait_until
+from helpers import dump_tree, find_all, find_one, wait_for_element, wait_until
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -68,12 +68,27 @@ def _click_sidebar(app, label):
     return False
 
 
+def _wait_and_click(app, name, timeout=3.0):
+    """Wait for a button to appear, then click it. Handles AT-SPI rendering delay."""
+    for role in ("push button", "button"):
+        btn = wait_for_element(app, role=role, name=name, timeout=timeout)
+        if btn is not None:
+            try:
+                action = btn.get_action_iface()
+                if action and action.get_n_actions() > 0:
+                    action.do_action(0)
+                    return True
+            except Exception:
+                return False
+    return False
+
+
 def _navigate_to(app, screen_label):
     """Navigate to a screen. Handles sidebar items and More sub-screens."""
     if screen_label in MORE_SCREENS:
         if not _click_sidebar(app, "More"):
             return False
-        return click_button(app, screen_label)
+        return _wait_and_click(app, screen_label)
     return _click_sidebar(app, screen_label)
 
 
