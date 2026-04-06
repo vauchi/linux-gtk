@@ -94,7 +94,10 @@ def find_one(
 
 def click_button(root: Atspi.Accessible, name: str) -> bool:
     """Find a button by name and invoke its click action."""
+    # GTK4/libadwaita exposes buttons as "button", not "push button"
     btn = find_one(root, role="push button", name=name)
+    if btn is None:
+        btn = find_one(root, role="button", name=name)
     if btn is None:
         return False
     try:
