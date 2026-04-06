@@ -112,8 +112,24 @@ pub(crate) fn handle_app_engine_result(
             // Reset — re-render from scratch
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
-        ActionResult::ShowToast { message, .. } => {
+        ActionResult::ShowToast {
+            message,
+            undo_action_id,
+        } => {
             let toast = adw::Toast::new(&message);
+            if let Some(undo_id) = undo_action_id {
+                toast.set_button_label(Some("Undo"));
+                let app_engine = app_engine.clone();
+                let container = container.clone();
+                let toast_overlay = toast_overlay.clone();
+                toast.connect_button_clicked(move |_| {
+                    let action = UserAction::ActionPressed {
+                        action_id: undo_id.clone(),
+                    };
+                    let result = app_engine.borrow_mut().handle_action(action);
+                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+                });
+            }
             toast_overlay.add_toast(toast);
         }
         ActionResult::ExchangeCommands { commands } => {
