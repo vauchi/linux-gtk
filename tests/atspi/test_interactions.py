@@ -61,19 +61,24 @@ def navigate_to(app, screen_label, timeout=3.0):
 class TestNavigateAllScreens:
     """Manual item: launch app, navigate sidebar screens."""
 
-    # More sub-screens excluded — AT-SPI do_action(0) on list items doesn't
-    # trigger navigation reliably in GTK4/Qt6.
-    SCREENS = ["My Card", "Contacts", "Exchange", "Groups", "More"]
+    def test_all_sidebar_screens_reachable(self, gtk_app):
+        """Each sidebar item should be activatable via AT-SPI action."""
+        sidebar = find_one(gtk_app, name="Navigation")
+        assert sidebar is not None, "Sidebar not found"
 
-    @pytest.mark.parametrize("screen", SCREENS)
-    def test_screen_reachable(self, gtk_app, screen):
-        """Each screen should be reachable via sidebar navigation."""
-        navigated = navigate_to(gtk_app, screen)
-        assert navigated, (
-            f"Failed to navigate to '{screen}' — sidebar item not found or "
-            f"action interface unavailable.\n"
-            f"Tree:\n{dump_tree(gtk_app, 4)}"
+        items = find_all(sidebar, role="list item", max_depth=5)
+        assert len(items) >= 5, (
+            f"Expected >= 5 sidebar items, found {len(items)}.\n"
+            f"Tree:\n{dump_tree(sidebar, 4)}"
         )
+
+        for item in items:
+            name = item.get_name()
+            navigated = navigate_to(gtk_app, name)
+            assert navigated, (
+                f"Failed to navigate to '{name}' — action interface unavailable.\n"
+                f"Tree:\n{dump_tree(gtk_app, 4)}"
+            )
 
 
 # ---------------------------------------------------------------------------

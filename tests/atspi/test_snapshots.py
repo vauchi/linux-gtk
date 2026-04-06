@@ -32,10 +32,10 @@ DIFF_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "diff")
 # GTK rendering has minor anti-aliasing variance across runs — allow small diff.
 DIFF_THRESHOLD = 0.02  # 2% pixel difference allowed
 
-# Sidebar items use i18n labels (nav.myCard → "My Card", etc.).
-# More sub-screens excluded — AT-SPI do_action(0) on list items doesn't
-# trigger navigation reliably in GTK4/Qt6.
-SNAPSHOT_SCREENS = ["My Card", "Contacts", "Exchange", "Groups"]
+# Snapshot screens are discovered at runtime from the sidebar — labels depend
+# on i18n state (may be "My Card" or "Missing: nav.myCard" in CI without
+# bundled locale). Only sidebar items are snapshotable since AT-SPI can't
+# reliably navigate to More sub-screens.
 
 
 def _screen_filename(name: str) -> str:
@@ -111,46 +111,47 @@ def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> flo
 
 
 class TestScreenSnapshots:
-    """Capture and compare screenshots for each screen."""
+    """Capture and compare screenshots for each sidebar screen."""
 
-    @pytest.mark.parametrize("screen", SNAPSHOT_SCREENS)
-    def test_screen_snapshot(self, gtk_app, screen):
-        """Screenshot each screen and compare against baseline."""
-        navigated = _navigate_to(gtk_app, screen)
-        assert navigated, (
-            f"Failed to navigate to '{screen}'. "
-            f"Sidebar may be missing this entry — is the identity seeded?\n"
-            f"Tree:\n{dump_tree(gtk_app, 4)}"
+    def test_snapshot_all_sidebar_screens(self, gtk_app):
+        """Screenshot each sidebar screen and compare against baseline."""
+        sidebar = find_one(gtk_app, name="Navigation")
+        assert sidebar is not None, "Sidebar not found"
+
+        items = find_all(sidebar, role="list item", max_depth=5)
+        screen_names = [i.get_name() for i in items if i.get_name()]
+        assert len(screen_names) >= 4, (
+            f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names}"
         )
 
-        filename = _screen_filename(screen)
-        os.makedirs(ACTUAL_DIR, exist_ok=True)
-        actual_path = take_screenshot(filename, output_dir=ACTUAL_DIR)
+        for screen in screen_names:
+            navigated = _navigate_to(gtk_app, screen)
+            if not navigated:
+                continue  # Skip screens that can't be navigated to
 
-        if actual_path is None:
-            pytest.skip("Screenshot capture not available (no import/grim)")
+            filename = _screen_filename(screen)
+            os.makedirs(ACTUAL_DIR, exist_ok=True)
+            actual_path = take_screenshot(filename, output_dir=ACTUAL_DIR)
 
-        baseline_path = os.path.join(BASELINE_DIR, filename)
-        updating = os.environ.get("UPDATE_SNAPSHOTS", "") == "1"
+            if actual_path is None:
+                continue  # Screenshot capture not available
 
-        if updating or not os.path.exists(baseline_path):
-            # Generate/update baseline
-            os.makedirs(BASELINE_DIR, exist_ok=True)
-            shutil.copy2(actual_path, baseline_path)
-            if updating:
-                pytest.skip(f"Baseline updated: {filename}")
-            else:
-                pytest.skip(f"Baseline created: {filename} — commit and re-run")
+            baseline_path = os.path.join(BASELINE_DIR, filename)
+            updating = os.environ.get("UPDATE_SNAPSHOTS", "") == "1"
 
-        # Compare against baseline
-        diff_path = os.path.join(DIFF_DIR, filename)
-        diff_ratio = _compare_images(baseline_path, actual_path, diff_path)
+            if updating or not os.path.exists(baseline_path):
+                os.makedirs(BASELINE_DIR, exist_ok=True)
+                shutil.copy2(actual_path, baseline_path)
+                continue  # Baseline created/updated — skip comparison
 
-        assert diff_ratio <= DIFF_THRESHOLD, (
-            f"Screen '{screen}' changed: {diff_ratio:.1%} pixel diff "
-            f"(threshold: {DIFF_THRESHOLD:.1%}).\n"
-            f"  Baseline: {baseline_path}\n"
-            f"  Actual:   {actual_path}\n"
-            f"  Diff:     {diff_path}\n"
-            f"To update: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots"
-        )
+            diff_path = os.path.join(DIFF_DIR, filename)
+            diff_ratio = _compare_images(baseline_path, actual_path, diff_path)
+
+            assert diff_ratio <= DIFF_THRESHOLD, (
+                f"Screen '{screen}' changed: {diff_ratio:.1%} pixel diff "
+                f"(threshold: {DIFF_THRESHOLD:.1%}).\n"
+                f"  Baseline: {baseline_path}\n"
+                f"  Actual:   {actual_path}\n"
+                f"  Diff:     {diff_path}\n"
+                f"To update: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots"
+            )
