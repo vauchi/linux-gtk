@@ -21,7 +21,7 @@ import shutil
 
 import pytest
 
-from helpers import dump_tree, find_all, find_one, wait_until
+from helpers import click_button, dump_tree, find_all, find_one, wait_until
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -32,33 +32,27 @@ DIFF_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "diff")
 # GTK rendering has minor anti-aliasing variance across runs — allow small diff.
 DIFF_THRESHOLD = 0.02  # 2% pixel difference allowed
 
-# Screens to snapshot (after onboarding is complete)
-SNAPSHOT_SCREENS = [
-    "My Info",
-    "Contacts",
-    "Exchange",
-    "Settings",
-    "Help",
-    "Backup",
-    "Emergency Shred",
-    "Duress PIN",
-    "Groups",
-    "Privacy",
-]
+# Sidebar items use i18n labels (nav.myCard → "My Card", etc.).
+# Screens under "More" require two-step navigation: click More, then click target.
+# Action-navigated screens (Duress PIN, Emergency Shred) are excluded — they require
+# multi-step navigation through Settings and are too fragile for snapshot tests.
+SIDEBAR_SCREENS = ["My Card", "Contacts", "Exchange", "Groups"]
+MORE_SCREENS = ["Settings", "Help", "Backup", "Privacy"]
+SNAPSHOT_SCREENS = SIDEBAR_SCREENS + MORE_SCREENS
 
 
 def _screen_filename(name: str) -> str:
     return f"{name.lower().replace(' ', '_')}.png"
 
 
-def _navigate_to(app, screen_label):
-    """Navigate to a screen via sidebar. Returns True if navigation succeeded."""
+def _click_sidebar(app, label):
+    """Click a sidebar list item by label. Returns True on success."""
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
         return False
     items = find_all(sidebar, role="list item", max_depth=5)
     for item in items:
-        if item.get_name() == screen_label:
+        if item.get_name() == label:
             try:
                 action = item.get_action_iface()
                 if action and action.get_n_actions() > 0:
@@ -66,12 +60,21 @@ def _navigate_to(app, screen_label):
                     wait_until(
                         lambda: len(find_all(app, role="label", max_depth=10)) > 0,
                         timeout=3.0,
-                        message=f"Screen should render after navigating to {screen_label}",
+                        message=f"Screen should render after clicking '{label}'",
                     )
                     return True
             except Exception:
                 return False
     return False
+
+
+def _navigate_to(app, screen_label):
+    """Navigate to a screen. Handles sidebar items and More sub-screens."""
+    if screen_label in MORE_SCREENS:
+        if not _click_sidebar(app, "More"):
+            return False
+        return click_button(app, screen_label)
+    return _click_sidebar(app, screen_label)
 
 
 def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> float:

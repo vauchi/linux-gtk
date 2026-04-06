@@ -8,24 +8,8 @@ import pytest
 from helpers import dump_tree, find_all, find_one
 
 
-# Screens accessible via sidebar navigation (with seeded identity)
-SIDEBAR_SCREENS = [
-    "My Info",
-    "Contacts",
-    "Exchange",
-    "Settings",
-    "Help",
-    "Backup",
-    "Device Linking",
-    "Duress PIN",
-    "Emergency Shred",
-    "Delivery Status",
-    "Sync",
-    "Recovery",
-    "Groups",
-    "Privacy",
-    "Support",
-]
+# Top-level sidebar items use i18n labels (nav.myCard → "My Card", etc.)
+SIDEBAR_SCREENS = ["My Card", "Contacts", "Exchange", "Groups", "More"]
 
 
 class TestSidebarNavigation:
@@ -36,20 +20,19 @@ class TestSidebarNavigation:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        # List items in the sidebar
-        items = find_all(sidebar, role="label", max_depth=5)
-        item_names = [item.get_name() for item in items if item.get_name()]
-        assert len(item_names) > 0, (
-            f"No sidebar items found. Tree:\n{dump_tree(sidebar, 4)}"
+        items = find_all(sidebar, role="list item", max_depth=5)
+        item_names = [i.get_name() for i in items if i.get_name()]
+        assert len(item_names) >= len(SIDEBAR_SCREENS), (
+            f"Expected {len(SIDEBAR_SCREENS)} sidebar items, found {len(item_names)}: "
+            f"{item_names}.\nTree:\n{dump_tree(sidebar, 4)}"
         )
 
-    @pytest.mark.parametrize("screen_name", SIDEBAR_SCREENS[:5])
+    @pytest.mark.parametrize("screen_name", SIDEBAR_SCREENS)
     def test_navigate_to_screen(self, gtk_app, screen_name):
         """Navigate to a screen via sidebar and verify the entry exists."""
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        # Verify this screen exists as a sidebar entry
         items = find_all(sidebar, role="list item", max_depth=5)
         item_names = [i.get_name() for i in items if i.get_name()]
         assert screen_name in item_names, (

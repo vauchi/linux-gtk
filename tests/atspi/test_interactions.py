@@ -26,22 +26,20 @@ from helpers import (
 # Sidebar navigation helper
 # ---------------------------------------------------------------------------
 
-def navigate_to(app, screen_label, timeout=3.0):
-    """Click a sidebar item to navigate to a screen.
+MORE_SCREENS = {"Settings", "Help", "Backup", "Privacy", "Sync", "Devices"}
+SETTINGS_SCREENS = {"Duress PIN", "Emergency Shred", "Delivery Status", "Recovery"}
 
-    GTK4 ListBoxRow exposes as "list item" in AT-SPI. Activation
-    may not work via AT-SPI action interface (GTK4 limitation).
-    Returns True if navigation action was triggered, False otherwise.
-    """
+
+def _click_sidebar(app, label, timeout=3.0):
+    """Click a sidebar list item by label. Returns True on success."""
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
         return False
 
-    # Try list items first, then labels
     for role in ("list item", "label"):
         items = find_all(sidebar, role=role, max_depth=5)
         for item in items:
-            if item.get_name() == screen_label:
+            if item.get_name() == label:
                 try:
                     action = item.get_action_iface()
                     if action and action.get_n_actions() > 0:
@@ -49,14 +47,27 @@ def navigate_to(app, screen_label, timeout=3.0):
                         wait_until(
                             lambda: len(find_all(app, role="label", max_depth=10)) > 0,
                             timeout=timeout,
-                            message=f"Screen should have labels after navigating to {screen_label}",
+                            message=f"Screen should have labels after clicking '{label}'",
                         )
                         return True
                 except Exception:
                     return False
+    return False
 
-    # Fallback: try clicking a button with the label
-    return click_button(app, screen_label)
+
+def navigate_to(app, screen_label, timeout=3.0):
+    """Navigate to a screen. Handles sidebar, More sub-screens, and Settings sub-screens."""
+    if screen_label in SETTINGS_SCREENS:
+        if not _click_sidebar(app, "More", timeout):
+            return False
+        if not click_button(app, "Settings"):
+            return False
+        return click_button(app, screen_label)
+    if screen_label in MORE_SCREENS:
+        if not _click_sidebar(app, "More", timeout):
+            return False
+        return click_button(app, screen_label)
+    return _click_sidebar(app, screen_label, timeout)
 
 
 # ---------------------------------------------------------------------------
@@ -66,11 +77,11 @@ def navigate_to(app, screen_label, timeout=3.0):
 class TestNavigateAllScreens:
     """Manual item: launch app, navigate all screens."""
 
+    # Sidebar uses i18n labels: My Card, Contacts, Exchange, Groups, More.
+    # More sub-screens: Settings, Help, Backup, Privacy, Sync, Devices.
     SCREENS = [
-        "My Info", "Contacts", "Exchange", "Settings", "Help",
-        "Backup", "Device Linking", "Duress PIN", "Emergency Shred",
-        "Delivery Status", "Sync", "Recovery",
-        "Groups", "Privacy", "Support",
+        "My Card", "Contacts", "Exchange", "Groups",
+        "Settings", "Help", "Backup", "Privacy",
     ]
 
     @pytest.mark.parametrize("screen", SCREENS)
@@ -126,7 +137,7 @@ class TestCardPreviewTabs:
 
     def test_my_info_has_tab_buttons(self, gtk_app):
         """My Info screen should have group tab toggle buttons."""
-        navigate_to(gtk_app, "My Info")
+        navigate_to(gtk_app, "My Card")
         wait_until(
             lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
             timeout=2.0,

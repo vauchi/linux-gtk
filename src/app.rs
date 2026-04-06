@@ -27,12 +27,15 @@ pub fn run() {
     app.run();
 }
 
-/// Check if `--reset-for-testing` was passed (DEBUG builds only).
+/// Check if `--reset-for-testing` was passed.
 /// Creates a test identity so the app skips onboarding and lands on home.
+///
+/// Available in all build profiles — the flag is explicit opt-in and
+/// required by CI AT-SPI tests (which build release for binary-size
+/// tracking). Without keyring the separate seed-identity binary cannot
+/// persist an identity across processes, so in-process seeding is the
+/// only reliable path.
 fn maybe_seed_test_identity(vauchi: &mut vauchi_core::api::Vauchi) {
-    if !cfg!(debug_assertions) {
-        return;
-    }
     let reset = std::env::args().any(|a| a == "--reset-for-testing");
     if !reset {
         return;
