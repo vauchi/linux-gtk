@@ -123,11 +123,12 @@ fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
 
 fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &DesignTokens) {
     let sm = tokens.spacing.sm as i32;
+    let md = tokens.spacing.md as i32;
     let lg = tokens.spacing.lg as i32;
 
     let scan_frame = Frame::builder().css_classes(["card"]).build();
 
-    let scan_area = GtkBox::new(Orientation::Vertical, 12);
+    let scan_area = GtkBox::new(Orientation::Vertical, md);
     scan_area.set_margin_top(lg);
     scan_area.set_margin_bottom(lg);
     scan_area.set_margin_start(lg);

@@ -68,7 +68,7 @@ pub fn render(
                 .label(subtitle)
                 .halign(gtk4::Align::Start)
                 .css_classes(["dim-label", "caption"])
-                .margin_start(24)
+                .margin_start(tokens.spacing.lg as i32)
                 .build();
             row_box.append(&sub_label);
         }

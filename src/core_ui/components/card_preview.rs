@@ -41,7 +41,7 @@ pub fn render(
     container.append(&name_label);
 
     // Fields
-    render_fields(&container, fields);
+    render_fields(&container, fields, sm);
 
     // Group tabs
     if !group_views.is_empty() {
@@ -84,7 +84,7 @@ pub fn render(
         if let Some(selected) = selected_group
             && let Some(gv) = group_views.iter().find(|g| &g.group_name == selected)
         {
-            render_fields(&container, &gv.visible_fields);
+            render_fields(&container, &gv.visible_fields, sm);
         }
     }
 
@@ -92,9 +92,9 @@ pub fn render(
     frame.upcast()
 }
 
-fn render_fields(container: &GtkBox, fields: &[FieldDisplay]) {
+fn render_fields(container: &GtkBox, fields: &[FieldDisplay], sm: i32) {
     for field in fields {
-        let field_row = GtkBox::new(Orientation::Horizontal, 8); // inner field spacing
+        let field_row = GtkBox::new(Orientation::Horizontal, sm);
 
         let label = Label::builder()
             .label(format!("{}:", field.label))

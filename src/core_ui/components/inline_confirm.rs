@@ -27,7 +27,7 @@ pub fn render(
     frame.set_widget_name(id);
     frame.update_property(&[Property::Label(warning)]);
 
-    let container = GtkBox::new(Orientation::Vertical, 12);
+    let container = GtkBox::new(Orientation::Vertical, md);
     container.set_margin_top(md);
     container.set_margin_bottom(md);
     container.set_margin_start(md);

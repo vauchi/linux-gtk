@@ -20,7 +20,7 @@ pub fn render(
     let sm = tokens.spacing.sm as i32;
     let md = tokens.spacing.md as i32;
 
-    let container = GtkBox::new(Orientation::Horizontal, 12);
+    let container = GtkBox::new(Orientation::Horizontal, md);
     container.add_css_class("banner");
     container.set_margin_top(sm);
     container.set_margin_bottom(sm);
