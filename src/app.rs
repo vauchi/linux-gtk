@@ -125,6 +125,23 @@ fn build_ui(app: &adw::Application) {
         .content(&root)
         .build();
 
+    // Auto-lock: navigate to lock screen when window loses focus (C1 App Security)
+    {
+        let app_engine = app_engine.clone();
+        let content = content.clone();
+        let toast_overlay = toast_overlay.clone();
+        window.connect_notify_local(Some("is-active"), move |w, _| {
+            if !w.is_active() && app_engine.borrow_mut().handle_app_backgrounded().is_some() {
+                screen_renderer::render_app_engine_screen(
+                    &content,
+                    &app_engine,
+                    &toast_overlay,
+                    None,
+                );
+            }
+        });
+    }
+
     // Keyboard shortcuts: Alt+1..5 navigate sidebar screens
     let key_ctrl = gtk4::EventControllerKey::new();
     {
