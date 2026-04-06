@@ -21,7 +21,7 @@ import shutil
 
 import pytest
 
-from helpers import find_all, find_one, dump_tree, wait_until
+from helpers import dump_tree, find_all, find_one, wait_until
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -52,10 +52,10 @@ def _screen_filename(name: str) -> str:
 
 
 def _navigate_to(app, screen_label):
-    """Best-effort sidebar navigation."""
+    """Navigate to a screen via sidebar. Returns True if navigation succeeded."""
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
-        return
+        return False
     items = find_all(sidebar, role="list item", max_depth=5)
     for item in items:
         if item.get_name() == screen_label:
@@ -63,17 +63,15 @@ def _navigate_to(app, screen_label):
                 action = item.get_action_iface()
                 if action and action.get_n_actions() > 0:
                     action.do_action(0)
-                    try:
-                        wait_until(
-                            lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                            timeout=3.0,
-                            message=f"Screen should render after navigating to {screen_label}",
-                        )
-                    except AssertionError:
-                        pass  # Best-effort navigation
-                    return
+                    wait_until(
+                        lambda: len(find_all(app, role="label", max_depth=10)) > 0,
+                        timeout=3.0,
+                        message=f"Screen should render after navigating to {screen_label}",
+                    )
+                    return True
             except Exception:
-                pass
+                return False
+    return False
 
 
 def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> float:
@@ -127,11 +125,11 @@ class TestScreenSnapshots:
     @pytest.mark.parametrize("screen", SNAPSHOT_SCREENS)
     def test_screen_snapshot(self, gtk_app, screen):
         """Screenshot each screen and compare against baseline."""
-        _navigate_to(gtk_app, screen)
-        wait_until(
-            lambda: len(find_all(gtk_app, role="label", max_depth=10)) > 0,
-            timeout=2.0,
-            message=f"Screen '{screen}' should have content before screenshot",
+        navigated = _navigate_to(gtk_app, screen)
+        assert navigated, (
+            f"Failed to navigate to '{screen}'. "
+            f"Sidebar may be missing this entry — is the identity seeded?\n"
+            f"Tree:\n{dump_tree(gtk_app, 4)}"
         )
 
         filename = _screen_filename(screen)
@@ -152,7 +150,6 @@ class TestScreenSnapshots:
                 pytest.skip(f"Baseline updated: {filename}")
             else:
                 pytest.skip(f"Baseline created: {filename} — commit and re-run")
-            return
 
         # Compare against baseline
         diff_path = os.path.join(DIFF_DIR, filename)

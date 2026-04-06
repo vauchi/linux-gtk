@@ -60,22 +60,28 @@ def gtk_app(gtk_binary, _session_data_dir):
     Pre-seeds an identity via the seed-identity binary so the app
     starts on My Info with all screens available.
     """
-    # Seed identity via headless Rust binary
+    # Seed identity via headless Rust binary — required for navigation tests.
     seed_bin = _find_binary("seed-identity")
-    if seed_bin:
-        vauchi_dir = os.path.join(_session_data_dir, "vauchi")
-        os.makedirs(vauchi_dir, exist_ok=True)
-        result = subprocess.run(
-            [seed_bin, vauchi_dir],
-            capture_output=True, timeout=10,
+    if seed_bin is None:
+        pytest.fail(
+            "seed-identity binary not found — run 'just build linux-gtk' first. "
+            "Without a seeded identity the app starts on onboarding and all "
+            "navigation/snapshot tests are vacuous.",
         )
-        # Print seed output for debugging CI failures
-        if result.stderr:
-            print(f"[seed] {result.stderr.decode().strip()}")
-        if result.returncode != 0:
-            print(f"[seed] FAILED (exit {result.returncode})")
-    else:
-        print("[seed] seed-identity binary not found — app will show onboarding")
+    vauchi_dir = os.path.join(_session_data_dir, "vauchi")
+    os.makedirs(vauchi_dir, exist_ok=True)
+    result = subprocess.run(
+        [seed_bin, vauchi_dir],
+        capture_output=True, timeout=10,
+    )
+    # Print seed output for debugging CI failures
+    if result.stderr:
+        print(f"[seed] {result.stderr.decode().strip()}")
+    if result.returncode != 0:
+        pytest.fail(
+            f"seed-identity failed (exit {result.returncode}). "
+            f"stderr: {result.stderr.decode()[:500]}",
+        )
 
     env = os.environ.copy()
     env["GTK_A11Y"] = "atspi"

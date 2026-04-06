@@ -14,13 +14,11 @@ Note on AT-SPI roles: GTK4/libadwaita buttons expose as "button"
 import pytest
 
 from helpers import (
+    click_button,
+    dump_tree,
     find_all,
     find_one,
-    click_button,
-    wait_for_element,
     wait_until,
-    dump_tree,
-    is_sensitive,
 )
 
 
@@ -32,8 +30,8 @@ def navigate_to(app, screen_label, timeout=3.0):
     """Click a sidebar item to navigate to a screen.
 
     GTK4 ListBoxRow exposes as "list item" in AT-SPI. Activation
-    may not work via AT-SPI action interface (GTK4 limitation), so
-    this is best-effort.
+    may not work via AT-SPI action interface (GTK4 limitation).
+    Returns True if navigation action was triggered, False otherwise.
     """
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
@@ -48,17 +46,14 @@ def navigate_to(app, screen_label, timeout=3.0):
                     action = item.get_action_iface()
                     if action and action.get_n_actions() > 0:
                         action.do_action(0)
-                        try:
-                            wait_until(
-                                lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                                timeout=2.0,
-                                message=f"Screen should have labels after navigating to {screen_label}",
-                            )
-                        except AssertionError:
-                            pass  # Best-effort navigation
+                        wait_until(
+                            lambda: len(find_all(app, role="label", max_depth=10)) > 0,
+                            timeout=timeout,
+                            message=f"Screen should have labels after navigating to {screen_label}",
+                        )
                         return True
                 except Exception:
-                    pass
+                    return False
 
     # Fallback: try clicking a button with the label
     return click_button(app, screen_label)
@@ -80,12 +75,11 @@ class TestNavigateAllScreens:
 
     @pytest.mark.parametrize("screen", SCREENS)
     def test_screen_reachable(self, gtk_app, screen):
-        """Each screen should be reachable without crashing the app."""
-        navigate_to(gtk_app, screen)
-        # App must still be responsive — has at least one label
-        labels = find_all(gtk_app, role="label", max_depth=10)
-        assert len(labels) > 0, (
-            f"App unresponsive after navigating to '{screen}'.\n"
+        """Each screen should be reachable via sidebar navigation."""
+        navigated = navigate_to(gtk_app, screen)
+        assert navigated, (
+            f"Failed to navigate to '{screen}' — sidebar item not found or "
+            f"action interface unavailable.\n"
             f"Tree:\n{dump_tree(gtk_app, 4)}"
         )
 
@@ -211,7 +205,9 @@ class TestQRScan:
 
         entries = find_all(gtk_app, role="text", max_depth=15)
         labels = find_all(gtk_app, role="label", max_depth=10)
-        assert len(labels) > 0, "Exchange screen has no content"
+        assert len(entries) > 0 or len(labels) > 0, (
+            "Exchange screen has no text entries or labels"
+        )
 
 
 # ---------------------------------------------------------------------------
