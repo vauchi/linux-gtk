@@ -21,23 +21,36 @@ use crate::platform;
 
 const APP_ID: &str = "com.vauchi.desktop";
 
+/// Flag consumed before GTK's argument parser runs.
+static RESET_FOR_TESTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 pub fn run() {
+    // Consume --reset-for-testing before GTK sees it (GTK rejects unknown flags).
+    let args: Vec<String> = std::env::args()
+        .filter(|a| {
+            if a == "--reset-for-testing" {
+                RESET_FOR_TESTING.store(true, std::sync::atomic::Ordering::Relaxed);
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_activate(build_ui);
-    app.run();
+    app.run_with_args(&args.iter().map(String::as_str).collect::<Vec<_>>());
 }
 
-/// Check if `--reset-for-testing` was passed.
 /// Creates a test identity so the app skips onboarding and lands on home.
 ///
-/// Available in all build profiles — the flag is explicit opt-in and
-/// required by CI AT-SPI tests (which build release for binary-size
-/// tracking). Without keyring the separate seed-identity binary cannot
-/// persist an identity across processes, so in-process seeding is the
-/// only reliable path.
+/// Triggered by `--reset-for-testing` CLI flag (consumed before GTK init)
+/// or `VAUCHI_TEST_SEED=1` env var (used by CI conftest to avoid GTK
+/// argument parser rejecting the unknown flag).
 fn maybe_seed_test_identity(vauchi: &mut vauchi_core::api::Vauchi) {
-    let reset = std::env::args().any(|a| a == "--reset-for-testing");
-    if !reset {
+    let cli_flag = RESET_FOR_TESTING.load(std::sync::atomic::Ordering::Relaxed);
+    let env_flag = std::env::var("VAUCHI_TEST_SEED").as_deref() == Ok("1");
+    if !cli_flag && !env_flag {
         return;
     }
     if vauchi.has_identity() {

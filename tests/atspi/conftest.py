@@ -57,20 +57,22 @@ def gtk_app(gtk_binary, _session_data_dir):
     Session-scoped to avoid repeated process startup/teardown which
     saturates the AT-SPI registry and causes timeouts on CI.
 
-    Uses --reset-for-testing to create a test identity in-process,
+    Uses VAUCHI_TEST_SEED=1 env var to create a test identity in-process,
     avoiding the encryption-key mismatch that occurs when the separate
     seed-identity binary runs without a keyring (each Vauchi::new()
-    generates a random storage key).
+    generates a random storage key). Env var is used instead of a CLI
+    flag because GTK4's argument parser rejects unknown options.
     """
     env = os.environ.copy()
     env["GTK_A11Y"] = "atspi"
     env["XDG_DATA_HOME"] = _session_data_dir
+    env["VAUCHI_TEST_SEED"] = "1"
 
     if "DISPLAY" not in env and "WAYLAND_DISPLAY" not in env:
         pytest.skip("No display available")
 
     proc = subprocess.Popen(
-        [gtk_binary, "--reset-for-testing"],
+        [gtk_binary],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
