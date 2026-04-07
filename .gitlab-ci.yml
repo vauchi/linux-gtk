@@ -51,9 +51,7 @@ lint:format:
 
 lint:clippy:
   extends: [.linux-runner, .lint-clippy, .validation-rust, .timeout-standard]
-  needs:
-    - job: lint:format
-      optional: true
+  needs: []
   before_script:
     - !reference [.self-hosted, before_script]
 
