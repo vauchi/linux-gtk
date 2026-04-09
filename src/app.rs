@@ -112,7 +112,7 @@ fn build_ui(app: &adw::Application) {
     // Register event handler for background screen invalidation (Plan 2C).
     // Core events (sync, contact updates, etc.) re-render the active screen
     // so the UI stays current without waiting for user interaction.
-    register_event_handler(&app_engine, &content, &toast_overlay);
+    register_event_handler(&app_engine, &content, &toast_overlay, app);
 
     // Register import action (needs app_engine + content + toast_overlay)
     register_import_action(app, &app_engine, &content, &toast_overlay);
@@ -240,6 +240,7 @@ fn register_event_handler(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
+    app: &adw::Application,
 ) {
     let (tx, rx) = mpsc::channel::<Vec<String>>();
 
@@ -259,6 +260,7 @@ fn register_event_handler(
     let app_engine = app_engine.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
+    let app = app.clone();
     glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
         let mut all_ids = Vec::new();
         while let Ok(ids) = rx.try_recv() {
@@ -273,6 +275,19 @@ fn register_event_handler(
                     &toast_overlay,
                     None,
                 );
+            }
+
+            // Drain and show OS notifications
+            let notifications = app_engine.borrow_mut().drain_pending_notifications();
+            for notif in &notifications {
+                let n = gio::Notification::new(&notif.title);
+                n.set_body(Some(&notif.body));
+                if notif.category
+                    == vauchi_app::notification_types::NotificationCategory::EmergencyAlert
+                {
+                    n.set_priority(gio::NotificationPriority::Urgent);
+                }
+                app.send_notification(Some(&notif.event_key), &n);
             }
         }
         glib::ControlFlow::Continue
