@@ -117,6 +117,9 @@ fn build_ui(app: &adw::Application) {
     // Register import action (needs app_engine + content + toast_overlay)
     register_import_action(app, &app_engine, &content, &toast_overlay);
 
+    // Poll for notifications periodically (E)
+    register_notification_poll(app, &app_engine);
+
     let window = adw::ApplicationWindow::builder()
         .application(app)
         .title("Vauchi")
@@ -276,6 +279,23 @@ fn register_event_handler(
     });
 }
 
+/// Register a timer to poll for OS notifications every 30 seconds.
+fn register_notification_poll(app: &adw::Application, app_engine: &Rc<RefCell<AppEngine>>) {
+    let app_engine = app_engine.clone();
+    let app = app.clone();
+
+    glib::timeout_add_local(std::time::Duration::from_secs(30), move || {
+        let notifications = app_engine.borrow_mut().poll_notifications();
+        for n in notifications {
+            let notification = gio::Notification::new(&n.title);
+            notification.set_body(Some(&n.body));
+            // In future: add default action to open the app to the contact detail
+            app.send_notification(Some(&n.event_key), &notification);
+        }
+        glib::ControlFlow::Continue
+    });
+}
+
 /// Rebuild the sidebar rows from the current available screens.
 /// Only rebuilds if the screen list has changed (avoids unnecessary flickering).
 fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
@@ -356,6 +376,7 @@ fn screen_label(screen: &AppScreen) -> String {
         AppScreen::EmergencyShred => i18n::get_string(locale, "nav.emergencyShred"),
         AppScreen::DeliveryStatus => i18n::get_string(locale, "nav.deliveryStatus"),
         AppScreen::Sync => i18n::get_string(locale, "nav.sync"),
+        AppScreen::ActivityLog => i18n::get_string(locale, "nav.activity"),
         AppScreen::Privacy => i18n::get_string(locale, "nav.privacy"),
         AppScreen::Support => i18n::get_string(locale, "nav.support"),
         AppScreen::VerifyFingerprint { .. } => i18n::get_string(locale, "nav.verifyFingerprint"),
