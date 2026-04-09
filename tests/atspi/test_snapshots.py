@@ -124,6 +124,7 @@ class TestScreenSnapshots:
             f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names}"
         )
 
+        captured = 0
         for screen in screen_names:
             navigated = _navigate_to(gtk_app, screen)
             if not navigated:
@@ -136,6 +137,7 @@ class TestScreenSnapshots:
             if actual_path is None:
                 continue  # Screenshot capture not available
 
+            captured += 1
             baseline_path = os.path.join(BASELINE_DIR, filename)
             updating = os.environ.get("UPDATE_SNAPSHOTS", "") == "1"
 
@@ -155,3 +157,8 @@ class TestScreenSnapshots:
                 f"  Diff:     {diff_path}\n"
                 f"To update: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots"
             )
+
+        assert captured > 0, (
+            f"No screenshots captured for any of {len(screen_names)} screens. "
+            "Check that ImageMagick 'import' or 'grim' is installed on the runner."
+        )
