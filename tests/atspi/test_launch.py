@@ -15,13 +15,21 @@ class TestAppLaunch:
         assert gtk_app.get_name() == "gvauchi"
 
     def test_app_has_window(self, gtk_app):
-        """The app should have at least one window."""
+        """The app should have at least one window.
+
+        GTK4/libadwaita AdwApplicationWindow exposes as 'filler' in AT-SPI,
+        not 'frame' like plain GtkWindow. Accept both roles.
+        """
         windows = find_all(gtk_app, role="frame", max_depth=2)
+        if not windows:
+            windows = find_all(gtk_app, role="filler", max_depth=2)
         assert len(windows) >= 1, f"No window found. Tree:\n{dump_tree(gtk_app, 3)}"
 
     def test_window_has_title(self, gtk_app):
-        """The main window frame should have 'Vauchi' in its name."""
+        """The main window should have 'Vauchi' in its name."""
         windows = find_all(gtk_app, role="frame", max_depth=2)
+        if not windows:
+            windows = find_all(gtk_app, role="filler", max_depth=2)
         window_names = [w.get_name() or "" for w in windows]
         assert any("Vauchi" in name for name in window_names), (
             f"No window with 'Vauchi' in name. Found: {window_names}"
