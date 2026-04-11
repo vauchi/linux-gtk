@@ -10,6 +10,7 @@ use vauchi_app::DesignTokens;
 use vauchi_app::ui::{SettingsItem, SettingsItemKind, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -125,6 +126,9 @@ pub fn render(
             }
             _ => {}
         }
+
+        // Core-driven a11y per settings row.
+        apply_a11y(&row, &item.a11y);
 
         list_box.append(&row);
     }

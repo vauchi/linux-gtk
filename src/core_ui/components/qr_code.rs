@@ -8,9 +8,10 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Frame, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
 use vauchi_app::i18n::{self, Locale};
-use vauchi_app::ui::{QrMode, UserAction};
+use vauchi_app::ui::{A11y, QrMode, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 use crate::platform::hardware;
 
 const QR_SIZE: i32 = 200;
@@ -20,6 +21,7 @@ pub fn render(
     data: &str,
     mode: &QrMode,
     label: &Option<String>,
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -37,6 +39,8 @@ pub fn render(
             render_scan(&container, id, on_action, tokens);
         }
     }
+    // Core-driven a11y overrides the default mode label when provided.
+    apply_a11y(&container, a11y);
 
     // Optional label below
     if let Some(label_text) = label {

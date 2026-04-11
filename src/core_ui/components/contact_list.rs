@@ -10,6 +10,7 @@ use vauchi_app::DesignTokens;
 use vauchi_app::ui::{ContactItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -106,6 +107,9 @@ pub fn render(
                 .build();
             row.append(&status_label);
         }
+
+        // Core-driven a11y per contact row (e.g. full name + trust level for screen readers).
+        apply_a11y(&row, &contact.a11y);
 
         list_box.append(&row);
     }

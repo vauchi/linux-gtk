@@ -7,7 +7,9 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::Status;
+use vauchi_app::ui::{A11y, Status};
+
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -15,6 +17,7 @@ pub fn render(
     title: &str,
     detail: &Option<String>,
     status: &Status,
+    a11y: &Option<A11y>,
     tokens: &DesignTokens,
 ) -> Widget {
     let sm = tokens.spacing.sm as i32;
@@ -23,6 +26,8 @@ pub fn render(
     let container = GtkBox::new(Orientation::Horizontal, md);
     container.set_widget_name(id);
     container.update_property(&[Property::Label(title)]);
+    // Core-driven a11y overrides the default title label when provided.
+    apply_a11y(&container, a11y);
     container.set_margin_top(sm);
     container.set_margin_bottom(sm);
 

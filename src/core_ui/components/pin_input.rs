@@ -12,9 +12,10 @@ use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use std::cell::RefCell;
 use std::rc::Rc;
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::UserAction;
+use vauchi_app::ui::{A11y, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -22,6 +23,7 @@ pub fn render(
     length: &usize,
     masked: &bool,
     validation_error: &Option<String>,
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -29,6 +31,8 @@ pub fn render(
 
     let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
+    // Core-driven a11y on the container (applies to the group as a whole).
+    apply_a11y(&container, a11y);
 
     // Label
     let lbl = Label::builder()

@@ -13,9 +13,10 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Entry, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::{InputType, UserAction};
+use vauchi_app::ui::{A11y, InputType, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -26,6 +27,7 @@ pub fn render(
     max_length: &Option<usize>,
     validation_error: &Option<String>,
     input_type: &InputType,
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -43,6 +45,8 @@ pub fn render(
     // Entry — widget name stores the component_id for flush_text_entries()
     let entry = Entry::builder().text(value).name(id).build();
     entry.update_property(&[Property::Label(label)]);
+    // Core-driven a11y overrides the default label when provided.
+    apply_a11y(&entry, a11y);
 
     if let Some(ph) = placeholder {
         entry.set_placeholder_text(Some(ph));

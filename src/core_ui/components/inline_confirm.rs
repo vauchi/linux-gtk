@@ -7,9 +7,10 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Frame, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::UserAction;
+use vauchi_app::ui::{A11y, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -17,6 +18,7 @@ pub fn render(
     confirm_text: &str,
     cancel_text: &str,
     destructive: &bool,
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -26,6 +28,8 @@ pub fn render(
     let frame = Frame::builder().css_classes(["card"]).build();
     frame.set_widget_name(id);
     frame.update_property(&[Property::Label(warning)]);
+    // Core-driven a11y overrides the default warning label when provided.
+    apply_a11y(&frame, a11y);
 
     let container = GtkBox::new(Orientation::Vertical, md);
     container.set_margin_top(md);

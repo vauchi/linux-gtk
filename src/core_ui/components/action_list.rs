@@ -10,6 +10,7 @@ use vauchi_app::DesignTokens;
 use vauchi_app::ui::{ActionListItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -61,6 +62,9 @@ pub fn render(
                 .build();
             row.append(&detail_label);
         }
+
+        // Core-driven a11y per item (overrides default label text on the row).
+        apply_a11y(&row, &item.a11y);
 
         list_box.append(&row);
     }

@@ -10,9 +10,10 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::UserAction;
+use vauchi_app::ui::{A11y, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 pub fn render(
     id: &str,
@@ -20,6 +21,7 @@ pub fn render(
     value: &str,
     editing: &bool,
     validation_error: &Option<String>,
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -29,6 +31,8 @@ pub fn render(
     let container = GtkBox::new(Orientation::Vertical, xs);
     container.set_widget_name(id);
     container.update_property(&[Property::Label(label)]);
+    // Core-driven a11y overrides the default label when provided.
+    apply_a11y(&container, a11y);
 
     // Label
     let lbl = Label::builder()

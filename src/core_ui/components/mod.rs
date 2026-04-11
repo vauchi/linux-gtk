@@ -22,10 +22,27 @@ mod text_input;
 mod toggle_list;
 
 use gtk4::Widget;
+use gtk4::accessible::Property;
+use gtk4::prelude::*;
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::Component;
+use vauchi_app::ui::{A11y, Component};
 
 use super::screen_renderer::OnAction;
+
+/// Apply core-driven a11y label and hint to any GTK accessible widget.
+///
+/// `label` overrides any default label the renderer already set; `hint` maps
+/// to `Property::Description` (the GTK equivalent of accessibility hint /
+/// `stateDescription`).
+pub(crate) fn apply_a11y(widget: &impl IsA<gtk4::Accessible>, a11y: &Option<A11y>) {
+    let Some(a11y) = a11y else { return };
+    if let Some(ref label) = a11y.label {
+        widget.update_property(&[Property::Label(label)]);
+    }
+    if let Some(ref hint) = a11y.hint {
+        widget.update_property(&[Property::Description(hint)]);
+    }
+}
 
 /// Render a `Component` to a GTK4 widget, wiring interactive signals via `on_action`.
 ///
@@ -47,6 +64,7 @@ pub fn render_component(
             max_length,
             validation_error,
             input_type,
+            a11y,
             ..
         } => text_input::render(
             id,
@@ -56,6 +74,7 @@ pub fn render_component(
             max_length,
             validation_error,
             input_type,
+            a11y,
             on_action,
             tokens,
         ),
@@ -108,8 +127,9 @@ pub fn render_component(
             title,
             detail,
             status,
+            a11y,
             ..
-        } => status_indicator::render(id, icon, title, detail, status, tokens),
+        } => status_indicator::render(id, icon, title, detail, status, a11y, tokens),
         Component::PinInput {
             id,
             label,
@@ -117,6 +137,7 @@ pub fn render_component(
             filled: _,
             masked,
             validation_error,
+            a11y,
             ..
         } => pin_input::render(
             id,
@@ -124,6 +145,7 @@ pub fn render_component(
             length,
             masked,
             validation_error,
+            a11y,
             on_action,
             tokens,
         ),
@@ -132,8 +154,9 @@ pub fn render_component(
             data,
             mode,
             label,
+            a11y,
             ..
-        } => qr_code::render(id, data, mode, label, on_action, tokens),
+        } => qr_code::render(id, data, mode, label, a11y, on_action, tokens),
         Component::Divider => divider::render(tokens),
         Component::InlineConfirm {
             id,
@@ -141,6 +164,7 @@ pub fn render_component(
             confirm_text,
             cancel_text,
             destructive,
+            a11y,
             ..
         } => inline_confirm::render(
             id,
@@ -148,6 +172,7 @@ pub fn render_component(
             confirm_text,
             cancel_text,
             destructive,
+            a11y,
             on_action,
             tokens,
         ),
@@ -157,6 +182,7 @@ pub fn render_component(
             value,
             editing,
             validation_error,
+            a11y,
             ..
         } => editable_text::render(
             id,
@@ -164,6 +190,7 @@ pub fn render_component(
             value,
             editing,
             validation_error,
+            a11y,
             on_action,
             tokens,
         ),
