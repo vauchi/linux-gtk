@@ -12,6 +12,7 @@ use vauchi_app::ui::{A11y, UserAction};
 use super::super::screen_renderer::OnAction;
 use super::apply_a11y;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     id: &str,
     warning: &str,
