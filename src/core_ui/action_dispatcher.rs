@@ -430,10 +430,12 @@ fn execute_direct_send(
     let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
     std::thread::spawn(move || {
-        let addr = format!(
-            "127.0.0.1:{}",
-            crate::platform::tcp_exchange::USB_EXCHANGE_PORT,
-        );
+        let addr = crate::platform::tcp_exchange::discover_phone().unwrap_or_else(|| {
+            format!(
+                "127.0.0.1:{}",
+                crate::platform::tcp_exchange::USB_EXCHANGE_PORT,
+            )
+        });
         let result = crate::platform::tcp_exchange::execute_exchange(&addr, &payload, is_initiator);
         tx.send(result).ok();
     });

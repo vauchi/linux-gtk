@@ -19,11 +19,12 @@ name = "seed-identity"
 path = "src/seed_identity.rs"
 
 [features]
-default = ["audio", "ble", "camera"]
+default = ["audio", "ble", "camera", "mdns"]
 audio = ["vauchi-core/audio-cpal"]
 ble = ["dep:bluer", "dep:tokio", "dep:tokio-stream"]
 camera = ["dep:nokhwa", "dep:rqrr", "dep:image"]
 nfc = ["dep:pcsc"]
+mdns = ["dep:mdns-sd"]
 
 [dependencies]
 vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
@@ -47,6 +48,9 @@ image = { version = "0.25", optional = true, default-features = false }
 
 # NFC exchange via PC/SC (pcsclite) — optional, requires USB NFC reader
 pcsc = { version = "2", optional = true }
+
+# mDNS/DNS-SD discovery for USB exchange (finds phone IP on local network)
+mdns-sd = { version = "0.11", optional = true }
 
 [package.metadata.cargo-machete]
 ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
