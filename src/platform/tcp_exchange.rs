@@ -48,8 +48,7 @@ pub fn discover_phone() -> Option<String> {
                 }
             }
             Ok(_) => continue,
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
-            Err(_) => break,
+            Err(_) => continue,
         }
     }
 
