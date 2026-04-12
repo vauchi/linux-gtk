@@ -365,6 +365,21 @@ fn handle_exchange_commands(
                 // so deactivate is a no-op. The background thread exits on
                 // its own after success or failure.
             }
+
+            // ── USB / TCP direct exchange ────────────────────────────
+            ExchangeCommand::DirectSend {
+                payload,
+                is_initiator,
+            } => {
+                execute_direct_send(
+                    container,
+                    app_engine,
+                    toast_overlay,
+                    payload.clone(),
+                    *is_initiator,
+                );
+            }
+
             _ => {
                 // Future exchange command — no-op until implemented.
             }
@@ -393,6 +408,59 @@ fn report_hardware_unavailable(
         transport: transport.to_string(),
     };
     app_engine.borrow_mut().handle_hardware_event(event);
+}
+
+/// Execute a direct (USB/TCP) payload exchange on a background thread.
+///
+/// TCP is blocking — spawning a thread prevents stalling the GTK main loop.
+/// Results are polled via `glib::timeout_add_local` and dispatched back
+/// to the engine as `ExchangeHardwareEvent`.
+fn execute_direct_send(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+    payload: Vec<u8>,
+    is_initiator: bool,
+) {
+    use std::sync::mpsc;
+
+    let container = container.clone();
+    let app_engine = app_engine.clone();
+    let toast_overlay = toast_overlay.clone();
+    let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
+
+    std::thread::spawn(move || {
+        let addr = format!(
+            "127.0.0.1:{}",
+            crate::platform::tcp_exchange::USB_EXCHANGE_PORT,
+        );
+        let result = crate::platform::tcp_exchange::execute_exchange(&addr, &payload, is_initiator);
+        tx.send(result).ok();
+    });
+
+    gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+        match rx.try_recv() {
+            Ok(Ok(data)) => {
+                let event = ExchangeHardwareEvent::DirectPayloadReceived { data };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+                }
+                gtk4::glib::ControlFlow::Break
+            }
+            Ok(Err(err)) => {
+                let event = ExchangeHardwareEvent::HardwareError {
+                    transport: "USB".into(),
+                    error: err,
+                };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+                }
+                gtk4::glib::ControlFlow::Break
+            }
+            Err(mpsc::TryRecvError::Empty) => gtk4::glib::ControlFlow::Continue,
+            Err(mpsc::TryRecvError::Disconnected) => gtk4::glib::ControlFlow::Break,
+        }
+    });
 }
 
 /// Try camera-based QR scanning if available, otherwise fall back to paste dialog.

@@ -10,3 +10,4 @@ pub mod hardware;
 pub mod header_bar;
 pub mod init;
 pub mod nfc;
+pub mod tcp_exchange;
