@@ -13,6 +13,7 @@ use super::super::screen_renderer::OnAction;
 
 pub fn render(
     name: &str,
+    avatar_data: &Option<Vec<u8>>,
     fields: &[FieldDisplay],
     group_views: &[GroupCardView],
     selected_group: &Option<String>,
@@ -31,6 +32,34 @@ pub fn render(
     container.set_margin_bottom(md);
     container.set_margin_start(md);
     container.set_margin_end(md);
+
+    // Avatar (circular image or initials fallback)
+    if let Some(data) = avatar_data {
+        let bytes = gtk4::glib::Bytes::from(data);
+        let stream = gtk4::gio::MemoryInputStream::from_bytes(&bytes);
+        if let Ok(pixbuf) =
+            gtk4::gdk_pixbuf::Pixbuf::from_stream(&stream, None::<&gtk4::gio::Cancellable>)
+        {
+            let avatar_size = 64;
+            let scaled = pixbuf
+                .scale_simple(
+                    avatar_size,
+                    avatar_size,
+                    gtk4::gdk_pixbuf::InterpType::Bilinear,
+                )
+                .unwrap_or(pixbuf);
+            let texture = gtk4::gdk::Texture::for_pixbuf(&scaled);
+            let picture = gtk4::Picture::for_paintable(&texture);
+            picture.set_size_request(avatar_size, avatar_size);
+            picture.set_content_fit(gtk4::ContentFit::Cover);
+            let avatar_box = GtkBox::new(Orientation::Vertical, 0);
+            avatar_box.set_halign(gtk4::Align::Center);
+            avatar_box.set_overflow(gtk4::Overflow::Hidden);
+            avatar_box.add_css_class("avatar-circle");
+            avatar_box.append(&picture);
+            container.append(&avatar_box);
+        }
+    }
 
     // Name header
     let name_label = Label::builder()

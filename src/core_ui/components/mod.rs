@@ -4,6 +4,7 @@
 //! Component renderers — one GTK4 widget per `Component` enum variant.
 
 mod action_list;
+mod avatar_preview;
 mod banner;
 mod card_preview;
 mod contact_list;
@@ -16,6 +17,7 @@ mod inline_confirm;
 mod pin_input;
 mod qr_code;
 mod settings_group;
+mod slider;
 mod status_indicator;
 mod text;
 mod text_input;
@@ -97,11 +99,20 @@ pub fn render_component(
         ),
         Component::CardPreview {
             name,
+            avatar_data,
             fields,
             group_views,
             selected_group,
             ..
-        } => card_preview::render(name, fields, group_views, selected_group, on_action, tokens),
+        } => card_preview::render(
+            name,
+            avatar_data,
+            fields,
+            group_views,
+            selected_group,
+            on_action,
+            tokens,
+        ),
         Component::InfoPanel {
             id,
             icon,
@@ -200,6 +211,38 @@ pub fn render_component(
             action_id,
             ..
         } => banner::render(text, action_label, action_id, on_action, tokens),
+        Component::AvatarPreview {
+            id,
+            image_data,
+            initials,
+            bg_color,
+            brightness,
+            editable,
+            a11y,
+        } => avatar_preview::render(
+            id,
+            image_data,
+            initials,
+            bg_color,
+            *brightness,
+            *editable,
+            a11y,
+            on_action,
+            tokens,
+        ),
+        Component::Slider {
+            id,
+            label,
+            value,
+            min,
+            max,
+            step,
+            min_icon,
+            max_icon,
+            a11y,
+        } => slider::render(
+            id, label, *value, *min, *max, *step, min_icon, max_icon, a11y, on_action, tokens,
+        ),
         _ => gtk4::Label::builder()
             .label("[unsupported component]")
             .css_classes(["dim-label"])

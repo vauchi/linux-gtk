@@ -366,6 +366,29 @@ fn handle_exchange_commands(
                 // its own after success or failure.
             }
 
+            // ── Image picking (avatar editor) ────────────────────────
+            ExchangeCommand::ImagePickFromFile => {
+                open_image_file_picker(container, app_engine, toast_overlay);
+            }
+            ExchangeCommand::ImagePickFromLibrary => {
+                // Linux desktop has no photo library — report unavailable
+                let event = ExchangeHardwareEvent::HardwareUnavailable {
+                    transport: "photo_library".into(),
+                };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(container, app_engine, toast_overlay, result);
+                }
+            }
+            ExchangeCommand::ImageCaptureFromCamera => {
+                // Camera capture not supported on desktop — report unavailable
+                let event = ExchangeHardwareEvent::HardwareUnavailable {
+                    transport: "camera".into(),
+                };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(container, app_engine, toast_overlay, result);
+                }
+            }
+
             // ── USB / TCP direct exchange ────────────────────────────
             ExchangeCommand::DirectSend {
                 payload,
@@ -408,6 +431,92 @@ fn report_hardware_unavailable(
         transport: transport.to_string(),
     };
     app_engine.borrow_mut().handle_hardware_event(event);
+}
+
+/// Open a file chooser dialog for selecting an image file (avatar editor).
+///
+/// On selection, reads the file bytes and sends `ImageReceived` to core.
+/// On cancel, sends `ImagePickCancelled`.
+fn open_image_file_picker(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let window = match container
+        .root()
+        .and_then(|r| r.downcast::<gtk4::Window>().ok())
+    {
+        Some(w) => w,
+        None => return,
+    };
+
+    let filter = gtk4::FileFilter::new();
+    filter.add_mime_type("image/png");
+    filter.add_mime_type("image/jpeg");
+    filter.add_mime_type("image/webp");
+    filter.add_mime_type("image/bmp");
+    filter.set_name(Some("Image Files"));
+
+    let filters = gtk4::gio::ListStore::new::<gtk4::FileFilter>();
+    filters.append(&filter);
+
+    let dialog = gtk4::FileDialog::builder()
+        .title("Select Image")
+        .filters(&filters)
+        .build();
+
+    let app_engine = app_engine.clone();
+    let container = container.clone();
+    let toast_overlay = toast_overlay.clone();
+
+    dialog.open(
+        Some(&window),
+        None::<&gtk4::gio::Cancellable>,
+        move |result| match result {
+            Ok(file) => {
+                if let Some(path) = file.path() {
+                    match std::fs::read(&path) {
+                        Ok(data) => {
+                            let event = ExchangeHardwareEvent::ImageReceived { data };
+                            if let Some(result) =
+                                app_engine.borrow_mut().handle_hardware_event(event)
+                            {
+                                handle_app_engine_result(
+                                    &container,
+                                    &app_engine,
+                                    &toast_overlay,
+                                    result,
+                                );
+                            }
+                        }
+                        Err(_) => {
+                            let event = ExchangeHardwareEvent::HardwareError {
+                                transport: "file_picker".into(),
+                                error: "Failed to read image file".into(),
+                            };
+                            if let Some(result) =
+                                app_engine.borrow_mut().handle_hardware_event(event)
+                            {
+                                handle_app_engine_result(
+                                    &container,
+                                    &app_engine,
+                                    &toast_overlay,
+                                    result,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                // User cancelled — notify core
+                let event = ExchangeHardwareEvent::ImagePickCancelled;
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
+                }
+            }
+        },
+    );
 }
 
 /// Execute a direct (USB/TCP) payload exchange on a background thread.
