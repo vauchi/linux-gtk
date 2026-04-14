@@ -386,7 +386,9 @@ fn screen_label(screen: &AppScreen) -> String {
         AppScreen::Onboarding => i18n::get_string(locale, "nav.onboarding"),
         AppScreen::Backup => i18n::get_string(locale, "nav.backup"),
         AppScreen::Lock => i18n::get_string(locale, "nav.lock"),
-        AppScreen::DeviceLinking => i18n::get_string(locale, "nav.devices"),
+        AppScreen::DeviceLinking | AppScreen::DeviceManagement => {
+            i18n::get_string(locale, "nav.devices")
+        }
         AppScreen::DuressPin => i18n::get_string(locale, "nav.duressPin"),
         AppScreen::EmergencyShred => i18n::get_string(locale, "nav.emergencyShred"),
         AppScreen::DeliveryStatus => i18n::get_string(locale, "nav.deliveryStatus"),
