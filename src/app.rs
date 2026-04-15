@@ -13,6 +13,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 
 use vauchi_app::i18n::{self, Locale};
+use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::{AppEngine, AppScreen, WorkflowEngine};
 use vauchi_core::api::VauchiEvent;
 
@@ -88,12 +89,13 @@ fn build_ui(app: &adw::Application) {
     body.set_vexpand(true);
 
     // Content area wrapped in ToastOverlay for non-blocking toasts
+    let tokens = DesignTokens::default();
     let content = GtkBox::new(Orientation::Vertical, 0);
     content.set_hexpand(true);
-    content.set_margin_top(32);
-    content.set_margin_bottom(32);
-    content.set_margin_start(36);
-    content.set_margin_end(36);
+    content.set_margin_top(tokens.spacing.xl as i32);
+    content.set_margin_bottom(tokens.spacing.xl as i32);
+    content.set_margin_start(tokens.spacing.xl as i32);
+    content.set_margin_end(tokens.spacing.xl as i32);
 
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(&content));
@@ -346,6 +348,7 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         list_box.remove(&child);
     }
 
+    let tokens = DesignTokens::default();
     for screen in screens {
         let name = screen_label(screen);
         let row = gtk4::ListBoxRow::builder().build();
@@ -354,9 +357,9 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         let label = Label::builder()
             .label(&name)
             .halign(gtk4::Align::Start)
-            .margin_top(8)
-            .margin_bottom(8)
-            .margin_start(12)
+            .margin_top(tokens.spacing.sm as i32)
+            .margin_bottom(tokens.spacing.sm as i32)
+            .margin_start(tokens.spacing_direction.list_item_inline_start as i32)
             .build();
         row.set_child(Some(&label));
         list_box.append(&row);

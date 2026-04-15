@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use vauchi_app::i18n::{self, Locale};
+use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::{ActionResult, AppEngine, UserAction, WorkflowEngine};
 use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
 
@@ -624,11 +625,12 @@ fn show_qr_paste_dialog(
 
     // Text entry for pasting QR data
     let placeholder = i18n::get_string(locale, "platform.qr_paste_placeholder");
+    let tokens = DesignTokens::default();
     let entry = gtk4::Entry::builder()
         .placeholder_text(&placeholder)
         .hexpand(true)
-        .margin_start(24)
-        .margin_end(24)
+        .margin_start(tokens.spacing.lg as i32)
+        .margin_end(tokens.spacing.lg as i32)
         .build();
     dialog.set_extra_child(Some(&entry));
 
