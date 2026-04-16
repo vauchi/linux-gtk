@@ -14,20 +14,18 @@ rm -rf "$APPDIR"
 mkdir -p "${APPDIR}/usr/bin"
 mkdir -p "${APPDIR}/usr/share/applications"
 mkdir -p "${APPDIR}/usr/share/metainfo"
-mkdir -p "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "${APPDIR}/usr/share/icons/hicolor/scalable/apps"
 
 cp target/release/gvauchi "${APPDIR}/usr/bin/"
 cp data/com.vauchi.desktop.desktop "${APPDIR}/usr/share/applications/"
 cp data/com.vauchi.desktop.metainfo.xml "${APPDIR}/usr/share/metainfo/"
-
-if [ -f data/icons/com.vauchi.desktop.png ]; then
-  cp data/icons/com.vauchi.desktop.png \
-    "${APPDIR}/usr/share/icons/hicolor/256x256/apps/com.vauchi.desktop.png"
-fi
+cp data/com.vauchi.desktop.svg \
+  "${APPDIR}/usr/share/icons/hicolor/scalable/apps/com.vauchi.desktop.svg"
 
 export DEPLOY_GTK_VERSION=4
 linuxdeploy --appdir "$APPDIR" \
   --desktop-file "${APPDIR}/usr/share/applications/com.vauchi.desktop.desktop" \
+  --icon-file "${APPDIR}/usr/share/icons/hicolor/scalable/apps/com.vauchi.desktop.svg" \
   --plugin gtk \
   --output appimage
 

@@ -22,6 +22,8 @@ finish-args:
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
   env:
     CARGO_HOME: /run/build/vauchi-gtk/cargo
 
@@ -29,10 +31,11 @@ modules:
   - name: vauchi-gtk
     buildsystem: simple
     build-commands:
-      - cargo build --release --frozen --features audio,ble,camera
+      - cargo build --release --features audio,ble,camera,mdns
       - install -Dm 755 target/release/gvauchi /app/bin/gvauchi
       - install -Dm 644 data/com.vauchi.desktop.desktop /app/share/applications/com.vauchi.desktop.desktop
       - install -Dm 644 data/com.vauchi.desktop.metainfo.xml /app/share/metainfo/com.vauchi.desktop.metainfo.xml
+      - install -Dm 644 data/com.vauchi.desktop.svg /app/share/icons/hicolor/scalable/apps/com.vauchi.desktop.svg
     sources:
       - type: dir
         path: ..
