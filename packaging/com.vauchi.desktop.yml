@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+app-id: com.vauchi.desktop
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: gvauchi
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --share=network
+  - --device=all
+  - --system-talk-name=org.bluez
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/vauchi-gtk/cargo
+
+modules:
+  - name: vauchi-gtk
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --frozen --features audio,ble,camera
+      - install -Dm 755 target/release/gvauchi /app/bin/gvauchi
+      - install -Dm 644 data/com.vauchi.desktop.desktop /app/share/applications/com.vauchi.desktop.desktop
+      - install -Dm 644 data/com.vauchi.desktop.metainfo.xml /app/share/metainfo/com.vauchi.desktop.metainfo.xml
+    sources:
+      - type: dir
+        path: ..

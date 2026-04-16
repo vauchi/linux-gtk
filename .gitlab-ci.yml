@@ -344,6 +344,51 @@ package:rpm:
     - when: manual
       allow_failure: true
 
+package:flatpak:
+  stage: package
+  image: bilelmoussaoui/flatpak-github-actions:gnome-47
+  tags: [docker]
+  needs: []
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+  script:
+    - flatpak-builder --force-clean --repo=repo build packaging/com.vauchi.desktop.yml
+    - flatpak build-bundle repo vauchi-gtk.flatpak com.vauchi.desktop
+  artifacts:
+    paths:
+      - vauchi-gtk.flatpak
+    expire_in: 1 week
+
+package:appimage:
+  stage: package
+  tags: [linux, self-hosted]
+  needs: ["build:app"]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  variables:
+    DEPLOY_GTK_VERSION: "4"
+  before_script:
+    - |
+      if ! command -v linuxdeploy &>/dev/null; then
+        curl -L -o /usr/local/bin/linuxdeploy \
+          "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+        chmod +x /usr/local/bin/linuxdeploy
+        curl -L -o /usr/local/bin/linuxdeploy-plugin-gtk.sh \
+          "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+        chmod +x /usr/local/bin/linuxdeploy-plugin-gtk.sh
+      fi
+  script:
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - chmod +x packaging/appimage.sh
+    - ./packaging/appimage.sh "$VERSION"
+  artifacts:
+    paths:
+      - "vauchi-gtk-*-x86_64.AppImage"
+    expire_in: 1 week
+
 # ============================================================
 # Deploy Stage — Badge Pages
 # ============================================================
