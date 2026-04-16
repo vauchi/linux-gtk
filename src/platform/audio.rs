@@ -19,7 +19,7 @@ mod inner {
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::exchange::{AudioBackend, AudioConfig, CpalAudioBackend};
+    use vauchi_core::exchange::{AudioConfig, CpalAudioBackend};
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
