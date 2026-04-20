@@ -159,7 +159,17 @@ pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_a
             .label(&action.label)
             .sensitive(action.enabled)
             .build();
+        // `set_widget_name` maps `ScreenAction.id` to the widget's
+        // AT-SPI name, so accessibility-driven test drivers (e.g.
+        // Maestro via AT-SPI, or the `linux-e2e-testing` harness)
+        // can tap by stable id rather than localized visible text.
         btn.set_widget_name(&action.id);
+        // Core-provided accessibility override (plan Task 3.1 /
+        // `_private/docs/problems/2026-04-20-screen-action-a11y-identifier-gap`).
+        // `None` leaves GTK's default (label-derived) a11y label;
+        // `Some` lets core supply an explicit screen-reader label +
+        // description — e.g. destructive buttons with extra context.
+        components::apply_a11y(&btn, &action.a11y);
 
         match action.style {
             ActionStyle::Primary => {
