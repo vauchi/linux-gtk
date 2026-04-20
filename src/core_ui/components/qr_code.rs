@@ -16,6 +16,13 @@ use crate::platform::hardware;
 
 const QR_SIZE: i32 = 200;
 
+/// QR module colors. Intentionally not themed: QR scanners rely on a fixed
+/// black-on-white contrast ratio (see `vauchi-core` `theming_tests.rs`
+/// `QrCodeDisplay::STANDARD_BACKGROUND`/`STANDARD_FOREGROUND`). Theming would
+/// risk unreadable codes on light palettes.
+const QR_MODULE_LIGHT: (f64, f64, f64) = (1.0, 1.0, 1.0);
+const QR_MODULE_DARK: (f64, f64, f64) = (0.0, 0.0, 0.0);
+
 pub fn render(
     id: &str,
     data: &str,
@@ -86,12 +93,12 @@ fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
             drawing_area.update_property(&[Property::Label("QR code for contact exchange")]);
 
             drawing_area.set_draw_func(move |_area, cr, width, height| {
-                // White background
-                cr.set_source_rgb(1.0, 1.0, 1.0);
+                let (lr, lg, lb) = QR_MODULE_LIGHT;
+                cr.set_source_rgb(lr, lg, lb);
                 let _ = cr.paint();
 
-                // Black modules
-                cr.set_source_rgb(0.0, 0.0, 0.0);
+                let (dr, dg, db) = QR_MODULE_DARK;
+                cr.set_source_rgb(dr, dg, db);
                 let module_w = width as f64 / grid_size as f64;
                 let module_h = height as f64 / grid_size as f64;
 
