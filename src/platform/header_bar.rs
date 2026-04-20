@@ -6,6 +6,7 @@
 use gtk4::prelude::*;
 use gtk4::{self, gio};
 use libadwaita as adw;
+use vauchi_app::i18n::{self, Locale};
 
 /// Builds an `adw::HeaderBar` with a menu containing About and Quit actions.
 ///
@@ -14,10 +15,20 @@ use libadwaita as adw;
 pub fn build(app: &adw::Application) -> adw::HeaderBar {
     register_actions(app);
 
+    let locale = Locale::default();
     let menu = gio::Menu::new();
-    menu.append(Some("Import Contacts…"), Some("app.import-contacts"));
-    menu.append(Some("About Vauchi"), Some("app.about"));
-    menu.append(Some("Quit"), Some("app.quit"));
+    menu.append(
+        Some(&i18n::get_string(locale, "platform.menu_import_contacts")),
+        Some("app.import-contacts"),
+    );
+    menu.append(
+        Some(&i18n::get_string(locale, "platform.menu_about")),
+        Some("app.about"),
+    );
+    menu.append(
+        Some(&i18n::get_string(locale, "platform.menu_quit")),
+        Some("app.quit"),
+    );
 
     let menu_button = gtk4::MenuButton::builder()
         .icon_name("open-menu-symbolic")

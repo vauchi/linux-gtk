@@ -449,7 +449,10 @@ fn open_import_dialog(
     filters.append(&filter);
 
     let dialog = gtk4::FileDialog::builder()
-        .title("Import Contacts")
+        .title(i18n::get_string(
+            Locale::default(),
+            "platform.menu_import_contacts",
+        ))
         .filters(&filters)
         .build();
 
