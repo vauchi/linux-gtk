@@ -270,9 +270,9 @@ check:design-drift:
   variables:
     DESIGN_DRIFT_COMPONENT_DIR: "src/core_ui/components"
 
-# Design token drift: block raw Cairo set_source_rgb calls, keep the
-# RUST_EN_STR (hardcoded-English-in-GTK-builders) rule advisory until
-# the current 5-string baseline is cleared. Script lives in
+# Design token drift: fully blocking — baseline is 0 for RUST_RGB and
+# RUST_EN_STR as of 2026-04-20 (QR constants named + remaining 5
+# English strings routed through i18n::get_string). Script lives in
 # vauchi/scripts — fetched via API to avoid duplicating it here.
 check:design-tokens:
   stage: lint
@@ -287,7 +287,7 @@ check:design-tokens:
         "${CI_API_V4_URL}/projects/vauchi%2Fscripts/repository/files/scripts%2Fcheck-design-tokens.sh/raw?ref=main" \
         -o check-design-tokens.sh
       chmod +x check-design-tokens.sh
-    - ./check-design-tokens.sh --strict-categories=RUST_RGB src/
+    - ./check-design-tokens.sh --strict src/
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
