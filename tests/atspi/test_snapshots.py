@@ -115,6 +115,19 @@ class TestScreenSnapshots:
 
     def test_snapshot_all_sidebar_screens(self, gtk_app):
         """Screenshot each sidebar screen and compare against baseline."""
+        # Pre-flight: fail fast with an honest message if no screenshot
+        # tool is on PATH. Prior version hid this behind a post-hoc
+        # `captured == 0` check that also fired on navigation failure,
+        # making it impossible to tell the two apart from CI logs.
+        grim = shutil.which("grim")
+        imagemagick_import = shutil.which("import")
+        assert grim or imagemagick_import, (
+            "No screenshot tool available. Install one of:\n"
+            "  - grim (Wayland) — apt install grim\n"
+            "  - imagemagick (X11/Xvfb, provides `import`) — apt install imagemagick\n"
+            "PATH seen by pytest: " + os.environ.get("PATH", "<unset>")
+        )
+
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
@@ -124,20 +137,26 @@ class TestScreenSnapshots:
             f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names}"
         )
 
-        captured = 0
+        # Per-screen outcomes. Each screen ends up in exactly one bucket,
+        # so the final assertions can report the real failure mode
+        # (navigation vs. screenshot vs. regression) instead of blaming
+        # whichever tool happens to be listed first in the hint.
+        nav_failed: list[str] = []
+        shot_failed: list[str] = []
+        captured: list[str] = []
         for screen in screen_names:
-            navigated = _navigate_to(gtk_app, screen)
-            if not navigated:
-                continue  # Skip screens that can't be navigated to
+            if not _navigate_to(gtk_app, screen):
+                nav_failed.append(screen)
+                continue
 
             filename = _screen_filename(screen)
             os.makedirs(ACTUAL_DIR, exist_ok=True)
             actual_path = take_screenshot(filename, output_dir=ACTUAL_DIR)
-
             if actual_path is None:
-                continue  # Screenshot capture not available
+                shot_failed.append(screen)
+                continue
 
-            captured += 1
+            captured.append(screen)
             baseline_path = os.path.join(BASELINE_DIR, filename)
             updating = os.environ.get("UPDATE_SNAPSHOTS", "") == "1"
 
@@ -158,7 +177,26 @@ class TestScreenSnapshots:
                 f"To update: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots"
             )
 
-        assert captured > 0, (
-            f"No screenshots captured for any of {len(screen_names)} screens. "
-            "Check that ImageMagick 'import' or 'grim' is installed on the runner."
-        )
+        if not captured:
+            lines = [
+                "No screenshots captured for any of "
+                f"{len(screen_names)} sidebar screens.",
+                f"  Navigation failed: {nav_failed or 'none'}",
+                f"  Screenshot capture failed: {shot_failed or 'none'}",
+                f"  Screen names discovered: {screen_names}",
+                f"  grim: {grim!r}",
+                f"  ImageMagick import: {imagemagick_import!r}",
+            ]
+            if nav_failed and not shot_failed:
+                lines.append(
+                    "Likely cause: AT-SPI navigation to every sidebar "
+                    "item failed. Check the AT-SPI registry / a11y bus "
+                    "and `_navigate_to` in test_snapshots.py."
+                )
+            elif shot_failed and not nav_failed:
+                lines.append(
+                    "Likely cause: screenshot tool is on PATH but "
+                    "failed to capture. Run `import -window root /tmp/x.png` "
+                    "under the same Xvfb display to isolate."
+                )
+            pytest.fail("\n".join(lines))

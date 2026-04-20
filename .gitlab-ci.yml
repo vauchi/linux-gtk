@@ -142,6 +142,22 @@ test:snapshots:
     - mkdir -p tests/atspi/snapshots/{baseline,actual,diff}
     - tests/atspi/run-tests.sh -v --tb=short -k "test_snapshots"
   after_script:
+    # `.vrt-upload-script` calls `fetch_vauchi_script`, which is
+    # normally provided by `.self-hosted`'s before_script. This job
+    # doesn't extend `.self-hosted` (no Rust/sccache setup needed)
+    # and GitLab CI does NOT carry functions from before_script into
+    # after_script regardless — after_script runs in a fresh shell.
+    # Define the function inline so VRT upload works.
+    - |
+      fetch_vauchi_script() {
+        local src_path="$1" dest="$2"
+        local encoded_path
+        encoded_path=$(printf '%s' "$src_path" | sed 's|/|%2F|g')
+        curl -fsSL -u "gitlab-ci-token:${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/77957857/repository/files/${encoded_path}/raw?ref=main" \
+          -o "$dest"
+        chmod +x "$dest"
+      }
     - !reference [.vrt-upload-script, script]
   artifacts:
     when: always
