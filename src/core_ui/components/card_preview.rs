@@ -7,6 +7,7 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
 use vauchi_app::DesignTokens;
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{FieldDisplay, GroupCardView, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -79,7 +80,7 @@ pub fn render(
 
         // "All" tab
         let all_btn = ToggleButton::builder()
-            .label("All")
+            .label(i18n::get_string(Locale::default(), "help.all_categories"))
             .active(selected_group.is_none())
             .build();
         {

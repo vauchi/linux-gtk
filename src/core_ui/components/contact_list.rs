@@ -7,6 +7,7 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
 use vauchi_app::DesignTokens;
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{ContactItem, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -31,10 +32,12 @@ pub fn render(
 
     // Optional search entry
     if *searchable {
+        let locale = Locale::default();
+        let placeholder = i18n::get_string(locale, "contacts.search");
         let search = SearchEntry::builder()
-            .placeholder_text("Search contacts...")
+            .placeholder_text(&placeholder)
             .build();
-        search.update_property(&[Property::Label("Search contacts")]);
+        search.update_property(&[Property::Label(&placeholder)]);
 
         let on_action_search = on_action.clone();
         let component_id = id.to_string();

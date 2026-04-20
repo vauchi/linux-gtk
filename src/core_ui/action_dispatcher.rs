@@ -456,13 +456,17 @@ fn open_image_file_picker(
     filter.add_mime_type("image/jpeg");
     filter.add_mime_type("image/webp");
     filter.add_mime_type("image/bmp");
-    filter.set_name(Some("Image Files"));
+    let filter_label = i18n::get_string(Locale::default(), "platform.image_files_filter");
+    filter.set_name(Some(&filter_label));
 
     let filters = gtk4::gio::ListStore::new::<gtk4::FileFilter>();
     filters.append(&filter);
 
     let dialog = gtk4::FileDialog::builder()
-        .title("Select Image")
+        .title(i18n::get_string(
+            Locale::default(),
+            "platform.select_image_title",
+        ))
         .filters(&filters)
         .build();
 

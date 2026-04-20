@@ -10,6 +10,7 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{A11y, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -52,7 +53,7 @@ pub fn render(
         edit_row.append(&entry);
 
         let save_btn = Button::builder()
-            .label("Save")
+            .label(i18n::get_string(Locale::default(), "action.save"))
             .css_classes(["suggested-action"])
             .valign(gtk4::Align::Center)
             .build();
@@ -114,7 +115,7 @@ pub fn render(
         display_row.append(&value_label);
 
         let edit_btn = Button::builder()
-            .label("Edit")
+            .label(i18n::get_string(Locale::default(), "action.edit"))
             .css_classes(["flat"])
             .valign(gtk4::Align::Center)
             .build();
