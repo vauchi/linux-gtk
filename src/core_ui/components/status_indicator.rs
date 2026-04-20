@@ -7,6 +7,7 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
+use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{A11y, Status};
 
 use super::apply_a11y;
@@ -58,17 +59,17 @@ pub fn render(
 
     container.append(&text_box);
 
-    // Status badge
+    let locale = Locale::default();
     let (badge_text, badge_class) = match status {
-        Status::Pending => ("Pending", "dim-label"),
-        Status::InProgress => ("In Progress", "accent"),
-        Status::Success => ("Success", "success"),
-        Status::Failed => ("Failed", "error"),
-        Status::Warning | _ => ("Warning", "warning"),
+        Status::Pending => (i18n::get_string(locale, "status.pending"), "dim-label"),
+        Status::InProgress => (i18n::get_string(locale, "status.in_progress"), "accent"),
+        Status::Success => (i18n::get_string(locale, "status.success"), "success"),
+        Status::Failed => (i18n::get_string(locale, "status.failed"), "error"),
+        Status::Warning | _ => (i18n::get_string(locale, "status.warning"), "warning"),
     };
 
     let badge = Label::builder()
-        .label(badge_text)
+        .label(&badge_text)
         .halign(gtk4::Align::End)
         .valign(gtk4::Align::Center)
         .css_classes([badge_class])
