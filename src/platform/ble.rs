@@ -8,7 +8,7 @@
 //! background thread with a tokio runtime, reporting results back to
 //! the GTK main loop via mpsc channels.
 
-#[cfg(feature = "ble")]
+#[cfg(all(feature = "ble", target_os = "linux"))]
 mod inner {
     use std::cell::RefCell;
     use std::collections::HashMap;
@@ -497,5 +497,5 @@ mod inner {
     }
 }
 
-#[cfg(feature = "ble")]
+#[cfg(all(feature = "ble", target_os = "linux"))]
 pub use inner::*;

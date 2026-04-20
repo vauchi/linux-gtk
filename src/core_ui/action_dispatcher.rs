@@ -237,7 +237,7 @@ fn handle_exchange_commands(
             // ── BLE ──────────────────────────────────────────────────
             ExchangeCommand::BleStartScanning { service_uuid } => {
                 if hardware::has_bluetooth() {
-                    #[cfg(feature = "ble")]
+                    #[cfg(all(feature = "ble", target_os = "linux"))]
                     {
                         crate::platform::ble::start_scanning(
                             container,
@@ -246,7 +246,7 @@ fn handle_exchange_commands(
                             service_uuid.clone(),
                         );
                     }
-                    #[cfg(not(feature = "ble"))]
+                    #[cfg(not(all(feature = "ble", target_os = "linux")))]
                     {
                         let _ = service_uuid;
                         if notified_unavailable.insert("ble") {
@@ -267,14 +267,14 @@ fn handle_exchange_commands(
                 payload: _,
             } => {
                 if hardware::has_bluetooth() {
-                    #[cfg(feature = "ble")]
+                    #[cfg(all(feature = "ble", target_os = "linux"))]
                     {
                         crate::platform::ble::start_advertising(
                             toast_overlay,
                             service_uuid.clone(),
                         );
                     }
-                    #[cfg(not(feature = "ble"))]
+                    #[cfg(not(all(feature = "ble", target_os = "linux")))]
                     {
                         let _ = service_uuid;
                     }
@@ -283,7 +283,7 @@ fn handle_exchange_commands(
                 }
             }
             ExchangeCommand::BleConnect { device_id } => {
-                #[cfg(feature = "ble")]
+                #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::connect(
                         container,
@@ -292,13 +292,13 @@ fn handle_exchange_commands(
                         device_id.clone(),
                     );
                 }
-                #[cfg(not(feature = "ble"))]
+                #[cfg(not(all(feature = "ble", target_os = "linux")))]
                 {
                     let _ = device_id;
                 }
             }
             ExchangeCommand::BleWriteCharacteristic { uuid, data } => {
-                #[cfg(feature = "ble")]
+                #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::write_characteristic(
                         container,
@@ -308,13 +308,13 @@ fn handle_exchange_commands(
                         data.clone(),
                     );
                 }
-                #[cfg(not(feature = "ble"))]
+                #[cfg(not(all(feature = "ble", target_os = "linux")))]
                 {
                     let _ = (uuid, data);
                 }
             }
             ExchangeCommand::BleReadCharacteristic { uuid } => {
-                #[cfg(feature = "ble")]
+                #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::read_characteristic(
                         container,
@@ -323,13 +323,13 @@ fn handle_exchange_commands(
                         uuid.clone(),
                     );
                 }
-                #[cfg(not(feature = "ble"))]
+                #[cfg(not(all(feature = "ble", target_os = "linux")))]
                 {
                     let _ = uuid;
                 }
             }
             ExchangeCommand::BleDisconnect => {
-                #[cfg(feature = "ble")]
+                #[cfg(all(feature = "ble", target_os = "linux"))]
                 crate::platform::ble::disconnect(toast_overlay);
             }
 
@@ -581,7 +581,7 @@ fn scan_or_paste_qr(
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) {
-    #[cfg(feature = "camera")]
+    #[cfg(all(feature = "camera", target_os = "linux"))]
     {
         if hardware::has_camera() {
             crate::platform::camera::scan_qr(container, app_engine, toast_overlay);

@@ -6,7 +6,7 @@
 //! Uses `nokhwa` for V4L2 camera access and `rqrr` for QR decoding.
 //! Shows a live video preview in a GTK dialog while scanning.
 
-#[cfg(feature = "camera")]
+#[cfg(all(feature = "camera", target_os = "linux"))]
 mod inner {
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -242,5 +242,5 @@ mod inner {
     }
 }
 
-#[cfg(feature = "camera")]
+#[cfg(all(feature = "camera", target_os = "linux"))]
 pub use inner::*;

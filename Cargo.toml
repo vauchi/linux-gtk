@@ -36,13 +36,11 @@ qrcode = "0.14"
 # Audio proximity (ultrasonic via CPAL) — enabled by default
 # Uses CpalAudioBackend from vauchi-core
 
-# BLE exchange via BlueZ D-Bus — requires bluetooth adapter
-bluer = { version = "0.17", features = ["bluetoothd"], optional = true }
+# BLE exchange — tokio runtime is portable; bluer itself is target-gated below.
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 
-# Camera QR scanning — optional, requires v4l2 dev libraries
-nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }
+# Camera QR scanning — rqrr and image are portable; nokhwa is target-gated below.
 rqrr = { version = "0.9", optional = true }
 image = { version = "0.25", optional = true, default-features = false }
 
@@ -51,6 +49,14 @@ pcsc = { version = "2", optional = true }
 
 # mDNS/DNS-SD discovery for USB exchange (finds phone IP on local network)
 mdns-sd = { version = "0.11", optional = true }
+
+# Linux-only deps: `bluer` (BlueZ D-Bus, optional) and `nokhwa` with the
+# `input-v4l` feature (Video4Linux). Target-gating keeps `cargo clippy`
+# green on non-Linux dev machines without dropping `ble`/`camera` from
+# the default build on Linux.
+[target.'cfg(target_os = "linux")'.dependencies]
+bluer = { version = "0.17", features = ["bluetoothd"], optional = true }
+nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }
 
 [package.metadata.cargo-machete]
 ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
