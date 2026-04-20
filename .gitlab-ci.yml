@@ -270,6 +270,33 @@ check:design-drift:
   variables:
     DESIGN_DRIFT_COMPONENT_DIR: "src/core_ui/components"
 
+# Design token drift: warn on raw Cairo set_source_rgb calls that bypass
+# named constants or theme colors. Script lives in vauchi/scripts —
+# fetched via API to avoid duplicating it here.
+# allow_failure: true makes this a visibility gate, not a merge blocker.
+check:design-tokens:
+  stage: lint
+  image: alpine:3.21
+  tags: [docker]
+  needs: []
+  allow_failure: true
+  before_script:
+    - apk add --no-cache bash findutils grep curl
+  script:
+    - |
+      curl --silent --fail \
+        "${CI_API_V4_URL}/projects/vauchi%2Fscripts/repository/files/scripts%2Fcheck-design-tokens.sh/raw?ref=main" \
+        -o check-design-tokens.sh
+      chmod +x check-design-tokens.sh
+    - ./check-design-tokens.sh src/
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/main
+        paths:
+          - "**/*.rs"
+          - ".gitlab-ci.yml"
+
 # Inventory check: verify INVENTORY.md matches filesystem
 check:inventory:
   extends: .inventory-check-job
