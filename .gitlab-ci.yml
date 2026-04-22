@@ -80,6 +80,11 @@ build:app:
           - "**/Cargo.lock"
           - ".gitlab-ci.yml"
           - "rust-toolchain.toml"
+          # test:a11y and test:snapshots `needs: build:app` (not optional),
+          # so build:app must also fire when only the AT-SPI harness under
+          # tests/atspi/** changes. Without this path, an AT-SPI-only MR
+          # produces a zero-job pipeline (GitLab marks the pipeline failed).
+          - "tests/atspi/**"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:unit:
