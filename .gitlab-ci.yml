@@ -134,6 +134,14 @@ test:a11y:
 # First run: generates baselines (skips, does not fail).
 # Subsequent runs: diffs against baselines, fails on visual regression.
 # To regenerate: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots
+#
+# Flipped from allow_failure:true to blocking as part of Phase 2 T2.1
+# (2026-04-22-ci-pipeline-health-audit). The former 9/20 MR flake
+# collapsed after linux-gtk@0462ac6 (_wait_for_labels_loaded) + the
+# conftest a11y pre-flight landing in this MR (!98); test:snapshots
+# now passes the same conftest stability path as test:a11y. If the
+# gate destabilises MR pass rate, revert this commit — the record
+# sibling is unchanged and baselines are unaffected.
 test:snapshots:
   stage: test
   needs:
@@ -171,7 +179,6 @@ test:snapshots:
       - tests/atspi/snapshots/actual/
       - tests/atspi/snapshots/diff/
     expire_in: 30 days
-  allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
