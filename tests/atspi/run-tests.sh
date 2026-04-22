@@ -52,15 +52,30 @@ exec env XDG_CURRENT_DESKTOP=none \
         fi
 
         /usr/lib/at-spi2-registryd &
+        REGISTRYD_PID=\$!
 
-        # Wait for registryd cache to be populated. Pytest's first
-        # nav.myCard lookup hits this path — if it races, every test
-        # fails with 'Object does not exist at path
-        # /org/a11y/atspi/cache'. Poll until registryd responds.
+        # Wait for registryd cache to be populated on the A11Y BUS
+        # (NOT the session bus — registryd connects to the dedicated a11y
+        # bus that at-spi-bus-launcher just started). First get that
+        # bus address, then poll Cache.GetItems on it.
+        A11Y_ADDR=\$(dbus-send --session --dest=org.a11y.Bus --print-reply \
+            --type=method_call /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null \
+            | awk -F'\"' '/string/ {print \$2; exit}')
+        if [ -z \"\$A11Y_ADDR\" ]; then
+            echo 'Could not fetch a11y bus address' >&2
+            exit 1
+        fi
+
         cache_up=0
         for _ in \$(seq 1 50); do
-            if dbus-send --session --dest=org.a11y.atspi.Registry \
-                --print-reply /org/a11y/atspi/cache \
+            # Check registryd is still alive; bail early if it crashed.
+            if ! kill -0 \"\$REGISTRYD_PID\" 2>/dev/null; then
+                echo 'at-spi2-registryd exited before advertising cache' >&2
+                exit 1
+            fi
+            # Query the a11y bus (via --address=) for the registry cache.
+            if dbus-send --address=\"\$A11Y_ADDR\" --print-reply \
+                --dest=org.a11y.atspi.Registry /org/a11y/atspi/cache \
                 org.a11y.atspi.Cache.GetItems >/dev/null 2>&1; then
                 cache_up=1; break
             fi
