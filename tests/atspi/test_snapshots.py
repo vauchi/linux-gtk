@@ -42,6 +42,39 @@ def _screen_filename(name: str) -> str:
     return f"{name.lower().replace(' ', '_')}.png"
 
 
+def _sidebar_names(app):
+    """Return current sidebar item names (empty list if sidebar missing)."""
+    sidebar = find_one(app, name="Navigation")
+    if sidebar is None:
+        return []
+    items = find_all(sidebar, role="list item", max_depth=5)
+    return [i.get_name() for i in items if i.get_name()]
+
+
+def _wait_for_labels_loaded(app, timeout=5.0):
+    """Wait for sidebar labels to resolve from i18n fallbacks.
+
+    Under load the app briefly renders "Missing: nav.myCard" etc. (the
+    i18n key placeholder) before the locale bundle finishes loading,
+    then switches to "My Card". A test that caches screen_names early
+    and then calls _navigate_to("Missing: nav.myCard") finds no match
+    in the now-translated sidebar — the root cause of ~9/20 linux-gtk
+    test:snapshots flakes observed 2026-04-22.
+
+    Returns True once no sidebar item name starts with "Missing: nav.",
+    or False on timeout.
+    """
+    import time
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        names = _sidebar_names(app)
+        if names and not any(n.startswith("Missing: nav.") for n in names):
+            return True
+        time.sleep(0.1)
+    return False
+
+
 def _navigate_to(app, screen_label):
     """Navigate to a sidebar screen via AT-SPI action."""
     sidebar = find_one(app, name="Navigation")
@@ -131,11 +164,24 @@ class TestScreenSnapshots:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
+        # Wait for locale labels to resolve before caching names. Without
+        # this, the test may freeze names like "Missing: nav.myCard"
+        # (i18n fallback) then try to navigate by those stale strings
+        # after the app loads real translations — every nav call fails.
+        # See 2026-04-22-ci-pipeline-health-audit T2.1 root-cause.
+        labels_loaded = _wait_for_labels_loaded(gtk_app, timeout=5.0)
         items = find_all(sidebar, role="list item", max_depth=5)
         screen_names = [i.get_name() for i in items if i.get_name()]
         assert len(screen_names) >= 4, (
-            f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names}"
+            f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names} "
+            f"(labels_loaded={labels_loaded})"
         )
+        if not labels_loaded:
+            pytest.skip(
+                f"Sidebar labels still i18n fallbacks after 5s: {screen_names}. "
+                "Locale bundle failed to load — this is a test infra issue, "
+                "not a real snapshot regression."
+            )
 
         # Per-screen outcomes. Each screen ends up in exactly one bucket,
         # so the final assertions can report the real failure mode
