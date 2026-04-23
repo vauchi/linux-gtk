@@ -495,7 +495,7 @@ fn handle_import_file(
     let engine = app_engine.borrow();
     match engine.vauchi().import_contacts_from_vcf(&data) {
         Ok(result) => {
-            let msg = if result.skipped > 0 {
+            let mut msg = if result.skipped > 0 {
                 format!(
                     "Imported {} contact(s), skipped {}",
                     result.imported, result.skipped
@@ -503,6 +503,29 @@ fn handle_import_file(
             } else {
                 format!("Imported {} contact(s)", result.imported)
             };
+
+            // G6: render each structured warning via its i18n key +
+            // placeholder args so translations flow through core's
+            // locale pipeline. Falls back to the English `Display`
+            // when the key is missing.
+            if !result.warnings.is_empty() {
+                let locale = Locale::default();
+                for warning in &result.warnings {
+                    let args = warning.args();
+                    let args_refs: Vec<(&str, &str)> =
+                        args.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+                    let rendered =
+                        i18n::get_string_with_args(locale, warning.i18n_key(), &args_refs);
+                    msg.push_str("\n• ");
+                    // get_string_with_args returns "Missing: <key>" when the key
+                    // is unknown; fall back to the Display impl in that case.
+                    if rendered.starts_with("Missing:") {
+                        msg.push_str(&warning.to_string());
+                    } else {
+                        msg.push_str(&rendered);
+                    }
+                }
+            }
             let toast = adw::Toast::new(&msg);
             toast_overlay.add_toast(toast);
 
