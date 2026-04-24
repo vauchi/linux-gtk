@@ -167,7 +167,7 @@ fn build_ui(app: &adw::Application) {
                 _ => None,
             };
             if let Some(idx) = index {
-                let tabs = app_engine.borrow().tab_info(Locale::default());
+                let tabs = app_engine.borrow().sidebar_items(Locale::default());
                 if let Some(screen) = tabs.get(idx).and_then(|t| AppScreen::from_screen_id(&t.id)) {
                     app_engine.borrow_mut().navigate_to(screen);
                     screen_renderer::render_app_engine_screen(
@@ -207,7 +207,10 @@ fn build_sidebar(
         .build();
     list_box.update_property(&[Property::Label("Navigation")]);
 
-    populate_sidebar(&list_box, &app_engine.borrow().tab_info(Locale::default()));
+    populate_sidebar(
+        &list_box,
+        &app_engine.borrow().sidebar_items(Locale::default()),
+    );
 
     let app_engine = app_engine.clone();
     let content = content.clone();
@@ -215,7 +218,7 @@ fn build_sidebar(
     let list_box_for_nav = list_box.clone();
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
-        let tabs = app_engine.borrow().tab_info(Locale::default());
+        let tabs = app_engine.borrow().sidebar_items(Locale::default());
         if let Some(screen) = tabs
             .get(index)
             .and_then(|t| AppScreen::from_screen_id(&t.id))
@@ -369,7 +372,10 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
 
 /// Public entry point for sidebar refresh — called from screen_renderer after navigation.
 pub fn refresh_sidebar(list_box: &ListBox, app_engine: &Rc<RefCell<AppEngine>>) {
-    populate_sidebar(list_box, &app_engine.borrow().tab_info(Locale::default()));
+    populate_sidebar(
+        list_box,
+        &app_engine.borrow().sidebar_items(Locale::default()),
+    );
 }
 
 /// Register the "Import Contacts" action on the application.

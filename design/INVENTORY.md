@@ -31,15 +31,12 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 
 ## Navigation
 
-### Sidebar (5 top-level screens)
+### Sidebar (14 top-level screens post-identity, Onboarding pre-identity)
 
-Built dynamically from `AppEngine::tab_info(locale)`. When no identity
-exists, only Onboarding appears. Labels resolve via core's i18n
-(`nav.*` keys); linux-gtk no longer maintains a local
-`AppScreen`→label map. Desktop-sidebar broadening to the full 14
-entries via `sidebar_items(locale)` is tracked as a follow-up
-(depends on AT-SPI snapshot coverage for screens beyond the mobile
-tab set).
+Built dynamically from `AppEngine::sidebar_items(locale)`. When no
+identity exists, only Onboarding appears. Labels resolve via core's
+i18n (`nav.*` keys); linux-gtk no longer maintains a local
+`AppScreen`→label map.
 
 | # | Screen | Sidebar Label | Key Components |
 |---|--------|--------------|----------------|
@@ -47,11 +44,23 @@ tab set).
 | 2 | Contacts | i18n `nav.contacts` | ContactList |
 | 3 | Exchange | i18n `nav.exchange` | QrCode, ToggleList, Text, StatusIndicator |
 | 4 | Groups | i18n `nav.groups` | ToggleList, ActionList |
-| 5 | More | i18n `nav.more` | ActionList (navigation hub) |
+| 5 | Settings | i18n `nav.settings` | ActionList, ToggleList |
+| 6 | Recovery | i18n `nav.recovery` | ActionList, StatusIndicator |
+| 7 | Devices | i18n `nav.devices` | ActionList, DeviceList |
+| 8 | Backup | i18n `nav.backup` | ActionList, StatusIndicator |
+| 9 | Privacy | i18n `nav.privacy` | ToggleList, Text |
+| 10 | Support | i18n `nav.support` | ActionList |
+| 11 | Help | i18n `nav.help` | Text, ActionList |
+| 12 | Activity | i18n `nav.activity` | ActivityLog |
+| 13 | Sync | i18n `nav.sync` | StatusIndicator, ActionList |
+| 14 | More | i18n `nav.more` | ActionList (navigation hub) |
+
+Alt+1..5 keyboard shortcuts navigate the first five entries.
 
 ### More screen sub-navigation
 
-The More screen renders an ActionList linking to secondary screens.
+The More screen renders an ActionList linking to any secondary screens
+not already exposed by the sidebar.
 All are reached via `navigate_to()`.
 
 | Target | Screen ID | Key Components |
