@@ -14,7 +14,7 @@ use std::sync::mpsc;
 
 use vauchi_app::i18n::{self, Locale};
 use vauchi_app::theme::DesignTokens;
-use vauchi_app::ui::{AppEngine, AppScreen, WorkflowEngine};
+use vauchi_app::ui::{AppEngine, AppScreen, TabInfo, WorkflowEngine};
 use vauchi_core::api::VauchiEvent;
 
 use crate::core_ui::screen_renderer;
@@ -167,8 +167,8 @@ fn build_ui(app: &adw::Application) {
                 _ => None,
             };
             if let Some(idx) = index {
-                let screens = app_engine.borrow().available_screens();
-                if let Some(screen) = screens.get(idx).cloned() {
+                let tabs = app_engine.borrow().sidebar_items(Locale::default());
+                if let Some(screen) = tabs.get(idx).and_then(|t| AppScreen::from_screen_id(&t.id)) {
                     app_engine.borrow_mut().navigate_to(screen);
                     screen_renderer::render_app_engine_screen(
                         &content,
@@ -207,7 +207,10 @@ fn build_sidebar(
         .build();
     list_box.update_property(&[Property::Label("Navigation")]);
 
-    populate_sidebar(&list_box, &app_engine.borrow().available_screens());
+    populate_sidebar(
+        &list_box,
+        &app_engine.borrow().sidebar_items(Locale::default()),
+    );
 
     let app_engine = app_engine.clone();
     let content = content.clone();
@@ -215,8 +218,11 @@ fn build_sidebar(
     let list_box_for_nav = list_box.clone();
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
-        let screens = app_engine.borrow().available_screens();
-        if let Some(screen) = screens.get(index).cloned() {
+        let tabs = app_engine.borrow().sidebar_items(Locale::default());
+        if let Some(screen) = tabs
+            .get(index)
+            .and_then(|t| AppScreen::from_screen_id(&t.id))
+        {
             app_engine.borrow_mut().navigate_to(screen);
             screen_renderer::render_app_engine_screen(
                 &content,
@@ -313,10 +319,10 @@ fn register_notification_poll(app: &adw::Application, app_engine: &Rc<RefCell<Ap
     });
 }
 
-/// Rebuild the sidebar rows from the current available screens.
-/// Only rebuilds if the screen list has changed (avoids unnecessary flickering).
-fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
-    // Check if rebuild is needed by comparing screen IDs, not just count.
+/// Rebuild the sidebar rows from the given `TabInfo` entries.
+/// Only rebuilds if the label list has changed (avoids unnecessary flickering).
+fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
+    // Check if rebuild is needed by comparing labels, not just count.
     // Count-only comparison misses changes when the set mutates but size stays the same.
     let current_labels = {
         let mut labels = Vec::new();
@@ -333,14 +339,13 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
         labels
     };
 
-    let new_labels: Vec<String> = screens.iter().map(screen_label).collect();
-    if current_labels.len() == new_labels.len()
+    if current_labels.len() == tabs.len()
         && current_labels
             .iter()
-            .zip(new_labels.iter())
-            .all(|(a, b)| a.as_str() == b.as_str())
+            .zip(tabs.iter())
+            .all(|(a, t)| a.as_str() == t.label.as_str())
     {
-        return; // Same screen IDs — no rebuild needed
+        return; // Same labels — no rebuild needed
     }
 
     // Clear and rebuild
@@ -349,13 +354,12 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
     }
 
     let tokens = DesignTokens::default();
-    for screen in screens {
-        let name = screen_label(screen);
+    for tab in tabs {
         let row = gtk4::ListBoxRow::builder().build();
         // Expose row label to AT-SPI so assistive tech can navigate sidebar
-        row.update_property(&[gtk4::accessible::Property::Label(&name)]);
+        row.update_property(&[gtk4::accessible::Property::Label(&tab.label)]);
         let label = Label::builder()
-            .label(&name)
+            .label(&tab.label)
             .halign(gtk4::Align::Start)
             .margin_top(tokens.spacing.sm as i32)
             .margin_bottom(tokens.spacing.sm as i32)
@@ -368,40 +372,10 @@ fn populate_sidebar(list_box: &ListBox, screens: &[AppScreen]) {
 
 /// Public entry point for sidebar refresh — called from screen_renderer after navigation.
 pub fn refresh_sidebar(list_box: &ListBox, app_engine: &Rc<RefCell<AppEngine>>) {
-    populate_sidebar(list_box, &app_engine.borrow().available_screens());
-}
-
-/// Returns a localized label for a sidebar screen entry.
-///
-/// Uses core i18n keys (e.g., `nav.contacts`) where available,
-/// falling back to English for screens without dedicated keys.
-fn screen_label(screen: &AppScreen) -> String {
-    let locale = Locale::default();
-    match screen {
-        AppScreen::MyInfo => i18n::get_string(locale, "nav.myCard"),
-        AppScreen::Contacts => i18n::get_string(locale, "nav.contacts"),
-        AppScreen::Exchange => i18n::get_string(locale, "nav.exchange"),
-        AppScreen::Settings => i18n::get_string(locale, "nav.settings"),
-        AppScreen::Help => i18n::get_string(locale, "nav.help"),
-        AppScreen::Groups => i18n::get_string(locale, "nav.groups"),
-        AppScreen::Recovery => i18n::get_string(locale, "nav.recovery"),
-        AppScreen::More => i18n::get_string(locale, "nav.more"),
-        AppScreen::Onboarding => i18n::get_string(locale, "nav.onboarding"),
-        AppScreen::Backup => i18n::get_string(locale, "nav.backup"),
-        AppScreen::Lock => i18n::get_string(locale, "nav.lock"),
-        AppScreen::DeviceLinking | AppScreen::DeviceManagement => {
-            i18n::get_string(locale, "nav.devices")
-        }
-        AppScreen::DuressPin => i18n::get_string(locale, "nav.duressPin"),
-        AppScreen::EmergencyShred => i18n::get_string(locale, "nav.emergencyShred"),
-        AppScreen::DeliveryStatus => i18n::get_string(locale, "nav.deliveryStatus"),
-        AppScreen::Sync => i18n::get_string(locale, "nav.sync"),
-        AppScreen::ActivityLog => i18n::get_string(locale, "nav.activity"),
-        AppScreen::Privacy => i18n::get_string(locale, "nav.privacy"),
-        AppScreen::Support => i18n::get_string(locale, "nav.support"),
-        AppScreen::VerifyFingerprint { .. } => i18n::get_string(locale, "nav.verifyFingerprint"),
-        _ => "Other".to_string(),
-    }
+    populate_sidebar(
+        list_box,
+        &app_engine.borrow().sidebar_items(Locale::default()),
+    );
 }
 
 /// Register the "Import Contacts" action on the application.
