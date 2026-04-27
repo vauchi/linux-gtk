@@ -1806,7 +1806,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -3893,7 +3893,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -4065,8 +4077,9 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.21.7"
+version = "0.28.0"
 dependencies = [
+ "base64",
  "hex",
  "log",
  "reqwest",
@@ -4076,13 +4089,14 @@ dependencies = [
  "subtle",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "vauchi-core",
  "zeroize",
 ]
 
 [[package]]
 name = "vauchi-core"
-version = "0.21.7"
+version = "0.28.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -4113,6 +4127,7 @@ dependencies = [
  "sha2",
  "subtle",
  "thiserror 2.0.18",
+ "tracing",
  "unicode-normalization",
  "ureq",
  "uuid",
@@ -4146,7 +4161,7 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.21.7"
+version = "0.28.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4340,7 +4355,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

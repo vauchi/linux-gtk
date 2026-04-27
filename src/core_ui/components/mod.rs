@@ -103,6 +103,7 @@ pub fn render_component(
             fields,
             group_views,
             selected_group,
+            visible_fields,
             ..
         } => card_preview::render(
             name,
@@ -110,6 +111,7 @@ pub fn render_component(
             fields,
             group_views,
             selected_group,
+            visible_fields,
             on_action,
             tokens,
         ),

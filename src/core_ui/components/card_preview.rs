@@ -12,12 +12,14 @@ use vauchi_app::ui::{FieldDisplay, GroupCardView, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     name: &str,
     avatar_data: &Option<Vec<u8>>,
-    fields: &[FieldDisplay],
+    _fields: &[FieldDisplay],
     group_views: &[GroupCardView],
     selected_group: &Option<String>,
+    visible_fields: &[FieldDisplay],
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -70,8 +72,10 @@ pub fn render(
         .build();
     container.append(&name_label);
 
-    // Fields
-    render_fields(&container, fields, sm);
+    // Fields — G1 (ADR-021/043): render the pre-filtered list emitted by
+    // core's `build_visible_fields` helper. Replaces the previous render
+    // of raw `fields` (which leaked Hidden fields into the preview).
+    render_fields(&container, visible_fields, sm);
 
     // Group tabs
     if !group_views.is_empty() {
@@ -109,13 +113,9 @@ pub fn render(
         }
 
         container.append(&tab_bar);
-
-        // Show group-specific fields if a group is selected
-        if let Some(selected) = selected_group
-            && let Some(gv) = group_views.iter().find(|g| &g.group_name == selected)
-        {
-            render_fields(&container, &gv.visible_fields, sm);
-        }
+        // Note: group-specific filtering is now handled by core's
+        // `build_visible_fields` and reflected in `visible_fields` —
+        // no second render pass needed.
     }
 
     frame.set_child(Some(&container));
