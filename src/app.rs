@@ -469,13 +469,23 @@ fn handle_import_file(
     let engine = app_engine.borrow();
     match engine.vauchi().import_contacts_from_vcf(&data) {
         Ok(result) => {
+            let locale = Locale::default();
+            let imported_count = result.imported.to_string();
+            let imported_line = i18n::get_string_with_args(
+                locale,
+                "import_contacts.result_imported",
+                &[("count", imported_count.as_str())],
+            );
             let mut msg = if result.skipped > 0 {
-                format!(
-                    "Imported {} contact(s), skipped {}",
-                    result.imported, result.skipped
-                )
+                let skipped_count = result.skipped.to_string();
+                let skipped_line = i18n::get_string_with_args(
+                    locale,
+                    "import_contacts.result_skipped",
+                    &[("count", skipped_count.as_str())],
+                );
+                format!("{imported_line} — {skipped_line}")
             } else {
-                format!("Imported {} contact(s)", result.imported)
+                imported_line
             };
 
             // G6: render each structured warning via its i18n key +
@@ -483,7 +493,6 @@ fn handle_import_file(
             // locale pipeline. Falls back to the English `Display`
             // when the key is missing.
             if !result.warnings.is_empty() {
-                let locale = Locale::default();
                 for warning in &result.warnings {
                     let args = warning.args();
                     let args_refs: Vec<(&str, &str)> =
