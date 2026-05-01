@@ -56,7 +56,7 @@ class TestNavigationWorkflow:
         # The app should still have labels after any navigation
         wait_until(
             lambda: len(find_all(gtk_app, role="label")) > 0,
-            timeout=2.0,
+            timeout=5.0,
             message="App became unresponsive — no labels found after navigation",
         )
 

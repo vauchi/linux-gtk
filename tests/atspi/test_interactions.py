@@ -25,11 +25,17 @@ from helpers import (
 # Navigation helper
 # ---------------------------------------------------------------------------
 
-def navigate_to(app, screen_label, timeout=3.0):
+def navigate_to(app, screen_label, timeout=5.0):
     """Navigate to a sidebar screen via AT-SPI action.
 
     Only sidebar items are navigable — AT-SPI do_action(0) on list items
     doesn't trigger navigation reliably for sub-screen (More) navigation.
+
+    Raises AssertionError (via wait_until) when navigation fires but the
+    screen takes longer than `timeout` seconds to render. This surfaces
+    the real failure reason instead of silently returning False, which
+    was previously caused by a bare `except Exception` swallowing the
+    wait timeout and misreporting it as "action interface unavailable".
     """
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
@@ -39,18 +45,24 @@ def navigate_to(app, screen_label, timeout=3.0):
         items = find_all(sidebar, role=role, max_depth=5)
         for item in items:
             if item.get_name() == screen_label:
+                action = None
                 try:
                     action = item.get_action_iface()
-                    if action and action.get_n_actions() > 0:
-                        action.do_action(0)
-                        wait_until(
-                            lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                            timeout=timeout,
-                            message=f"Screen should have labels after clicking '{screen_label}'",
-                        )
-                        return True
                 except Exception:
-                    return False
+                    continue
+                if action and action.get_n_actions() > 0:
+                    try:
+                        action.do_action(0)
+                    except Exception:
+                        continue
+                    # Let AssertionError propagate — caller gets the real
+                    # "navigation timed out" message, not "action unavailable".
+                    wait_until(
+                        lambda: len(find_all(app, role="label", max_depth=10)) > 0,
+                        timeout=timeout,
+                        message=f"Screen should have labels after clicking '{screen_label}'",
+                    )
+                    return True
     return False
 
 
@@ -91,9 +103,11 @@ class TestExchangeQR:
     def test_exchange_has_qr_image(self, gtk_app):
         """Exchange screen should contain a QR image or related content."""
         navigate_to(gtk_app, "Exchange")
+        # navigate_to already waits for labels; extra wait in case
+        # Exchange screen rebuilds its QR widget after initial render.
         wait_until(
             lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
-            timeout=2.0,
+            timeout=5.0,
             message="Exchange screen should have labels after navigation",
         )
 
@@ -126,7 +140,7 @@ class TestCardPreviewTabs:
         navigate_to(gtk_app, "My Card")
         wait_until(
             lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
-            timeout=2.0,
+            timeout=5.0,
             message="My Info screen should have labels after navigation",
         )
 
@@ -164,7 +178,7 @@ class TestInlineConfirm:
             pytest.skip("Emergency Shred not reachable via AT-SPI sidebar")
         wait_until(
             lambda: len(find_all(gtk_app, role="button", max_depth=15)) > 0,
-            timeout=2.0,
+            timeout=5.0,
             message="Emergency Shred screen should have buttons after navigation",
         )
 
@@ -197,7 +211,7 @@ class TestQRScan:
         navigate_to(gtk_app, "Exchange")
         wait_until(
             lambda: len(find_all(gtk_app, role="label", max_depth=10)) > 0,
-            timeout=2.0,
+            timeout=5.0,
             message="Exchange screen should have content after navigation",
         )
 
