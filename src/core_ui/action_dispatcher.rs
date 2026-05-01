@@ -180,15 +180,22 @@ fn handle_exchange_commands(
             }
 
             // ── Audio (ultrasonic proximity) ─────────────────────────
-            ExchangeCommand::AudioEmitChallenge { data } => {
+            ExchangeCommand::AudioEmitChallenge {
+                samples,
+                sample_rate,
+            } => {
                 if hardware::has_audio() {
                     #[cfg(feature = "audio")]
                     {
-                        crate::platform::audio::emit_challenge(toast_overlay, data.clone());
+                        crate::platform::audio::emit_challenge(
+                            toast_overlay,
+                            samples.clone(),
+                            *sample_rate,
+                        );
                     }
                     #[cfg(not(feature = "audio"))]
                     {
-                        let _ = data;
+                        let _ = (samples, sample_rate);
                         if notified_unavailable.insert("audio") {
                             let msg = i18n::get_string(
                                 Locale::default(),
@@ -202,7 +209,7 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "Audio");
                 }
             }
-            ExchangeCommand::AudioListenForResponse { timeout_ms } => {
+            ExchangeCommand::AudioListenForResponse { timeout_ms, .. } => {
                 if hardware::has_audio() {
                     #[cfg(feature = "audio")]
                     {

@@ -18,13 +18,16 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
+    use vauchi_core::exchange::CpalAudioBackend;
     use vauchi_core::exchange::ExchangeHardwareEvent;
-    use vauchi_core::exchange::{AudioConfig, CpalAudioBackend};
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
-    /// Emit an ultrasonic challenge signal on a background thread.
-    pub fn emit_challenge(toast_overlay: &adw::ToastOverlay, data: Vec<u8>) {
+    /// Play already-encoded ultrasonic samples on a background thread.
+    ///
+    /// Core supplies pre-encoded PCM (FSK modulation lives in
+    /// `audio_modem`); this function is a pure hardware adapter.
+    pub fn emit_challenge(toast_overlay: &adw::ToastOverlay, samples: Vec<f32>, sample_rate: u32) {
         let toast_overlay = toast_overlay.clone();
         let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
@@ -33,7 +36,7 @@ mod inner {
                 .map_err(|e| e.to_string())
                 .and_then(|backend| {
                     backend
-                        .emit_signal(&data, &AudioConfig::default())
+                        .emit_samples(&samples, sample_rate)
                         .map_err(|e| e.to_string())
                 });
             tx.send(result).ok();
@@ -75,24 +78,25 @@ mod inner {
         let container = container.clone();
         let app_engine = app_engine.clone();
         let toast_overlay = toast_overlay.clone();
-        let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
+        let (tx, rx) = mpsc::channel::<Result<(Vec<f32>, u32), String>>();
 
         std::thread::spawn(move || {
             let result = CpalAudioBackend::new()
                 .map_err(|e| e.to_string())
                 .and_then(|backend| {
                     let timeout = Duration::from_millis(timeout_ms);
-                    backend
-                        .receive_signal(timeout, &AudioConfig::default())
-                        .map_err(|e| e.to_string())
+                    backend.record_samples(timeout).map_err(|e| e.to_string())
                 });
             tx.send(result).ok();
         });
 
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
-                Ok(Ok(data)) => {
-                    let event = ExchangeHardwareEvent::AudioResponseReceived { data };
+                Ok(Ok((samples, sample_rate))) => {
+                    let event = ExchangeHardwareEvent::AudioSamplesRecorded {
+                        samples,
+                        sample_rate,
+                    };
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
