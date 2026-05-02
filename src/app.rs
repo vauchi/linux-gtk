@@ -72,12 +72,11 @@ fn build_ui(app: &adw::Application) {
     maybe_seed_test_identity(&mut vauchi);
     let app_engine = Rc::new(RefCell::new(AppEngine::new(vauchi)));
 
-    // Navigate to dynamic default screen (MyInfo with 0 contacts, Contacts with >=1)
-    {
-        let mut engine = app_engine.borrow_mut();
-        let default = engine.default_screen();
-        engine.navigate_to(default);
-    }
+    // Initial screen comes from `AppEngine::new` (Onboarding / Lock /
+    // MyInfo). The render path reads `current_screen()`, so no
+    // explicit navigate is needed — and an explicit `default_screen()`
+    // call would bypass the Lock state for password-protected
+    // installs.
 
     // Main layout: header + body
     let root = GtkBox::new(Orientation::Vertical, 0);
