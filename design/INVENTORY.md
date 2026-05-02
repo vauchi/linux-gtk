@@ -3,7 +3,7 @@
 
 # gVauchi (GTK) — Design Inventory
 
-## Components (18 types)
+## Components (19 types)
 
 All components are rendered by `src/core_ui/components/mod.rs` via `render_component()`.
 Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita widgets.
@@ -28,6 +28,7 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 | 16 | Banner | `banner.rs` | `gtk4::Box` (horizontal, label + button) | Yes (ActionPressed) | Informational bar with optional action |
 | 17 | AvatarPreview | `avatar_preview.rs` | `gtk4::Picture` / `gtk4::Label` (circle) | Yes (ActionPressed when editable) | Avatar Editor, MyInfo |
 | 18 | Slider | `slider.rs` | `gtk4::Scale` | Yes (SliderChanged) | Avatar Editor (brightness) |
+| 19 | Dropdown | `dropdown.rs` | `gtk4::DropDown` (with `StringList` model) | Yes (ListItemSelected) | Settings, forms |
 
 ## Navigation
 
