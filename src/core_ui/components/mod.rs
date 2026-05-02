@@ -9,6 +9,7 @@ mod banner;
 mod card_preview;
 mod contact_list;
 mod divider;
+mod dropdown;
 mod editable_text;
 mod field_list;
 pub mod icons;
@@ -245,6 +246,13 @@ pub fn render_component(
         } => slider::render(
             id, label, *value, *min, *max, *step, min_icon, max_icon, a11y, on_action, tokens,
         ),
+        Component::Dropdown {
+            id,
+            label,
+            selected,
+            options,
+            a11y,
+        } => dropdown::render(id, label, selected, options, a11y, on_action, tokens),
         _ => gtk4::Label::builder()
             .label("[unsupported component]")
             .css_classes(["dim-label"])
