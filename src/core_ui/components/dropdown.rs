@@ -38,10 +38,10 @@ pub fn render(
     let dropdown = DropDown::builder().model(&model).hexpand(true).build();
     apply_a11y(&dropdown, a11y);
 
-    if let Some(sel_id) = selected {
-        if let Some(idx) = options.iter().position(|o| &o.id == sel_id) {
-            dropdown.set_selected(idx as u32);
-        }
+    if let Some(sel_id) = selected
+        && let Some(idx) = options.iter().position(|o| &o.id == sel_id)
+    {
+        dropdown.set_selected(idx as u32);
     }
 
     let component_id = id.to_string();
