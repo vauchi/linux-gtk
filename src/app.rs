@@ -38,6 +38,8 @@ pub fn run() {
         })
         .collect();
 
+    platform::screen_capture_protection::enable();
+
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_activate(build_ui);
     app.run_with_args(&args.iter().map(String::as_str).collect::<Vec<_>>());
