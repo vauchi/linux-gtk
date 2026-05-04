@@ -21,7 +21,7 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
-    use vauchi_core::exchange::ExchangeHardwareEvent;
+    use vauchi_core::Event;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
@@ -126,7 +126,7 @@ mod inner {
                     Ok(CameraMsg::QrFound(data)) => {
                         stop_for_poll.store(true, Ordering::SeqCst);
                         dialog.close();
-                        let event = ExchangeHardwareEvent::QrScanned { data };
+                        let event = Event::QrScanned { data };
                         if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                             handle_app_engine_result(
                                 &container,

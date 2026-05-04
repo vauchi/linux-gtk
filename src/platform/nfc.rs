@@ -25,7 +25,7 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
-    use vauchi_core::exchange::ExchangeHardwareEvent;
+    use vauchi_core::Event;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
@@ -82,14 +82,14 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             match rx.try_recv() {
                 Ok(Ok(data)) => {
-                    let event = ExchangeHardwareEvent::NfcDataReceived { data };
+                    let event = Event::NfcDataReceived { data };
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "NFC".into(),
                         error: e.clone(),
                     };

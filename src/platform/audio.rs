@@ -18,8 +18,8 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
+    use vauchi_core::Event;
     use vauchi_core::exchange::CpalAudioBackend;
-    use vauchi_core::exchange::ExchangeHardwareEvent;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
@@ -93,7 +93,7 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok((samples, sample_rate))) => {
-                    let event = ExchangeHardwareEvent::AudioSamplesRecorded {
+                    let event = Event::AudioSamplesRecorded {
                         samples,
                         sample_rate,
                     };
@@ -103,7 +103,7 @@ mod inner {
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "Audio".into(),
                         error: e.clone(),
                     };

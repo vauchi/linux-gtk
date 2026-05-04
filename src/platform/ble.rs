@@ -21,7 +21,7 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
-    use vauchi_core::exchange::ExchangeHardwareEvent;
+    use vauchi_core::Event;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
 
@@ -62,7 +62,7 @@ mod inner {
         let container = container.clone();
         let app_engine = app_engine.clone();
         let toast_overlay = toast_overlay.clone();
-        let (tx, rx) = mpsc::channel::<Result<Vec<ExchangeHardwareEvent>, String>>();
+        let (tx, rx) = mpsc::channel::<Result<Vec<Event>, String>>();
 
         let msg = i18n::get_string(Locale::default(), "platform.ble_scanning");
         let scan_toast = adw::Toast::new(&msg);
@@ -97,7 +97,7 @@ mod inner {
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "BLE".into(),
                         error: e.clone(),
                     };
@@ -242,7 +242,7 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok(())) => {
-                    let event = ExchangeHardwareEvent::BleConnected {
+                    let event = Event::BleConnected {
                         device_id: device_id_for_event.clone(),
                     };
                     if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
@@ -251,7 +251,7 @@ mod inner {
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "BLE".into(),
                         error: e,
                     };
@@ -305,7 +305,7 @@ mod inner {
             match rx.try_recv() {
                 Ok(Ok(())) => glib::ControlFlow::Break,
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "BLE".into(),
                         error: e,
                     };
@@ -356,7 +356,7 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok(data)) => {
-                    let event = ExchangeHardwareEvent::BleCharacteristicRead {
+                    let event = Event::BleCharacteristicRead {
                         uuid: uuid_for_event.clone(),
                         data,
                     };
@@ -366,7 +366,7 @@ mod inner {
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = ExchangeHardwareEvent::HardwareError {
+                    let event = Event::HardwareError {
                         transport: "BLE".into(),
                         error: e,
                     };
@@ -396,7 +396,7 @@ mod inner {
 
     // ── Async BlueZ operations ──────────────────────────────────────
 
-    async fn scan_for_devices(service_uuid: &str) -> Result<Vec<ExchangeHardwareEvent>, String> {
+    async fn scan_for_devices(service_uuid: &str) -> Result<Vec<Event>, String> {
         use bluer::AdapterEvent;
         use tokio_stream::StreamExt;
 
@@ -437,7 +437,7 @@ mod inner {
                                 let uuids = device.uuids().await.unwrap_or(None).unwrap_or_default();
                                 if uuids.contains(&target_uuid) {
                                     let rssi = device.rssi().await.unwrap_or(None).unwrap_or(0);
-                                    events.push(ExchangeHardwareEvent::BleDeviceDiscovered {
+                                    events.push(Event::BleDeviceDiscovered {
                                         id: addr.to_string(),
                                         rssi,
                                         adv_data: vec![],

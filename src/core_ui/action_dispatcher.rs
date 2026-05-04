@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Dispatches `ActionResult` and `ExchangeCommand` from the core engine.
+//! Dispatches `ActionResult` and `Command` from the core engine.
 //!
 //! Handles navigation, alerts, toasts, hardware command dispatch (BLE, NFC,
 //! audio, camera), and QR paste fallback.
@@ -16,7 +16,7 @@ use std::rc::Rc;
 use vauchi_app::i18n::{self, Locale};
 use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::{ActionResult, AppEngine, UserAction, WorkflowEngine};
-use vauchi_core::exchange::{ExchangeCommand, ExchangeHardwareEvent};
+use vauchi_core::{Command, Event};
 
 use crate::platform::hardware;
 
@@ -127,7 +127,7 @@ pub(crate) fn handle_app_engine_result(
             }
             toast_overlay.add_toast(toast);
         }
-        ActionResult::ExchangeCommands { commands } => {
+        ActionResult::Commands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
         ActionResult::VerifyFingerprint { contact_id } => {
@@ -155,7 +155,7 @@ fn handle_exchange_commands(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
-    commands: &[ExchangeCommand],
+    commands: &[Command],
 ) {
     // Track which transports we've already shown "unavailable" toasts for
     // to avoid spamming when a batch has multiple commands for the same transport.
@@ -163,18 +163,18 @@ fn handle_exchange_commands(
 
     for cmd in commands {
         match cmd {
-            ExchangeCommand::QrDisplay { .. } => {
+            Command::QrDisplay { .. } => {
                 // QR data changed mid-session. The ExchangeSession updated its
                 // state, so re-rendering the current screen will pick up the new
                 // QR via Component::QrCode in the screen model.
                 render_app_engine_screen(container, app_engine, toast_overlay, None);
             }
-            ExchangeCommand::QrRequestScan => {
+            Command::QrRequestScan => {
                 scan_or_paste_qr(container, app_engine, toast_overlay);
             }
 
             // ── Audio (ultrasonic proximity) ─────────────────────────
-            ExchangeCommand::AudioEmitChallenge {
+            Command::AudioEmitChallenge {
                 samples,
                 sample_rate,
             } => {
@@ -203,7 +203,7 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "Audio");
                 }
             }
-            ExchangeCommand::AudioListenForResponse { timeout_ms, .. } => {
+            Command::AudioListenForResponse { timeout_ms, .. } => {
                 if hardware::has_audio() {
                     #[cfg(feature = "audio")]
                     {
@@ -230,13 +230,13 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "Audio");
                 }
             }
-            ExchangeCommand::AudioStop => {
+            Command::AudioStop => {
                 #[cfg(feature = "audio")]
                 crate::platform::audio::stop();
             }
 
             // ── BLE ──────────────────────────────────────────────────
-            ExchangeCommand::BleStartScanning { service_uuid } => {
+            Command::BleStartScanning { service_uuid } => {
                 if hardware::has_bluetooth() {
                     #[cfg(all(feature = "ble", target_os = "linux"))]
                     {
@@ -263,7 +263,7 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
                 }
             }
-            ExchangeCommand::BleStartAdvertising {
+            Command::BleStartAdvertising {
                 service_uuid,
                 payload: _,
             } => {
@@ -283,7 +283,7 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
                 }
             }
-            ExchangeCommand::BleConnect { device_id } => {
+            Command::BleConnect { device_id } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::connect(
@@ -298,7 +298,7 @@ fn handle_exchange_commands(
                     let _ = device_id;
                 }
             }
-            ExchangeCommand::BleWriteCharacteristic { uuid, data } => {
+            Command::BleWriteCharacteristic { uuid, data } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::write_characteristic(
@@ -314,7 +314,7 @@ fn handle_exchange_commands(
                     let _ = (uuid, data);
                 }
             }
-            ExchangeCommand::BleReadCharacteristic { uuid } => {
+            Command::BleReadCharacteristic { uuid } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::read_characteristic(
@@ -329,13 +329,13 @@ fn handle_exchange_commands(
                     let _ = uuid;
                 }
             }
-            ExchangeCommand::BleDisconnect => {
+            Command::BleDisconnect => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 crate::platform::ble::disconnect(toast_overlay);
             }
 
             // ── NFC ──────────────────────────────────────────────────
-            ExchangeCommand::NfcActivate { payload } => {
+            Command::NfcActivate { payload } => {
                 if hardware::has_nfc() {
                     #[cfg(feature = "nfc")]
                     {
@@ -362,28 +362,28 @@ fn handle_exchange_commands(
                     report_hardware_unavailable(app_engine, toast_overlay, "NFC");
                 }
             }
-            ExchangeCommand::NfcDeactivate => {
+            Command::NfcDeactivate => {
                 // PC/SC polling is one-shot (returns after first exchange),
                 // so deactivate is a no-op. The background thread exits on
                 // its own after success or failure.
             }
 
             // ── Image picking (avatar editor) ────────────────────────
-            ExchangeCommand::ImagePickFromFile => {
+            Command::ImagePickFromFile => {
                 open_image_file_picker(container, app_engine, toast_overlay);
             }
-            ExchangeCommand::ImagePickFromLibrary => {
+            Command::ImagePickFromLibrary => {
                 // Linux desktop has no photo library — report unavailable
-                let event = ExchangeHardwareEvent::HardwareUnavailable {
+                let event = Event::HardwareUnavailable {
                     transport: "photo_library".into(),
                 };
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                     handle_app_engine_result(container, app_engine, toast_overlay, result);
                 }
             }
-            ExchangeCommand::ImageCaptureFromCamera => {
+            Command::ImageCaptureFromCamera => {
                 // Camera capture not supported on desktop — report unavailable
-                let event = ExchangeHardwareEvent::HardwareUnavailable {
+                let event = Event::HardwareUnavailable {
                     transport: "camera".into(),
                 };
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
@@ -392,7 +392,7 @@ fn handle_exchange_commands(
             }
 
             // ── USB / TCP direct exchange ────────────────────────────
-            ExchangeCommand::DirectSend {
+            Command::DirectSend {
                 payload,
                 is_initiator,
             } => {
@@ -429,7 +429,7 @@ fn report_hardware_unavailable(
     toast_overlay.add_toast(toast);
 
     // Notify core so the session can fall back to another transport
-    let event = ExchangeHardwareEvent::HardwareUnavailable {
+    let event = Event::HardwareUnavailable {
         transport: transport.to_string(),
     };
     app_engine.borrow_mut().handle_hardware_event(event);
@@ -483,7 +483,7 @@ fn open_image_file_picker(
                 if let Some(path) = file.path() {
                     match std::fs::read(&path) {
                         Ok(data) => {
-                            let event = ExchangeHardwareEvent::ImageReceived { data };
+                            let event = Event::ImageReceived { data };
                             if let Some(result) =
                                 app_engine.borrow_mut().handle_hardware_event(event)
                             {
@@ -496,7 +496,7 @@ fn open_image_file_picker(
                             }
                         }
                         Err(_) => {
-                            let event = ExchangeHardwareEvent::HardwareError {
+                            let event = Event::HardwareError {
                                 transport: "file_picker".into(),
                                 error: "Failed to read image file".into(),
                             };
@@ -516,7 +516,7 @@ fn open_image_file_picker(
             }
             Err(_) => {
                 // User cancelled — notify core
-                let event = ExchangeHardwareEvent::ImagePickCancelled;
+                let event = Event::ImagePickCancelled;
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                     handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                 }
@@ -529,7 +529,7 @@ fn open_image_file_picker(
 ///
 /// TCP is blocking — spawning a thread prevents stalling the GTK main loop.
 /// Results are polled via `glib::timeout_add_local` and dispatched back
-/// to the engine as `ExchangeHardwareEvent`.
+/// to the engine as `Event`.
 fn execute_direct_send(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
@@ -558,14 +558,14 @@ fn execute_direct_send(
     gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
         match rx.try_recv() {
             Ok(Ok(data)) => {
-                let event = ExchangeHardwareEvent::DirectPayloadReceived { data };
+                let event = Event::DirectPayloadReceived { data };
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                     handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                 }
                 gtk4::glib::ControlFlow::Break
             }
             Ok(Err(err)) => {
-                let event = ExchangeHardwareEvent::HardwareError {
+                let event = Event::HardwareError {
                     transport: "USB".into(),
                     error: err,
                 };
@@ -665,7 +665,7 @@ fn show_qr_paste_dialog(
                 }
 
                 // Forward to core as a hardware event
-                let event = ExchangeHardwareEvent::QrScanned { data };
+                let event = Event::QrScanned { data };
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                     handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                 }
