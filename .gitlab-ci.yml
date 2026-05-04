@@ -293,7 +293,7 @@ check:design-drift:
 # vauchi/scripts — fetched via API to avoid duplicating it here.
 check:design-tokens:
   stage: lint
-  image: alpine:3.21
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.21
   tags: [docker]
   needs: []
   before_script:
@@ -366,7 +366,7 @@ verify:upstream-prerelease:
 
 package:deb:
   stage: package
-  image: debian:bookworm
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/debian:bookworm
   tags: [docker]
   needs:
     - job: build:app
@@ -389,7 +389,7 @@ package:deb:
 
 package:rpm:
   stage: package
-  image: fedora:40
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/fedora:40
   tags: [docker]
   needs:
     - job: build:app
@@ -415,7 +415,7 @@ package:rpm:
 
 package:flatpak:
   stage: package
-  image: bilelmoussaoui/flatpak-github-actions:gnome-47
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/bilelmoussaoui/flatpak-github-actions:gnome-47
   tags: [docker]
   needs: []
   rules:
