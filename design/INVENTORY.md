@@ -14,9 +14,9 @@ Each component maps a vauchi-core `Component` enum variant to GTK4/libadwaita wi
 | 2 | TextInput | `text_input.rs` | `gtk4::Entry` | Yes (TextChanged on Enter/focus-leave) | Onboarding, Settings |
 | 3 | PinInput | `pin_input.rs` | `gtk4::Entry` (password mode) | Yes (TextChanged, auto-advance) | Lock, DuressPin |
 | 4 | ToggleList | `toggle_list.rs` | `gtk4::CheckButton` (multiple) | Yes (ItemToggled) | Onboarding (groups), Exchange (group preselect) |
-| 5 | ContactList | `contact_list.rs` | `gtk4::ListBox` + search Entry | Yes (ListItemSelected) | Contacts |
+| 5 | List | `list.rs` | `gtk4::ListBox` + search Entry | Yes (ListItemSelected) | Contacts |
 | 6 | FieldList | `field_list.rs` | `gtk4::ListBox` with group headers | Yes (ListItemSelected) | MyInfo, ContactDetail |
-| 7 | CardPreview | `card_preview.rs` | `gtk4::Frame` with group tabs | Yes (GroupViewSelected) | MyInfo, ContactDetail |
+| 7 | Preview | `preview.rs` | `gtk4::Frame` with group tabs | Yes (GroupViewSelected) | MyInfo, ContactDetail |
 | 8 | QrCode | `qr_code.rs` | `gtk4::DrawingArea` (cairo) or Entry+Button | Yes (scan/paste) | Exchange |
 | 9 | InfoPanel | `info_panel.rs` | `gtk4::Box` with icon + title + items | No | Help, Support, Recovery |
 | 10 | StatusIndicator | `status_indicator.rs` | `gtk4::Box` with icon + label | No | DeliveryStatus, Sync |
@@ -41,8 +41,8 @@ i18n (`nav.*` keys); linux-gtk no longer maintains a local
 
 | # | Screen | Sidebar Label | Key Components |
 |---|--------|--------------|----------------|
-| 1 | My Info | i18n `nav.myCard` | CardPreview, FieldList, EditableText, ActionList |
-| 2 | Contacts | i18n `nav.contacts` | ContactList |
+| 1 | My Info | i18n `nav.myCard` | Preview, FieldList, EditableText, ActionList |
+| 2 | Contacts | i18n `nav.contacts` | List |
 | 3 | Exchange | i18n `nav.exchange` | QrCode, ToggleList, Text, StatusIndicator |
 | 4 | Groups | i18n `nav.groups` | ToggleList, ActionList |
 | 5 | Settings | i18n `nav.settings` | ActionList, ToggleList |
@@ -118,8 +118,8 @@ Exchange screen → Show QR (QrCode display)
 ### W3: Contact Management
 
 ```text
-Contacts → Select contact (ContactList)
-  → Contact detail (CardPreview, FieldList)
+Contacts → Select contact (List)
+  → Contact detail (Preview, FieldList)
   → Edit fields → Save
   → Delete contact (InlineConfirm)
 ```
@@ -159,7 +159,7 @@ Groups → View groups list (ToggleList)
   → Create group (TextInput)
   → Assign contacts to groups
   → Set field visibility per group
-  → CardPreview shows group-filtered view
+  → Preview shows group-filtered view
 ```
 
 ## Hardware Integration
