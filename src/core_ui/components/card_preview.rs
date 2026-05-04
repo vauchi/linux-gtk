@@ -8,7 +8,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
 use vauchi_app::DesignTokens;
 use vauchi_app::i18n::{self, Locale};
-use vauchi_app::ui::{FieldDisplay, GroupCardView, UserAction};
+use vauchi_app::ui::{Field, PreviewVariant, UserAction};
 
 use super::super::screen_renderer::OnAction;
 
@@ -16,10 +16,10 @@ use super::super::screen_renderer::OnAction;
 pub fn render(
     name: &str,
     avatar_data: &Option<Vec<u8>>,
-    _fields: &[FieldDisplay],
-    group_views: &[GroupCardView],
-    selected_group: &Option<String>,
-    visible_fields: &[FieldDisplay],
+    _fields: &[Field],
+    variants: &[PreviewVariant],
+    selected_variant: &Option<String>,
+    visible_fields: &[Field],
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -77,15 +77,15 @@ pub fn render(
     // of raw `fields` (which leaked Hidden fields into the preview).
     render_fields(&container, visible_fields, sm);
 
-    // Group tabs
-    if !group_views.is_empty() {
+    // Variant tabs
+    if !variants.is_empty() {
         let tab_bar = GtkBox::new(Orientation::Horizontal, tokens.spacing.xs as i32);
         tab_bar.set_margin_top(sm);
 
         // "All" tab
         let all_btn = ToggleButton::builder()
             .label(i18n::get_string(Locale::default(), "help.all_categories"))
-            .active(selected_group.is_none())
+            .active(selected_variant.is_none())
             .build();
         {
             let on_action = on_action.clone();
@@ -95,18 +95,21 @@ pub fn render(
         }
         tab_bar.append(&all_btn);
 
-        // Per-group tabs
-        for gv in group_views {
+        // Per-variant tabs
+        for variant in variants {
             let btn = ToggleButton::builder()
-                .label(&gv.group_name)
+                .label(&variant.display_name)
                 .group(&all_btn)
-                .active(selected_group.as_deref() == Some(&gv.group_name))
+                .active(selected_variant.as_deref() == Some(&variant.variant_id))
                 .build();
-            let group_name = gv.group_name.clone();
+            let variant_id = variant.variant_id.clone();
             let on_action = on_action.clone();
             btn.connect_clicked(move |_| {
+                // UserAction::GroupViewSelected is the wire surface from
+                // frontend → core today; rename to a UI-shaped action is a
+                // separate sweep (post-Wire-Humble Tier 1).
                 (on_action)(UserAction::GroupViewSelected {
-                    group_name: Some(group_name.clone()),
+                    group_name: Some(variant_id.clone()),
                 });
             });
             tab_bar.append(&btn);
@@ -122,7 +125,7 @@ pub fn render(
     frame.upcast()
 }
 
-fn render_fields(container: &GtkBox, fields: &[FieldDisplay], sm: i32) {
+fn render_fields(container: &GtkBox, fields: &[Field], sm: i32) {
     for field in fields {
         let field_row = GtkBox::new(Orientation::Horizontal, sm);
 

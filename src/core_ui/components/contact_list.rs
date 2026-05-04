@@ -8,14 +8,14 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
 use vauchi_app::DesignTokens;
 use vauchi_app::i18n::{self, Locale};
-use vauchi_app::ui::{ContactItem, UserAction};
+use vauchi_app::ui::{Item, UserAction};
 
 use super::super::screen_renderer::OnAction;
 use super::apply_a11y;
 
 pub fn render(
     id: &str,
-    contacts: &[ContactItem],
+    contacts: &[Item],
     searchable: &bool,
     on_action: &OnAction,
     tokens: &DesignTokens,

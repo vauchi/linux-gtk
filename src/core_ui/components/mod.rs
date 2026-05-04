@@ -98,20 +98,20 @@ pub fn render_component(
             on_action,
             tokens,
         ),
-        Component::CardPreview {
+        Component::Preview {
             name,
             avatar_data,
             fields,
-            group_views,
-            selected_group,
+            variants,
+            selected_variant,
             visible_fields,
             ..
         } => card_preview::render(
             name,
             avatar_data,
             fields,
-            group_views,
-            selected_group,
+            variants,
+            selected_variant,
             visible_fields,
             on_action,
             tokens,
@@ -123,12 +123,12 @@ pub fn render_component(
             items,
             ..
         } => info_panel::render(id, icon, title, items, tokens),
-        Component::ContactList {
+        Component::List {
             id,
-            contacts,
+            items,
             searchable,
             ..
-        } => contact_list::render(id, contacts, searchable, on_action, tokens),
+        } => contact_list::render(id, items, searchable, on_action, tokens),
         Component::SettingsGroup {
             id, label, items, ..
         } => settings_group::render(id, label, items, on_action, tokens),

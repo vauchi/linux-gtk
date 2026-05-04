@@ -9,13 +9,13 @@ use gtk4::{
     Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
 };
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::{FieldDisplay, UiFieldVisibility, UserAction, VisibilityMode};
+use vauchi_app::ui::{Field, UiFieldVisibility, UserAction, VisibilityMode};
 
 use super::super::screen_renderer::OnAction;
 
 pub fn render(
     _id: &str,
-    fields: &[FieldDisplay],
+    fields: &[Field],
     visibility_mode: &VisibilityMode,
     available_groups: &[String],
     on_action: &OnAction,
@@ -85,7 +85,7 @@ pub fn render(
 }
 
 /// Render a simple show/hide toggle button for the field.
-fn render_show_hide_toggle(row: &GtkBox, field: &FieldDisplay, on_action: &OnAction) {
+fn render_show_hide_toggle(row: &GtkBox, field: &Field, on_action: &OnAction) {
     let is_visible = matches!(field.visibility, UiFieldVisibility::Shown);
     let vis_text = if is_visible { "Hide" } else { "Show" };
 
@@ -112,7 +112,7 @@ fn render_show_hide_toggle(row: &GtkBox, field: &FieldDisplay, on_action: &OnAct
 /// Render per-group checkboxes showing which groups can see this field.
 fn render_per_group_toggles(
     row: &GtkBox,
-    field: &FieldDisplay,
+    field: &Field,
     available_groups: &[String],
     on_action: &OnAction,
     group_spacing: i32,
