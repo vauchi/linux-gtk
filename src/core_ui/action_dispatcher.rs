@@ -96,12 +96,6 @@ pub(crate) fn handle_app_engine_result(
                 .navigate_to(vauchi_app::ui::AppScreen::DeviceLinking);
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
-        ActionResult::StartBackupImport => {
-            app_engine
-                .borrow_mut()
-                .navigate_to(vauchi_app::ui::AppScreen::Backup);
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
         ActionResult::RequestCamera => {
             scan_or_paste_qr(container, app_engine, toast_overlay);
         }
