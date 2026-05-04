@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! ContactList component renderer.
+//! List component renderer (UI-shaped per ADR-044).
 
 use gtk4::accessible::Property;
 use gtk4::prelude::*;

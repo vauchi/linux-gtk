@@ -6,8 +6,6 @@
 mod action_list;
 mod avatar_preview;
 mod banner;
-mod card_preview;
-mod contact_list;
 mod divider;
 mod dropdown;
 mod editable_text;
@@ -15,7 +13,9 @@ mod field_list;
 pub mod icons;
 mod info_panel;
 mod inline_confirm;
+mod list;
 mod pin_input;
+mod preview;
 mod qr_code;
 mod settings_group;
 mod slider;
@@ -106,7 +106,7 @@ pub fn render_component(
             selected_variant,
             visible_fields,
             ..
-        } => card_preview::render(
+        } => preview::render(
             name,
             avatar_data,
             fields,
@@ -128,7 +128,7 @@ pub fn render_component(
             items,
             searchable,
             ..
-        } => contact_list::render(id, items, searchable, on_action, tokens),
+        } => list::render(id, items, searchable, on_action, tokens),
         Component::SettingsGroup {
             id, label, items, ..
         } => settings_group::render(id, label, items, on_action, tokens),
