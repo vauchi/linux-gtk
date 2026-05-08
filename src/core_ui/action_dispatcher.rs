@@ -457,6 +457,19 @@ fn handle_exchange_commands(
                     }
                 }
             }
+            // Phase 2c screen-presentation: orientation lock is a
+            // mobile concept — desktop windows are user-resizable and
+            // don't rotate with the device. Answer unavailable.
+            Command::SetOrientationLock { .. } => {
+                if notified_unavailable.insert("orientation_lock") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "orientation_lock".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
 
             _ => {
                 // Future exchange command — no-op until implemented.
