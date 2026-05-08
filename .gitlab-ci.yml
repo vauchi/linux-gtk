@@ -87,8 +87,15 @@ lint:locale-key-coverage:
   needs: []
   before_script:
     - apk add --no-cache bash ripgrep jq git findutils
+    # Always pull the latest locales/main. GitLab runners can preserve
+    # `../locales` across job retries on the same machine, and a stale
+    # clone causes the gate to fire on keys the current
+    # `vauchi/locales` main has already shipped.
     - |
-      if [ ! -d ../locales ]; then
+      if [ -d ../locales ]; then
+        git -C ../locales fetch --depth=1 origin main
+        git -C ../locales reset --hard origin/main
+      else
         git clone --depth=1 https://gitlab.com/vauchi/locales.git ../locales
       fi
   script:
