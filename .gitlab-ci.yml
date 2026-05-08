@@ -66,27 +66,25 @@ lint:clippy:
 # linux-gtk's CI doesn't include `content-fetch.yml` (no
 # `.clone-locales` template available).
 #
-# Why `allow_failure: true` initially: first run on `src/` surfaced
-# 19 keys in the `platform.*` namespace (BLE / NFC / QR / audio /
-# button strings) referenced in production code but absent from
-# every locale file. These are real "Missing: <key>" bugs waiting
-# to ship in linux-gtk's UI. Resolving them requires designing the
-# `platform.*` strings + adding to en.json — separate UX work tracked
-# as a follow-up. Once reconciled, flip to `allow_failure: false` in
-# a one-line tighten-up MR.
+# All 32 referenced keys exist across en/de/fr/es/it after the
+# `platform.*` namespace landed in `vauchi/locales!60` (19 BLE /
+# NFC / QR / audio / button strings). The gate now blocks: any
+# new typo or stale call site fails the MR pipeline instead of
+# shipping as the runtime fallback `Missing: <key>` from
+# `vauchi_app::i18n::get_string`.
 #
 # Variable-key call sites (`get_string(locale, &computed_key)`) are
 # statically unreachable and not validated here — covered by test
 # discipline + runtime fallback.
 #
 # Wired 2026-05-08 as Phase 4-linux-gtk of
-# `_private!2026-05-08-locale-key-coverage-fanout-linux-gtk`.
+# `_private!2026-05-08-locale-key-coverage-fanout-linux-gtk`;
+# tightened to blocking in this MR after `locales!60` merged.
 lint:locale-key-coverage:
   stage: lint
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.21
   tags: [docker]
   needs: []
-  allow_failure: true
   before_script:
     - apk add --no-cache bash ripgrep jq git findutils
     - |
