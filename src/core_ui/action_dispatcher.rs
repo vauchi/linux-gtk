@@ -405,6 +405,59 @@ fn handle_exchange_commands(
                 );
             }
 
+            // Phase 2b screen-presentation lifecycle commands. Linux
+            // desktop has no programmatic brightness control (the user
+            // owns it via system settings) and the OS-level idle timer
+            // / screensaver is owned by GNOME / KDE / etc. — answer
+            // unavailable so core does not retry. The command/event
+            // protocol treats this as "request honoured at platform
+            // default."
+            Command::SetScreenBrightness { .. } => {
+                if notified_unavailable.insert("screen_brightness") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "screen_brightness".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
+            Command::SetIdleTimerDisabled { .. } => {
+                if notified_unavailable.insert("idle_timer") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "idle_timer".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
+            // ShowShareSheet is the iOS / Android system share affordance;
+            // Linux desktop has no equivalent (the user copy/pastes the
+            // URL or uses the app's own share dialog). Answer unavailable.
+            Command::ShowShareSheet { .. } => {
+                if notified_unavailable.insert("share_sheet") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "share_sheet".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
+            // SwitchCamera is multi-stage exchange's front/rear flip —
+            // desktop webcams don't have a front/rear distinction.
+            Command::SwitchCamera { .. } => {
+                if notified_unavailable.insert("camera_switch") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "camera_switch".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
+
             _ => {
                 // Future exchange command — no-op until implemented.
             }
