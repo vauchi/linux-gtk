@@ -56,6 +56,54 @@ lint:clippy:
   before_script:
     - !reference [.self-hosted, before_script]
 
+# Locale key coverage — extract i18n keys referenced in Rust source
+# (`vauchi_app::i18n::get_string("…")`) and verify each one exists in
+# `en.json`. Catches typos and stale call sites before they ship as
+# the runtime fallback `Missing: <key>`.
+#
+# Pattern mirrors `vauchi/core!777`: alpine + apk add the tools, clone
+# `vauchi/locales`, run script via positional API. Inline clone since
+# linux-gtk's CI doesn't include `content-fetch.yml` (no
+# `.clone-locales` template available).
+#
+# Why `allow_failure: true` initially: first run on `src/` surfaced
+# 19 keys in the `platform.*` namespace (BLE / NFC / QR / audio /
+# button strings) referenced in production code but absent from
+# every locale file. These are real "Missing: <key>" bugs waiting
+# to ship in linux-gtk's UI. Resolving them requires designing the
+# `platform.*` strings + adding to en.json — separate UX work tracked
+# as a follow-up. Once reconciled, flip to `allow_failure: false` in
+# a one-line tighten-up MR.
+#
+# Variable-key call sites (`get_string(locale, &computed_key)`) are
+# statically unreachable and not validated here — covered by test
+# discipline + runtime fallback.
+#
+# Wired 2026-05-08 as Phase 4-linux-gtk of
+# `_private!2026-05-08-locale-key-coverage-fanout-linux-gtk`.
+lint:locale-key-coverage:
+  stage: lint
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.21
+  tags: [docker]
+  needs: []
+  allow_failure: true
+  before_script:
+    - apk add --no-cache bash ripgrep jq git findutils
+    - |
+      if [ ! -d ../locales ]; then
+        git clone --depth=1 https://gitlab.com/vauchi/locales.git ../locales
+      fi
+  script:
+    - bash ../locales/scripts/check-locale-key-coverage.sh
+        src ../locales '*.rs'
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "src/**/*.rs"
+          - ".gitlab-ci.yml"
+
 build:app:
   extends: [.linux-runner, .timeout-standard]
   stage: build
