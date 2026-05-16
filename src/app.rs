@@ -357,15 +357,7 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
     let tokens = DesignTokens::default();
     for tab in tabs {
         let row = gtk4::ListBoxRow::builder().build();
-        // Expose row label to AT-SPI so assistive tech can navigate sidebar.
-        // Role override (`Button`) makes GTK4's AT-SPI bridge surface a
-        // click action on `do_action(0)` — without it the row's default
-        // `list-item` role exposes no action, so a screen reader (and the
-        // AT-SPI snapshot test in `tests/atspi/test_snapshots.py`) cannot
-        // activate sidebar items. The visible widget keeps its
-        // `ListBoxRow` styling; only the accessible role announcement
-        // changes. See `2026-05-16-linux-gtk-atspi-sidebar-navigate`.
-        row.set_accessible_role(gtk4::AccessibleRole::Button);
+        // Expose row label to AT-SPI so assistive tech can navigate sidebar
         row.update_property(&[gtk4::accessible::Property::Label(&tab.label)]);
         let label = Label::builder()
             .label(&tab.label)
