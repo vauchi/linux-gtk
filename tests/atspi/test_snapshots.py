@@ -76,26 +76,21 @@ def _wait_for_labels_loaded(app, timeout=5.0):
 
 
 def _navigate_to(app, screen_label):
-    """Navigate to a sidebar screen via AT-SPI action."""
-    sidebar = find_one(app, name="Navigation")
-    if sidebar is None:
-        return False
-    items = find_all(sidebar, role="button", max_depth=5)
-    for item in items:
-        if item.get_name() == screen_label:
-            try:
-                action = item.get_action_iface()
-                if action and action.get_n_actions() > 0:
-                    action.do_action(0)
-                    wait_until(
-                        lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                        timeout=3.0,
-                        message=f"Screen should render after clicking '{screen_label}'",
-                    )
-                    return True
-            except Exception:
-                return False
-    return False
+    """Navigate to a sidebar screen via AT-SPI action.
+
+    Delegates to `test_interactions.navigate_to` so the snapshot
+    discovery path matches the test:a11y reachability path. Pulling
+    the two implementations apart caused MR !123 to flag navigation
+    as failed for every screen even though test:a11y's identical
+    flow passed: the local copy here tried only `role="button"` and
+    bailed on the first action-interface miss, whereas
+    `navigate_to` falls back to `role="label"` (the label child of
+    each row inherits the row's accessible-action wiring under some
+    AT-SPI bridge versions). One source, one behaviour.
+    """
+    from test_interactions import navigate_to as _shared_navigate_to
+
+    return _shared_navigate_to(app, screen_label)
 
 
 def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> float:
