@@ -28,12 +28,8 @@ from helpers import (
 def navigate_to(app, screen_label, timeout=5.0):
     """Navigate to a sidebar screen via AT-SPI action.
 
-    Sidebar rows are `gtk4::ListBoxRow` with their accessible role
-    overridden to `Button` (`linux-gtk/src/app.rs::populate_sidebar`)
-    so AT-SPI's bridge exposes a click action on `do_action(0)`.
-    Without the role override, rows announced as `list-item` had no
-    click action and `_navigate_to` was a no-op — see problem record
-    `2026-05-16-linux-gtk-atspi-sidebar-navigate`.
+    Only sidebar items are navigable — AT-SPI do_action(0) on list items
+    doesn't trigger navigation reliably for sub-screen (More) navigation.
 
     Raises AssertionError (via wait_until) when navigation fires but the
     screen takes longer than `timeout` seconds to render. This surfaces
@@ -45,7 +41,7 @@ def navigate_to(app, screen_label, timeout=5.0):
     if sidebar is None:
         return False
 
-    for role in ("button", "label"):
+    for role in ("list item", "label"):
         items = find_all(sidebar, role=role, max_depth=5)
         for item in items:
             if item.get_name() == screen_label:
@@ -82,7 +78,7 @@ class TestNavigateAllScreens:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        items = find_all(sidebar, role="button", max_depth=5)
+        items = find_all(sidebar, role="list item", max_depth=5)
         assert len(items) >= 5, (
             f"Expected >= 5 sidebar items, found {len(items)}.\n"
             f"Tree:\n{dump_tree(sidebar, 4)}"

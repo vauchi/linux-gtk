@@ -26,7 +26,7 @@ class TestKeyboardNavigation:
         """Sidebar navigation items should be focusable."""
         sidebar = find_one(gtk_app, name="Navigation")
         if sidebar:
-            items = find_all(sidebar, role="button", max_depth=5)
+            items = find_all(sidebar, role="list item", max_depth=5)
             # List items should exist
             assert isinstance(items, list)
 
