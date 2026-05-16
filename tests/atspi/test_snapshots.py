@@ -47,7 +47,7 @@ def _sidebar_names(app):
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
         return []
-    items = find_all(sidebar, role="list item", max_depth=5)
+    items = find_all(sidebar, role="button", max_depth=5)
     return [i.get_name() for i in items if i.get_name()]
 
 
@@ -80,7 +80,7 @@ def _navigate_to(app, screen_label):
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
         return False
-    items = find_all(sidebar, role="list item", max_depth=5)
+    items = find_all(sidebar, role="button", max_depth=5)
     for item in items:
         if item.get_name() == screen_label:
             try:
@@ -170,7 +170,7 @@ class TestScreenSnapshots:
         # after the app loads real translations — every nav call fails.
         # See 2026-04-22-ci-pipeline-health-audit T2.1 root-cause.
         labels_loaded = _wait_for_labels_loaded(gtk_app, timeout=5.0)
-        items = find_all(sidebar, role="list item", max_depth=5)
+        items = find_all(sidebar, role="button", max_depth=5)
         screen_names = [i.get_name() for i in items if i.get_name()]
         assert len(screen_names) >= 4, (
             f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names} "

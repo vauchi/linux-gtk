@@ -19,7 +19,7 @@ class TestSidebarNavigation:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        items = find_all(sidebar, role="list item", max_depth=5)
+        items = find_all(sidebar, role="button", max_depth=5)
         item_names = [i.get_name() for i in items if i.get_name()]
         assert len(item_names) >= EXPECTED_SIDEBAR_COUNT, (
             f"Expected >= {EXPECTED_SIDEBAR_COUNT} sidebar items, "
@@ -32,7 +32,7 @@ class TestSidebarNavigation:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        items = find_all(sidebar, role="list item", max_depth=5)
+        items = find_all(sidebar, role="button", max_depth=5)
         for item in items:
             name = item.get_name()
             assert name and len(name) > 0, (
@@ -45,7 +45,7 @@ class TestSidebarNavigation:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        items = find_all(sidebar, role="list item", max_depth=5)
+        items = find_all(sidebar, role="button", max_depth=5)
         assert len(items) > 0, "No sidebar items found"
 
         for item in items:

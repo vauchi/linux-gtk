@@ -30,7 +30,7 @@ class TestSidebar:
         nav = find_one(gtk_app, name="Navigation")
         if nav is None:
             pytest.skip("No sidebar found")
-        rows = find_all(nav, role="list item")
+        rows = find_all(nav, role="button")
         if len(rows) <= 1:
             pytest.skip(
                 "App on onboarding (1 sidebar row) — "
