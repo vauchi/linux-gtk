@@ -87,17 +87,19 @@ lint:locale-key-coverage:
   needs: []
   before_script:
     - apk add --no-cache bash ripgrep jq git findutils
-    # Always pull the latest locales/main. GitLab runners can preserve
-    # `../locales` across job retries on the same machine, and a stale
-    # clone causes the gate to fire on keys the current
-    # `vauchi/locales` main has already shipped.
+    # Always start from a fresh clone of locales/main. GitLab runners
+    # preserve `../locales` across job retries on the same machine, and
+    # `git fetch --depth=1 + reset --hard origin/main` (the previous
+    # cache-friendly path) does NOT reliably refresh the worktree to
+    # the new tip — `git reset --hard` reports success while the
+    # on-disk `en.json` still reflects the cached pre-fetch state.
+    # Pipeline 2529593186 hit exactly this on MR !122: failed run and
+    # retry both checked out `140f679` per the trace, but the failed
+    # run's `en.json` was missing keys the retry's had. The 5 MB
+    # re-clone takes ~2 s; cache-trust is not worth the flake.
     - |
-      if [ -d ../locales ]; then
-        git -C ../locales fetch --depth=1 origin main
-        git -C ../locales reset --hard origin/main
-      else
-        git clone --depth=1 https://gitlab.com/vauchi/locales.git ../locales
-      fi
+      rm -rf ../locales
+      git clone --depth=1 https://gitlab.com/vauchi/locales.git ../locales
   script:
     - bash ../locales/scripts/check-locale-key-coverage.sh
         src ../locales '*.rs'
