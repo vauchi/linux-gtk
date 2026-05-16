@@ -192,11 +192,14 @@ test:a11y:
 # To regenerate: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots
 #
 # The 2026-04 AT-SPI navigate-action no-op (problem record
-# `2026-05-16-linux-gtk-atspi-sidebar-navigate`) was fixed in MR
-# !122 by overriding each sidebar row's accessible role to
-# `Button`, which surfaces a click action on `do_action(0)`.
-# `allow_failure` flipped to false once baselines committed in
-# this MR — see same record G2/G3.
+# `2026-05-16-linux-gtk-atspi-sidebar-navigate`) has not been
+# resolved: MR !122's `set_accessible_role(Button)` override
+# turned out to be a false positive (action interface callable
+# but a no-op at the widget level — all 3 captured baselines
+# had identical SHA256 bytes), and MR !125's
+# `gtk4::Button.flat` wrap triggered a mid-handler reentrancy
+# crash during Sync navigation. Status `deferred` on the
+# record. Keep `allow_failure: true` until a real fix lands.
 test:snapshots:
   allow_failure: true
   stage: test
