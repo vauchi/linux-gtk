@@ -5,6 +5,7 @@
 
 mod app;
 mod core_ui;
+mod locale;
 mod platform;
 
 fn main() {

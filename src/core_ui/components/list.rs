@@ -7,11 +7,12 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, ListBox, Orientation, SearchEntry, SelectionMode, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::i18n::{self, Locale};
+use vauchi_app::i18n;
 use vauchi_app::ui::{Item, UserAction};
 
 use super::super::screen_renderer::OnAction;
 use super::apply_a11y;
+use crate::locale::detect_locale;
 
 pub fn render(
     id: &str,
@@ -32,7 +33,7 @@ pub fn render(
 
     // Optional search entry
     if *searchable {
-        let locale = Locale::default();
+        let locale = detect_locale();
         let placeholder = i18n::get_string(locale, "contacts.search");
         let search = SearchEntry::builder()
             .placeholder_text(&placeholder)

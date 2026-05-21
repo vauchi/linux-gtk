@@ -19,11 +19,12 @@ mod inner {
     use libadwaita as adw;
     use libadwaita::prelude::*;
 
-    use vauchi_app::i18n::{self, Locale};
+    use vauchi_app::i18n;
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::locale::detect_locale;
 
     /// Result from the camera thread: either a decoded QR string or a frame for preview.
     enum CameraMsg {
@@ -66,7 +67,7 @@ mod inner {
         let stop_for_thread = stop.clone();
 
         // Build the preview dialog
-        let locale = Locale::default();
+        let locale = detect_locale();
         let title = i18n::get_string(locale, "platform.qr_scan_title");
         let instruction = i18n::get_string(locale, "platform.qr_scan_instruction_camera");
         let cancel_label = i18n::get_string(locale, "platform.button_cancel");
@@ -141,7 +142,7 @@ mod inner {
                         stop_for_poll.store(true, Ordering::SeqCst);
                         dialog.close();
                         let msg = i18n::get_string_with_args(
-                            Locale::default(),
+                            detect_locale(),
                             "platform.camera_error",
                             &[("error", &e)],
                         );

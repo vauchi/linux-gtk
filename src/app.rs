@@ -12,12 +12,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
 
-use vauchi_app::i18n::{self, Locale};
+use vauchi_app::i18n;
 use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::{AppEngine, AppScreen, TabInfo, WorkflowEngine};
 use vauchi_core::api::VauchiEvent;
 
 use crate::core_ui::screen_renderer;
+use crate::locale::detect_locale;
 use crate::platform;
 
 const APP_ID: &str = "com.vauchi.desktop";
@@ -168,7 +169,7 @@ fn build_ui(app: &adw::Application) {
                 _ => None,
             };
             if let Some(idx) = index {
-                let tabs = app_engine.borrow().sidebar_items(Locale::default());
+                let tabs = app_engine.borrow().sidebar_items(detect_locale());
                 if let Some(screen) = tabs.get(idx).and_then(|t| AppScreen::from_screen_id(&t.id)) {
                     app_engine.borrow_mut().navigate_to(screen);
                     screen_renderer::render_app_engine_screen(
@@ -210,7 +211,7 @@ fn build_sidebar(
 
     populate_sidebar(
         &list_box,
-        &app_engine.borrow().sidebar_items(Locale::default()),
+        &app_engine.borrow().sidebar_items(detect_locale()),
     );
 
     let app_engine = app_engine.clone();
@@ -219,7 +220,7 @@ fn build_sidebar(
     let list_box_for_nav = list_box.clone();
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
-        let tabs = app_engine.borrow().sidebar_items(Locale::default());
+        let tabs = app_engine.borrow().sidebar_items(detect_locale());
         if let Some(screen) = tabs
             .get(index)
             .and_then(|t| AppScreen::from_screen_id(&t.id))
@@ -375,7 +376,7 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
 pub fn refresh_sidebar(list_box: &ListBox, app_engine: &Rc<RefCell<AppEngine>>) {
     populate_sidebar(
         list_box,
-        &app_engine.borrow().sidebar_items(Locale::default()),
+        &app_engine.borrow().sidebar_items(detect_locale()),
     );
 }
 
@@ -425,7 +426,7 @@ fn open_import_dialog(
 
     let dialog = gtk4::FileDialog::builder()
         .title(i18n::get_string(
-            Locale::default(),
+            detect_locale(),
             "platform.menu_import_contacts",
         ))
         .filters(&filters)
@@ -470,7 +471,7 @@ fn handle_import_file(
     let engine = app_engine.borrow();
     match engine.vauchi().import_contacts_from_vcf(&data) {
         Ok(result) => {
-            let locale = Locale::default();
+            let locale = detect_locale();
             let imported_count = result.imported.to_string();
             let imported_line = i18n::get_string_with_args(
                 locale,

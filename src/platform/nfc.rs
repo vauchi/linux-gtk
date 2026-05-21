@@ -23,11 +23,12 @@ mod inner {
     use gtk4::glib;
     use libadwaita as adw;
 
-    use vauchi_app::i18n::{self, Locale};
+    use vauchi_app::i18n;
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
     use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::locale::detect_locale;
 
     /// Vauchi NFC Application ID.
     const VAUCHI_AID: &[u8] = b"\xF0\x56\x41\x55\x43\x48\x49";
@@ -69,7 +70,7 @@ mod inner {
         let toast_overlay = toast_overlay.clone();
         let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
-        let msg = i18n::get_string(Locale::default(), "platform.nfc_waiting");
+        let msg = i18n::get_string(detect_locale(), "platform.nfc_waiting");
         let toast = adw::Toast::new(&msg);
         toast.set_timeout(5);
         toast_overlay.add_toast(toast);
@@ -97,7 +98,7 @@ mod inner {
                         handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                     }
                     let msg = i18n::get_string_with_args(
-                        Locale::default(),
+                        detect_locale(),
                         "platform.nfc_exchange_failed",
                         &[("error", &e)],
                     );
