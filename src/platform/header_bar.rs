@@ -3,10 +3,13 @@
 
 //! GNOME HeaderBar with app-specific actions.
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{self, gio};
 use libadwaita as adw;
-use vauchi_app::i18n::{self, Locale};
+use vauchi_app::i18n;
+
+use crate::locale::detect_locale;
 
 /// Builds an `adw::HeaderBar` with a menu containing About and Quit actions.
 ///
@@ -15,7 +18,7 @@ use vauchi_app::i18n::{self, Locale};
 pub fn build(app: &adw::Application) -> adw::HeaderBar {
     register_actions(app);
 
-    let locale = Locale::default();
+    let locale = detect_locale();
     let menu = gio::Menu::new();
     menu.append(
         Some(&i18n::get_string(locale, "platform.menu_import_contacts")),
@@ -34,6 +37,8 @@ pub fn build(app: &adw::Application) -> adw::HeaderBar {
         .icon_name("open-menu-symbolic")
         .menu_model(&menu)
         .build();
+    let menu_label = i18n::get_string(locale, "platform.app_menu");
+    menu_button.update_property(&[Property::Label(&menu_label)]);
 
     let header = adw::HeaderBar::builder().build();
     header.pack_end(&menu_button);

@@ -3,6 +3,7 @@
 
 //! Icon mapping — translates core icon identifiers to GTK symbolic icons.
 
+use gtk4::AccessibleRole;
 use gtk4::Widget;
 use gtk4::prelude::*;
 
@@ -11,6 +12,12 @@ use gtk4::prelude::*;
 /// Core sends icon identifiers like "lock", "shield", "edit" in InfoPanel
 /// and ActionList components. This maps them to the corresponding GTK
 /// symbolic icon names that render as scalable vector icons.
+///
+/// The returned `Image` is marked `AccessibleRole::Presentation` because
+/// every caller pairs the icon with a visible text label (ActionList row
+/// label, InfoPanel header, Slider min/max captions). The icon is
+/// decorative redundancy; exposing it to AT-SPI would force screen
+/// readers to double-announce.
 pub fn icon_widget(name: &str) -> Widget {
     let icon_name = match name {
         // Security
@@ -43,5 +50,7 @@ pub fn icon_widget(name: &str) -> Widget {
         _ => name,
     };
 
-    gtk4::Image::from_icon_name(icon_name).upcast()
+    let image = gtk4::Image::from_icon_name(icon_name);
+    image.set_accessible_role(AccessibleRole::Presentation);
+    image.upcast()
 }
