@@ -66,18 +66,6 @@ pub(crate) fn handle_app_engine_result(
         ActionResult::ShowAlert { title, message } => {
             show_alert(container, &title, &message);
         }
-        ActionResult::OpenContact { contact_id } => {
-            app_engine
-                .borrow_mut()
-                .navigate_to(vauchi_app::ui::AppScreen::ContactDetail { contact_id });
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-        ActionResult::EditContact { contact_id } => {
-            app_engine
-                .borrow_mut()
-                .navigate_to(vauchi_app::ui::AppScreen::ContactEdit { contact_id });
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
         ActionResult::OpenUrl { url } => {
             if let Err(e) = gtk4::gio::AppInfo::launch_default_for_uri(
                 &url,
@@ -136,8 +124,13 @@ pub(crate) fn handle_app_engine_result(
                 .navigate_to(vauchi_app::ui::AppScreen::VerifyFingerprint { contact_id });
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
-        ActionResult::PreviewAs { .. } | ActionResult::ShowContactPicker => {
-            // Resolved to NavigateTo by AppEngine before reaching here; re-render as fallback.
+        ActionResult::OpenContact { .. }
+        | ActionResult::EditContact { .. }
+        | ActionResult::PreviewAs { .. }
+        | ActionResult::ShowContactPicker => {
+            // Resolved to NavigateTo by AppEngine (`route_result`) before
+            // reaching here — the frontend never maps a domain action to a
+            // screen itself (ADR-043 Humble UI). Re-render as fallback.
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         _ => {
