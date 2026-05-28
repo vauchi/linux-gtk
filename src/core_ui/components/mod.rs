@@ -11,12 +11,14 @@ mod dropdown;
 mod editable_text;
 mod field_list;
 pub mod icons;
+mod indicator;
 mod info_panel;
 mod inline_confirm;
 mod list;
 mod pin_input;
 mod preview;
 mod qr_code;
+mod sectioned_action_list;
 mod settings_group;
 mod slider;
 mod status_indicator;
@@ -253,6 +255,17 @@ pub fn render_component(
             options,
             a11y,
         } => dropdown::render(id, label, selected, options, a11y, on_action, tokens),
+        Component::Indicator {
+            id,
+            label,
+            kind,
+            action_id,
+            a11y,
+            ..
+        } => indicator::render(id, label, *kind, action_id, a11y, on_action, tokens),
+        Component::SectionedActionList { id, sections, .. } => {
+            sectioned_action_list::render(id, sections, on_action, tokens)
+        }
         _ => gtk4::Label::builder()
             .label("[unsupported component]")
             .css_classes(["dim-label"])
