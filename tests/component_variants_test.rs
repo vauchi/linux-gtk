@@ -13,6 +13,7 @@ use vauchi_app::ui::{A11y, ActionListItem, Component, IndicatorKind, Section, Us
 
 // ── Indicator ───────────────────────────────────────────────────────
 
+// @internal
 #[test]
 fn indicator_with_action_id_roundtrips_via_json() {
     let original = Component::Indicator {
@@ -32,6 +33,7 @@ fn indicator_with_action_id_roundtrips_via_json() {
     assert_eq!(decoded, original);
 }
 
+// @internal
 #[test]
 fn indicator_display_only_skips_action_id_in_json() {
     let display_only = Component::Indicator {
@@ -50,6 +52,7 @@ fn indicator_display_only_skips_action_id_in_json() {
     assert_eq!(decoded, display_only);
 }
 
+// @internal
 #[test]
 fn indicator_kind_covers_all_four_variants() {
     for kind in [
@@ -71,6 +74,7 @@ fn indicator_kind_covers_all_four_variants() {
     }
 }
 
+// @internal
 #[test]
 fn indicator_decodes_from_spec_envelope() {
     // Wire envelope shape from the task spec — guards against accidental
@@ -94,6 +98,7 @@ fn indicator_decodes_from_spec_envelope() {
     }
 }
 
+// @internal
 #[test]
 fn indicator_carries_a11y_when_set() {
     let c = Component::Indicator {
@@ -125,6 +130,7 @@ fn item(id: &str, label: &str) -> ActionListItem {
     }
 }
 
+// @internal
 #[test]
 fn sectioned_action_list_roundtrips_via_json() {
     let original = Component::SectionedActionList {
@@ -151,6 +157,7 @@ fn sectioned_action_list_roundtrips_via_json() {
     assert_eq!(decoded, original);
 }
 
+// @internal
 #[test]
 fn sectioned_action_list_decodes_from_spec_envelope() {
     let raw = r#"{
@@ -186,6 +193,7 @@ fn sectioned_action_list_decodes_from_spec_envelope() {
     }
 }
 
+// @internal
 #[test]
 fn sectioned_action_list_supports_empty_section_list() {
     // Edge case: SectionedActionList with no sections still decodes
@@ -205,6 +213,7 @@ fn sectioned_action_list_supports_empty_section_list() {
 // the contract between core's walker and the renderer stays explicit.
 // If core changes the shape of these actions, this file fails to compile.
 
+// @internal
 #[test]
 fn indicator_tap_emits_action_pressed() {
     let action = UserAction::ActionPressed {
@@ -216,6 +225,7 @@ fn indicator_tap_emits_action_pressed() {
     }
 }
 
+// @internal
 #[test]
 fn sectioned_list_item_tap_emits_list_item_selected() {
     let action = UserAction::ListItemSelected {
