@@ -157,6 +157,25 @@ fn build_ui(app: &adw::Application) {
         let toast_overlay = toast_overlay.clone();
         let sidebar_list = sidebar_list.clone();
         key_ctrl.connect_key_pressed(move |_, key, _, modifier| {
+            // Escape → back. Routes through core's navigate_back(), which
+            // rewinds an engine-internal step (e.g. an exchange sub-flow)
+            // or pops the AppScreen nav-history. Gated on can_go_back() so
+            // Escape is a no-op at a root with nothing to pop.
+            if key == gtk4::gdk::Key::Escape
+                && !modifier.contains(gtk4::gdk::ModifierType::ALT_MASK)
+            {
+                if app_engine.borrow().can_go_back() {
+                    app_engine.borrow_mut().navigate_back();
+                    screen_renderer::render_app_engine_screen(
+                        &content,
+                        &app_engine,
+                        &toast_overlay,
+                        Some(&sidebar_list),
+                    );
+                    return gtk4::glib::Propagation::Stop;
+                }
+                return gtk4::glib::Propagation::Proceed;
+            }
             if !modifier.contains(gtk4::gdk::ModifierType::ALT_MASK) {
                 return gtk4::glib::Propagation::Proceed;
             }
