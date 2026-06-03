@@ -8,6 +8,10 @@ committed baselines. On first run (no baselines), generates them.
 On subsequent runs, diffs against baselines and fails if pixels
 diverge beyond threshold.
 
+Sidebar navigation itself (the AT-SPI ``do_action(0)`` path) is gated by
+the blocking ``test_navigation.py`` smoke test; this module is the
+visual-regression layer on top of it.
+
 Usage:
   # Generate baselines (first run or after UI changes):
   UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots -v
@@ -16,12 +20,15 @@ Usage:
   ./run-tests.sh -k test_snapshots -v
 """
 
+import hashlib
 import os
 import shutil
+import time
 
 import pytest
 
-from helpers import dump_tree, find_all, find_one, wait_until
+from helpers import find_all, find_one
+from navigation import navigate_to, wait_for_labels_loaded
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -31,6 +38,17 @@ DIFF_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "diff")
 # Pixel difference threshold (0.0 = exact match, 1.0 = completely different).
 # GTK rendering has minor anti-aliasing variance across runs — allow small diff.
 DIFF_THRESHOLD = 0.02  # 2% pixel difference allowed
+
+# Screens whose content is derived from the per-run test identity (avatars
+# and colours hashed from key material, activity timestamps) and therefore
+# vary run-to-run. They are still navigated to and captured — so they count
+# toward the navigation / distinct-capture gate — but are not committed as
+# baselines or pixel-compared, since their pixels are not reproducible while
+# the test identity is randomly generated per run (see conftest gtk_app).
+# Keep minimal: a screen belongs here only if its variance is inherent to
+# seeded data, not a render-timing artefact (those are handled by
+# _capture_stable) and not a real rendering bug.
+NONDETERMINISTIC_SCREENS = {"Activity", "Contacts", "My Card"}
 
 # Snapshot screens are discovered at runtime from the sidebar — labels depend
 # on i18n state (may be "My Card" or "Missing: nav.myCard" in CI without
@@ -42,60 +60,29 @@ def _screen_filename(name: str) -> str:
     return f"{name.lower().replace(' ', '_')}.png"
 
 
-def _sidebar_names(app):
-    """Return current sidebar item names (empty list if sidebar missing)."""
-    sidebar = find_one(app, name="Navigation")
-    if sidebar is None:
-        return []
-    items = find_all(sidebar, role="list item", max_depth=5)
-    return [i.get_name() for i in items if i.get_name()]
+def _capture_stable(filename, output_dir, attempts=6, interval=0.15):
+    """Capture until two consecutive frames are byte-identical.
 
-
-def _wait_for_labels_loaded(app, timeout=5.0):
-    """Wait for sidebar labels to resolve from i18n fallbacks.
-
-    Under load the app briefly renders "Missing: nav.myCard" etc. (the
-    i18n key placeholder) before the locale bundle finishes loading,
-    then switches to "My Card". A test that caches screen_names early
-    and then calls _navigate_to("Missing: nav.myCard") finds no match
-    in the now-translated sidebar — the root cause of ~9/20 linux-gtk
-    test:snapshots flakes observed 2026-04-22.
-
-    Returns True once no sidebar item name starts with "Missing: nav.",
-    or False on timeout.
+    AT-SPI reports the new screen (and `navigate_to` returns) before GTK
+    necessarily finishes painting it, so a single capture can catch a
+    half-rendered frame and produce spurious pixel diffs. Poll until the
+    rendered frame stops changing, then return that path. Returns the last
+    capture if it never settles (the comparison will then surface the real
+    instability rather than hiding it).
     """
-    import time
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        names = _sidebar_names(app)
-        if names and not any(n.startswith("Missing: nav.") for n in names):
-            return True
-        time.sleep(0.1)
-    return False
-
-
-def _navigate_to(app, screen_label):
-    """Navigate to a sidebar screen via AT-SPI action."""
-    sidebar = find_one(app, name="Navigation")
-    if sidebar is None:
-        return False
-    items = find_all(sidebar, role="list item", max_depth=5)
-    for item in items:
-        if item.get_name() == screen_label:
-            try:
-                action = item.get_action_iface()
-                if action and action.get_n_actions() > 0:
-                    action.do_action(0)
-                    wait_until(
-                        lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                        timeout=3.0,
-                        message=f"Screen should render after clicking '{screen_label}'",
-                    )
-                    return True
-            except Exception:
-                return False
-    return False
+    prev_bytes = None
+    path = None
+    for _ in range(attempts):
+        path = take_screenshot(filename, output_dir=output_dir)
+        if path is None:
+            return None
+        with open(path, "rb") as fh:
+            cur = fh.read()
+        if prev_bytes is not None and cur == prev_bytes:
+            return path
+        prev_bytes = cur
+        time.sleep(interval)  # poll interval for frame stability, not a fixed wait
+    return path
 
 
 def _parse_ae(stderr: str):
@@ -186,7 +173,7 @@ class TestScreenSnapshots:
         # (i18n fallback) then try to navigate by those stale strings
         # after the app loads real translations — every nav call fails.
         # See 2026-04-22-ci-pipeline-health-audit T2.1 root-cause.
-        labels_loaded = _wait_for_labels_loaded(gtk_app, timeout=5.0)
+        labels_loaded = wait_for_labels_loaded(gtk_app, timeout=5.0)
         items = find_all(sidebar, role="list item", max_depth=5)
         screen_names = [i.get_name() for i in items if i.get_name()]
         assert len(screen_names) >= 4, (
@@ -207,19 +194,29 @@ class TestScreenSnapshots:
         nav_failed: list[str] = []
         shot_failed: list[str] = []
         captured: list[str] = []
+        captured_hashes: dict[str, str] = {}
         for screen in screen_names:
-            if not _navigate_to(gtk_app, screen):
+            if not navigate_to(gtk_app, screen):
                 nav_failed.append(screen)
                 continue
 
             filename = _screen_filename(screen)
             os.makedirs(ACTUAL_DIR, exist_ok=True)
-            actual_path = take_screenshot(filename, output_dir=ACTUAL_DIR)
+            actual_path = _capture_stable(filename, ACTUAL_DIR)
             if actual_path is None:
                 shot_failed.append(screen)
                 continue
 
             captured.append(screen)
+            with open(actual_path, "rb") as fh:
+                captured_hashes[screen] = hashlib.sha256(fh.read()).hexdigest()
+
+            # Identity-derived screens vary run-to-run; they count toward
+            # the navigation / distinct-capture gate but are not baselined
+            # or pixel-compared (see NONDETERMINISTIC_SCREENS).
+            if screen in NONDETERMINISTIC_SCREENS:
+                continue
+
             baseline_path = os.path.join(BASELINE_DIR, filename)
             updating = os.environ.get("UPDATE_SNAPSHOTS", "") == "1"
 
@@ -254,7 +251,7 @@ class TestScreenSnapshots:
                 lines.append(
                     "Likely cause: AT-SPI navigation to every sidebar "
                     "item failed. Check the AT-SPI registry / a11y bus "
-                    "and `_navigate_to` in test_snapshots.py."
+                    "and `navigate_to` in navigation.py."
                 )
             elif shot_failed and not nav_failed:
                 lines.append(
@@ -263,6 +260,21 @@ class TestScreenSnapshots:
                     "under the same Xvfb display to isolate."
                 )
             pytest.fail("\n".join(lines))
+
+        # Distinct-capture gate (problem record G1). The 2026-05-16
+        # deferral was triggered by every "successful" navigation
+        # rendering the SAME initial screen — all captured baselines had
+        # identical SHA256. Each navigated screen must produce a visually
+        # distinct capture; require >= 4 unique hashes among the captured
+        # set so a regression back to the no-op navigation fails loudly
+        # instead of silently blessing identical bytes.
+        distinct = set(captured_hashes.values())
+        assert len(distinct) >= 4, (
+            "Sidebar navigation produced too few distinct screens: "
+            f"{len(distinct)} unique capture(s) across {len(captured)} "
+            f"navigated screen(s) {captured}. AT-SPI do_action(0) may be a "
+            "no-op again (see 2026-05-16-linux-gtk-atspi-sidebar-navigate)."
+        )
 
 
 # Regression: ImageMagick 7 prints `compare -metric AE` as "<count> (<norm>)".

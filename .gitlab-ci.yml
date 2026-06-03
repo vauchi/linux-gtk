@@ -191,14 +191,22 @@ test:a11y:
 # To regenerate: UPDATE_SNAPSHOTS=1 ./run-tests.sh -k test_snapshots
 #
 # The 2026-04 AT-SPI navigate-action no-op (problem record
-# `2026-05-16-linux-gtk-atspi-sidebar-navigate`) has not been
-# resolved: MR !122's `set_accessible_role(Button)` override
-# turned out to be a false positive (action interface callable
-# but a no-op at the widget level — all 3 captured baselines
-# had identical SHA256 bytes), and MR !125's
-# `gtk4::Button.flat` wrap triggered a mid-handler reentrancy
-# crash during Sync navigation. Status `deferred` on the
-# record. Keep `allow_failure: true` until a real fix lands.
+# `2026-05-16-linux-gtk-atspi-sidebar-navigate`) is FIXED: each sidebar
+# label is now wrapped in a flat `Button` (which exposes a working
+# AT-SPI "click" action), with activation deferred to an idle tick to
+# avoid the mid-handler reentrancy crash that sank the prior attempt.
+# The blocking regression guard for that fix is `test_navigation.py`
+# (runs under `test:a11y`, which is blocking) — it asserts do_action(0)
+# actually transitions screens, independent of pixels.
+#
+# This pixel-comparison gate stays `allow_failure: true` for now:
+# several screens (My Card, Contacts, Activity, …) render data derived
+# from the per-run RANDOM test identity (avatars/colours/timestamps), so
+# their pixels are not reproducible and the captured set is also
+# test-order dependent. Making this gate blocking needs a DETERMINISTIC
+# test identity (fixed keys) — tracked as the remaining G2/G3 work in the
+# problem record. Until then the job still runs (navigation + distinct-
+# capture gate) but does not block.
 test:snapshots:
   allow_failure: true
   stage: test

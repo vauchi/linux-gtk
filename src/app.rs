@@ -6,7 +6,7 @@
 use gtk4::accessible::Property;
 use gtk4::glib;
 use gtk4::prelude::*;
-use gtk4::{self, Box as GtkBox, Label, ListBox, Orientation, SelectionMode, gio};
+use gtk4::{self, Box as GtkBox, Button, Label, ListBox, Orientation, SelectionMode, gio};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -345,12 +345,19 @@ fn register_notification_poll(app: &adw::Application, app_engine: &Rc<RefCell<Ap
 fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
     // Check if rebuild is needed by comparing labels, not just count.
     // Count-only comparison misses changes when the set mutates but size stays the same.
+    // Each row's child is a flat Button wrapping the Label (see below for
+    // why), so the label text is read one level deeper than the widget tree
+    // suggests — through the Button. Reading it wrong collapses this fast
+    // path and rebuilds the sidebar on every navigation, which is exactly
+    // the reentrancy that crashed the earlier Button-wrap attempt.
     let current_labels = {
         let mut labels = Vec::new();
         let mut child = list_box.first_child();
         while let Some(widget) = child {
             if let Some(row) = widget.downcast_ref::<gtk4::ListBoxRow>()
-                && let Some(label_widget) = row.child()
+                && let Some(button_widget) = row.child()
+                && let Some(button) = button_widget.downcast_ref::<Button>()
+                && let Some(label_widget) = button.child()
                 && let Some(label) = label_widget.downcast_ref::<Label>()
             {
                 labels.push(label.text());
@@ -377,8 +384,9 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
     let tokens = DesignTokens::default();
     for tab in tabs {
         let row = gtk4::ListBoxRow::builder().build();
-        // Expose row label to AT-SPI so assistive tech can navigate sidebar
+        // Expose row label to AT-SPI so assistive tech can find the item.
         row.update_property(&[gtk4::accessible::Property::Label(&tab.label)]);
+
         let label = Label::builder()
             .label(&tab.label)
             .halign(gtk4::Align::Start)
@@ -386,8 +394,36 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
             .margin_bottom(tokens.spacing.sm as i32)
             .margin_start(tokens.spacing_direction.list_item_inline_start as i32)
             .build();
-        row.set_child(Some(&label));
+
+        // Wrap the label in a flat Button. A plain ListBoxRow exposes NO
+        // AT-SPI Action, so screen-reader / AT-SPI `do_action(0)`
+        // navigation is a silent no-op (problem record
+        // 2026-05-16-linux-gtk-atspi-sidebar-navigate). A Button exposes a
+        // working "click" action; its handler re-drives the ListBox's
+        // existing `row-activated` navigation. Activation is deferred to an
+        // idle tick so `clicked` fully returns before render ->
+        // refresh_sidebar can rebuild (and drop) this very Button — the
+        // synchronous re-emit was what crashed the prior attempt.
+        let button = Button::builder()
+            .child(&label)
+            .css_classes(["flat"])
+            .hexpand(true)
+            .build();
+        button.update_property(&[gtk4::accessible::Property::Label(&tab.label)]);
+        row.set_child(Some(&button));
         list_box.append(&row);
+
+        let list_box_weak = list_box.downgrade();
+        let row_weak = row.downgrade();
+        button.connect_clicked(move |_| {
+            let (Some(list_box), Some(row)) = (list_box_weak.upgrade(), row_weak.upgrade()) else {
+                return;
+            };
+            glib::idle_add_local_once(move || {
+                list_box.select_row(Some(&row));
+                list_box.emit_by_name::<()>("row-activated", &[&row]);
+            });
+        });
     }
 }
 
