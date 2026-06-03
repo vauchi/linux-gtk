@@ -1800,7 +1800,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "tokio",
  "tower-service",
  "tracing",
@@ -4071,8 +4071,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.51.21"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#1d8d7f981d4100b2b812f3b8df9ffd71ebde32f5"
+version = "0.51.36"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#9c666353c9feba533158ce07444a78b3d15b4930"
 dependencies = [
  "base64",
  "hex",
@@ -4091,8 +4091,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.51.21"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#1d8d7f981d4100b2b812f3b8df9ffd71ebde32f5"
+version = "0.51.36"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#9c666353c9feba533158ce07444a78b3d15b4930"
 dependencies = [
  "argon2",
  "async-trait",
@@ -4157,8 +4157,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.51.21"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#1d8d7f981d4100b2b812f3b8df9ffd71ebde32f5"
+version = "0.51.36"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#9c666353c9feba533158ce07444a78b3d15b4930"
 dependencies = [
  "serde",
  "serde_json",
@@ -4352,7 +4352,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
