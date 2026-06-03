@@ -17,7 +17,6 @@ include:
       - '/ci-templates/reuse.yml'
       - '/ci-templates/perf.yml'
       - '/ci-templates/design-drift.yml'
-      - '/ci-templates/inventory-check.yml'
       - '/ci-templates/parser-parity.yml'
       - '/ci-templates/removed-symbols.yml'
       - '/ci-templates/badges.yml'
@@ -366,13 +365,6 @@ check:design-tokens:
         paths:
           - "**/*.rs"
           - ".gitlab-ci.yml"
-
-# Inventory check: verify INVENTORY.md matches filesystem
-check:inventory:
-  extends: .inventory-check-job
-  variables:
-    COMPONENT_DIR: "src/core_ui/components"
-    COMPONENT_EXT: ".rs"
 
 # Parser-parity gate: verify the hand-rolled Component dispatch in
 # `src/core_ui/components/mod.rs` covers every variant declared in

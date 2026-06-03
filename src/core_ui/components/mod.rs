@@ -18,6 +18,7 @@ mod list;
 mod pin_input;
 mod preview;
 mod qr_code;
+mod row;
 mod sectioned_action_list;
 mod settings_group;
 mod slider;
@@ -266,6 +267,7 @@ pub fn render_component(
         Component::SectionedActionList { id, sections, .. } => {
             sectioned_action_list::render(id, sections, on_action, tokens)
         }
+        Component::Row { id, items, .. } => row::render(id, items, on_action, tokens),
         _ => gtk4::Label::builder()
             .label("[unsupported component]")
             .css_classes(["dim-label"])

@@ -15,7 +15,9 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vauchi_app::ui::{ActionStyle, AppEngine, ScreenModel, UserAction, WorkflowEngine};
+use vauchi_app::ui::{
+    ActionStyle, AppEngine, ScreenLayout, ScreenModel, UserAction, WorkflowEngine,
+};
 
 use super::components;
 
@@ -75,9 +77,19 @@ pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_a
     }
 
     // Wrap all content in a ScrolledWindow so long screens (Settings) can scroll.
+    // `ScreenLayout::Fixed` screens (e.g. the QR exchange) must not scroll or
+    // reflow — a moving QR breaks the peer camera lock
+    // (`2026-06-03-exchange-qr-scan-stability`). Disable vertical scrolling so
+    // the content stays sized to the viewport. Default `Scroll` is unchanged.
+    let vscroll_policy = if screen.layout == ScreenLayout::Fixed {
+        gtk4::PolicyType::Never
+    } else {
+        gtk4::PolicyType::Automatic
+    };
     let scrolled = gtk4::ScrolledWindow::builder()
         .vexpand(true)
         .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(vscroll_policy)
         .build();
     let inner = GtkBox::new(Orientation::Vertical, 0);
     let tokens = &screen.tokens;
