@@ -98,6 +98,22 @@ def _navigate_to(app, screen_label):
     return False
 
 
+def _parse_ae(stderr: str):
+    """Parse the pixel count from ImageMagick `compare -metric AE` output.
+
+    ImageMagick 7 prints the absolute-error count followed by a
+    normalized value in parentheses, e.g. ``"0 (0)"`` or
+    ``"1234 (0.0188)"``; older builds printed a bare integer such as
+    ``"0"``. Take the leading whitespace-separated token so both forms
+    parse. Returns ``None`` when there is no parsable leading number
+    (the caller treats that as a full diff).
+    """
+    try:
+        return float(stderr.strip().split()[0])
+    except (ValueError, AttributeError, IndexError):
+        return None
+
+
 def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> float:
     """Compare two images and return pixel difference ratio.
 
@@ -122,10 +138,11 @@ def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> flo
         timeout=30,
     )
 
-    # `compare` writes pixel count to stderr
-    try:
-        diff_pixels = int(result.stderr.strip())
-    except (ValueError, AttributeError):
+    # `compare` writes the AE pixel count to stderr. ImageMagick 7
+    # appends a normalized value in parentheses (e.g. "0 (0)"), so parse
+    # the leading token rather than int()-ing the whole string.
+    diff_pixels = _parse_ae(result.stderr)
+    if diff_pixels is None:
         return 1.0  # Can't parse — treat as full diff
 
     # Get image dimensions to compute ratio
@@ -246,3 +263,24 @@ class TestScreenSnapshots:
                     "under the same Xvfb display to isolate."
                 )
             pytest.fail("\n".join(lines))
+
+
+# Regression: ImageMagick 7 prints `compare -metric AE` as "<count> (<norm>)".
+# `int(stderr.strip())` raised ValueError on the parenthesised form and made
+# _compare_images report a full (100%) diff for byte-identical images.
+@pytest.mark.parametrize(
+    "stderr,expected",
+    [
+        ("0 (0)", 0.0),             # ImageMagick 7, identical images
+        ("1234 (0.0188)", 1234.0),  # ImageMagick 7, real diff
+        ("0", 0.0),                 # legacy ImageMagick 6, bare integer
+        ("4096\n", 4096.0),         # trailing whitespace
+    ],
+)
+def test_parse_ae_accepts_imagemagick_formats(stderr, expected):
+    assert _parse_ae(stderr) == expected
+
+
+@pytest.mark.parametrize("stderr", ["", "   ", "compare: images too dissimilar"])
+def test_parse_ae_returns_none_for_unparsable(stderr):
+    assert _parse_ae(stderr) is None
