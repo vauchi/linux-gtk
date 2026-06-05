@@ -395,6 +395,23 @@ fn handle_exchange_commands(
                     toast_overlay,
                     payload.clone(),
                     *is_initiator,
+                    false,
+                );
+            }
+            // Second wired leg: swap the AEAD-encrypted cards over a fresh TCP
+            // connection (the QR-payload leg closed its socket). Core decrypts
+            // the peer's card and completes the exchange.
+            Command::DirectSendCard {
+                ciphertext,
+                is_initiator,
+            } => {
+                execute_direct_send(
+                    container,
+                    app_engine,
+                    toast_overlay,
+                    ciphertext.clone(),
+                    *is_initiator,
+                    true,
                 );
             }
 
@@ -595,6 +612,10 @@ fn execute_direct_send(
     toast_overlay: &adw::ToastOverlay,
     payload: Vec<u8>,
     is_initiator: bool,
+    // `true` for the second (card) leg — report `DirectCardReceived` instead of
+    // `DirectPayloadReceived`. The TCP primitive is identical; only the
+    // engine-facing event differs.
+    card_leg: bool,
 ) {
     use std::sync::mpsc;
 
@@ -617,7 +638,11 @@ fn execute_direct_send(
     gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
         match rx.try_recv() {
             Ok(Ok(data)) => {
-                let event = Event::DirectPayloadReceived { data };
+                let event = if card_leg {
+                    Event::DirectCardReceived { ciphertext: data }
+                } else {
+                    Event::DirectPayloadReceived { data }
+                };
                 if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
                     handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
                 }
