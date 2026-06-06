@@ -34,6 +34,22 @@ stages:
   - package
   - deploy
 
+# Always-on gate for docs-only MRs. Every other job is change-gated to
+# code paths (src/**/*.rs, Cargo.toml, …), so a documentation-only MR
+# matches none of them and produces an empty pipeline — which GitLab
+# marks "failed" and, with only_allow_merge_if_pipeline_succeeds, blocks
+# the merge. This job runs on every MR so docs changes get a green
+# pipeline. See vauchi/linux-gtk!136.
+docs:gate:
+  stage: lint
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.21
+  tags: [docker]
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - echo "Non-code change — code gates intentionally skipped; docs MR may merge."
+
 # Blocks MRs with non-main branch refs in Cargo.toml git dependencies.
 check:branch-refs:
   extends: .check-git-branch-refs
