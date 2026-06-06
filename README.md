@@ -6,14 +6,15 @@
 [![Pipeline](https://img.shields.io/endpoint?url=https://vauchi.gitlab.io/linux-gtk/badges/pipeline.json&label=pipeline)](https://gitlab.com/vauchi/linux-gtk/-/pipelines)
 [![REUSE](https://api.reuse.software/badge/gitlab.com/vauchi/linux-gtk)](https://api.reuse.software/info/gitlab.com/vauchi/linux-gtk)
 
-> [!WARNING]
-> **Pre-Alpha Software** - This project is under heavy development
-> and not ready for production use.
-> APIs may change without notice. Use at your own risk.
+> [!NOTE]
+> **You're early — and that's the point.** Vauchi is pre-alpha and
+> under heavy development: not yet ready for production, and APIs may
+> change without notice. If you're here now, you can help shape it —
+> try it, break it, and tell us what's missing.
 
 # Vauchi Linux GTK
 
-Native Linux desktop app for Vauchi — privacy-focused contact card exchange.
+Native Linux desktop app for Vauchi — living contact cards, exchanged in person.
 
 Built with GTK4-rs (Rust). Uses `vauchi-core` as a direct Rust dependency (no FFI overhead).
 
