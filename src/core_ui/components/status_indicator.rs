@@ -32,13 +32,11 @@ pub fn render(
     container.set_margin_top(sm);
     container.set_margin_bottom(sm);
 
-    // Optional icon
     if let Some(icon_name) = icon {
         let icon_label = Label::builder().label(icon_name).build();
         container.append(&icon_label);
     }
 
-    // Title and detail
     let text_box = GtkBox::new(Orientation::Vertical, 2);
     text_box.set_hexpand(true);
 

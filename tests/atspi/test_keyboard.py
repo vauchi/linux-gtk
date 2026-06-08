@@ -19,7 +19,6 @@ class TestKeyboardNavigation:
         buttons = find_all(gtk_app, role="push button")
         for btn in buttons:
             # Buttons should be either sensitive or explicitly disabled
-            # Just verify we can check state
             assert isinstance(is_sensitive(btn), bool)
 
     def test_sidebar_items_are_focusable(self, gtk_app):

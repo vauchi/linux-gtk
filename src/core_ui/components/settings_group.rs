@@ -28,7 +28,6 @@ pub fn render(
     let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
-    // Group header
     let header = Label::builder()
         .label(label)
         .halign(gtk4::Align::Start)

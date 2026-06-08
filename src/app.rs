@@ -110,7 +110,6 @@ fn build_ui(app: &adw::Application) {
 
     root.append(&body);
 
-    // Render initial screen
     screen_renderer::render_app_engine_screen(&content, &app_engine, &toast_overlay, None);
 
     // Register event handler for background screen invalidation (Plan 2C).
@@ -376,7 +375,6 @@ fn populate_sidebar(list_box: &ListBox, tabs: &[TabInfo]) {
         return; // Same labels — no rebuild needed
     }
 
-    // Clear and rebuild
     while let Some(child) = list_box.first_child() {
         list_box.remove(&child);
     }

@@ -69,7 +69,6 @@ pub fn render(
         row.set_margin_start(inline_start);
         row.set_margin_end(inline_end);
 
-        // Avatar initials circle
         let avatar = Label::builder()
             .label(&contact.avatar_initials)
             .width_request(touch_min)
@@ -80,7 +79,6 @@ pub fn render(
             .build();
         row.append(&avatar);
 
-        // Name and subtitle
         let text_box = GtkBox::new(Orientation::Vertical, 2);
         text_box.set_hexpand(true);
 
@@ -101,7 +99,6 @@ pub fn render(
 
         row.append(&text_box);
 
-        // Status indicator
         if let Some(status) = &contact.status {
             let status_label = Label::builder()
                 .label(status)

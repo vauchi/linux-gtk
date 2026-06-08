@@ -55,11 +55,9 @@ pub fn render(
     warning_box.append(&warning_label);
     container.append(&warning_box);
 
-    // Button row
     let button_box = GtkBox::new(Orientation::Horizontal, sm);
     button_box.set_halign(gtk4::Align::End);
 
-    // Cancel button
     let cancel_btn = Button::builder()
         .label(cancel_text)
         .css_classes(["flat"])
@@ -75,7 +73,6 @@ pub fn render(
     }
     button_box.append(&cancel_btn);
 
-    // Confirm button
     let confirm_css = if *destructive {
         "destructive-action"
     } else {

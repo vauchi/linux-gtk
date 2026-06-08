@@ -35,7 +35,6 @@ pub fn render(
     // Core-driven a11y on the container (applies to the group as a whole).
     apply_a11y(&container, a11y);
 
-    // Label
     let lbl = Label::builder()
         .label(label)
         .halign(gtk4::Align::Center)
@@ -43,7 +42,6 @@ pub fn render(
         .build();
     container.append(&lbl);
 
-    // Pin digit entries in a horizontal row
     let pin_row = GtkBox::new(Orientation::Horizontal, sm);
     pin_row.set_halign(gtk4::Align::Center);
 
@@ -88,7 +86,6 @@ pub fn render(
 
     container.append(&pin_row);
 
-    // Validation error
     if let Some(error) = validation_error {
         let err_label = Label::builder()
             .label(error)

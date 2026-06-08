@@ -20,30 +20,24 @@ use gtk4::prelude::*;
 /// readers to double-announce.
 pub fn icon_widget(name: &str) -> Widget {
     let icon_name = match name {
-        // Security
         "lock" => "system-lock-screen-symbolic",
         "shield" => "security-high-symbolic",
         "key" => "dialog-password-symbolic",
         "warning" => "dialog-warning-symbolic",
 
-        // Actions
         "edit" => "document-edit-symbolic",
         "share" => "send-to-symbolic",
         "check" => "object-select-symbolic",
         "refresh" => "view-refresh-symbolic",
 
-        // People & contacts
         "people" | "group" => "system-users-symbolic",
         "card" | "contact" => "contact-new-symbolic",
 
-        // Devices & network
         "devices" | "device" => "computer-symbolic",
         "server" => "network-server-symbolic",
 
-        // Visibility
         "eye" => "view-reveal-symbolic",
 
-        // Data
         "backup" => "drive-harddisk-symbolic",
 
         // Fallback: try using the name directly as an icon name

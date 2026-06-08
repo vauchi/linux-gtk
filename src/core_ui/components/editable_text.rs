@@ -36,7 +36,6 @@ pub fn render(
     // Core-driven a11y overrides the default label when provided.
     apply_a11y(&container, a11y);
 
-    // Label
     let lbl = Label::builder()
         .label(label)
         .halign(gtk4::Align::Start)
@@ -94,7 +93,6 @@ pub fn render(
         edit_row.append(&save_btn);
         container.append(&edit_row);
 
-        // Validation error
         if let Some(error) = validation_error {
             let err = Label::builder()
                 .label(error)

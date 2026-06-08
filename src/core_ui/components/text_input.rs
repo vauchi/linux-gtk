@@ -34,7 +34,6 @@ pub fn render(
     let container = GtkBox::new(Orientation::Vertical, tokens.spacing.xs as i32);
     container.set_widget_name(id);
 
-    // Label
     let lbl = Label::builder()
         .label(label)
         .halign(gtk4::Align::Start)
@@ -91,7 +90,6 @@ pub fn render(
 
     container.append(&entry);
 
-    // Validation error
     if let Some(error) = validation_error {
         let err_label = Label::builder()
             .label(error)

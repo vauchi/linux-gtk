@@ -23,7 +23,6 @@ pub fn render(
     let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_widget_name(id);
 
-    // Header label
     let header = Label::builder()
         .label(label)
         .halign(gtk4::Align::Start)
@@ -31,7 +30,6 @@ pub fn render(
         .build();
     container.append(&header);
 
-    // List of toggles
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])

@@ -36,7 +36,6 @@ pub fn render(
     container.set_margin_start(md);
     container.set_margin_end(md);
 
-    // Avatar (circular image or initials fallback)
     if let Some(data) = avatar_data {
         let bytes = gtk4::glib::Bytes::from(data);
         let stream = gtk4::gio::MemoryInputStream::from_bytes(&bytes);
@@ -77,7 +76,6 @@ pub fn render(
     // of raw `fields` (which leaked Hidden fields into the preview).
     render_fields(&container, visible_fields, sm);
 
-    // Variant tabs
     if !variants.is_empty() {
         let tab_bar = GtkBox::new(Orientation::Horizontal, tokens.spacing.xs as i32);
         tab_bar.set_margin_top(sm);

@@ -31,7 +31,6 @@ pub fn render(
     let outer = GtkBox::new(Orientation::Vertical, sm);
     outer.set_widget_name(id);
 
-    // Label above the slider
     let lbl = Label::builder()
         .label(label)
         .halign(gtk4::Align::Start)

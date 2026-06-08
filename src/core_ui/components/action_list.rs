@@ -40,12 +40,10 @@ pub fn render(
         row.set_margin_start(inline_start);
         row.set_margin_end(inline_end);
 
-        // Optional icon
         if let Some(icon_name) = &item.icon {
             row.append(&super::icons::icon_widget(icon_name));
         }
 
-        // Label
         let label = Label::builder()
             .label(&item.label)
             .halign(gtk4::Align::Start)
@@ -53,7 +51,6 @@ pub fn render(
             .build();
         row.append(&label);
 
-        // Optional detail text
         if let Some(detail) = &item.detail {
             let detail_label = Label::builder()
                 .label(detail)

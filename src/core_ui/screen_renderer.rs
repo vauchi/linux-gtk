@@ -71,7 +71,6 @@ pub fn render_app_engine_screen(
 // ── Shared screen rendering ─────────────────────────────────────────
 
 pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnAction) {
-    // Clear existing children
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
@@ -107,7 +106,6 @@ pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_a
     // for flush_focused_entry compatibility.
     let content = &inner;
 
-    // Progress indicator
     if let Some(progress) = &screen.progress {
         let progress_text = if let Some(label) = &progress.label {
             format!(
@@ -126,7 +124,6 @@ pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_a
         content.append(&progress_label);
     }
 
-    // Title
     let title = Label::builder()
         .label(&screen.title)
         .css_classes(["title-1"])
@@ -137,7 +134,6 @@ pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_a
     title.set_widget_name("screen_title");
     content.append(&title);
 
-    // Subtitle
     if let Some(subtitle) = &screen.subtitle {
         let sub = Label::builder()
             .label(subtitle)

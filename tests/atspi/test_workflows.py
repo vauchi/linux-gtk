@@ -48,7 +48,6 @@ class TestNavigationWorkflow:
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
 
-        # Verify app is still responsive after loading
         labels = find_all(gtk_app, role="label")
         initial_count = len(labels)
         assert initial_count > 0, "No labels found initially"
