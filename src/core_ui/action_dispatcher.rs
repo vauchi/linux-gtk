@@ -481,6 +481,22 @@ fn handle_exchange_commands(
                 }
             }
 
+            // Capture-at-exchange (ADR-051): desktop GTK has no location
+            // provider wired (no geoclue dependency), so answer unavailable —
+            // consistent with camera/brightness/orientation above. This lets
+            // core clear the pending capture immediately instead of waiting
+            // out the request timeout. Silent (no toast): location is a
+            // background capture, not a user-initiated action.
+            Command::LocationRequest { .. } => {
+                if notified_unavailable.insert("location") {
+                    let event = Event::HardwareUnavailable {
+                        transport: "location".into(),
+                    };
+                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                        handle_app_engine_result(container, app_engine, toast_overlay, result);
+                    }
+                }
+            }
             _ => {
                 // Future exchange command — no-op until implemented.
             }
