@@ -64,7 +64,13 @@ pub fn render(
         .build();
     {
         let on_action = on_action.clone();
-        let action_id = format!("{}_cancel", id);
+        // Colon convention shared with iOS/Android renderers;
+        // `AppEngine::handle_action` normalizes it to the canonical
+        // `cancel_<id>` engines match. The previous `<id>_cancel`
+        // suffix form matched no engine handler — every InlineConfirm
+        // press was a silent no-op
+        // (2026-06-11-add-entry-form-cannot-be-exited).
+        let action_id = format!("{}:cancel", id);
         cancel_btn.connect_clicked(move |_| {
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
@@ -84,7 +90,7 @@ pub fn render(
         .build();
     {
         let on_action = on_action.clone();
-        let action_id = format!("{}_confirm", id);
+        let action_id = format!("{}:confirm", id);
         confirm_btn.connect_clicked(move |_| {
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
