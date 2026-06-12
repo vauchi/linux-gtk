@@ -32,6 +32,8 @@ vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "main", feat
 gtk4 = { version = "0.9", features = ["v4_10"] }
 libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = "0.14"
+# Decodes golden ScreenModel fixtures in the `render-fixture` catalog harness.
+serde_json = "1"
 
 # Audio proximity (ultrasonic via CPAL) — enabled by default
 # Uses CpalAudioBackend from vauchi-core
@@ -62,7 +64,6 @@ nokhwa = { version = "0.10", features = ["input-v4l"], optional = true }
 ignored = ["image", "nokhwa", "rqrr", "pcsc"]  # optional feature deps
 
 [dev-dependencies]
-serde_json = "1"
 tempfile = "3.0"
 
 # Release profile: optimized binary (matches cli/tui)
@@ -81,3 +82,4 @@ split-debuginfo = "unpacked"
 [profile.test]
 debug = "line-tables-only"
 split-debuginfo = "off"
+
