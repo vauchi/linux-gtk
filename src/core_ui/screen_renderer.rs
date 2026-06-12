@@ -70,7 +70,11 @@ pub fn render_app_engine_screen(
 
 // ── Shared screen rendering ─────────────────────────────────────────
 
-pub(crate) fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnAction) {
+/// Renders a standalone `ScreenModel` into `container`, driving every action
+/// through `on_action`. The `gvauchi` app reaches this via
+/// `render_app_engine_screen`; the `render-fixture` catalog harness calls it
+/// directly with a no-op handler to capture a screen in isolation.
+pub fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: &OnAction) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }

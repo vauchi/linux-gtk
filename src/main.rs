@@ -3,11 +3,6 @@
 
 //! Vauchi — native Linux desktop app (GTK4 + libadwaita).
 
-mod app;
-mod core_ui;
-mod locale;
-mod platform;
-
 fn main() {
-    app::run();
+    vauchi_gtk::app::run();
 }
