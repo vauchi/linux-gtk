@@ -49,11 +49,3 @@ def take_screenshot(filename: str, output_dir: str = "screenshots") -> str | Non
 
     return None
 
-
-def capture_screen_baseline(
-    screen_name: str,
-    design_dir: str = "../../design/screens",
-) -> str | None:
-    """Capture a screenshot for the design baseline."""
-    filename = f"{screen_name.lower().replace(' ', '_')}.png"
-    return take_screenshot(filename, output_dir=design_dir)

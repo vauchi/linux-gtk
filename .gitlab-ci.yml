@@ -390,7 +390,7 @@ check:parser-parity:
 check:removed-symbols:
   extends: .removed-symbols-job
   variables:
-    SEARCH_DIRS: "src/ tests/ design/"
+    SEARCH_DIRS: "src/ tests/"
 verify:upstream-compat:
   extends: [.linux-runner, .verify-on-upstream, .timeout-standard]
   stage: verify
