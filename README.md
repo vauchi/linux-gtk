@@ -22,7 +22,7 @@ Built with GTK4-rs (Rust). Uses `vauchi-core` as a direct Rust dependency (no FF
 
 - GTK4 development libraries (`libgtk-4-dev`)
 - libadwaita development libraries (`libadwaita-1-dev`)
-- Rust 1.78+ (see `rust-toolchain.toml`)
+- Rust 1.78+
 
 ## Build
 
@@ -36,7 +36,7 @@ cargo test
 This app implements the core-driven UI contract:
 
 - **ScreenRenderer** renders `ScreenModel` from core (direct Rust types)
-- **14 component renderers** map to core's `Component` enum variants using GTK4 widgets
+- **Component renderers** (one per core `Component` enum variant) using GTK4 widgets
 - **ActionHandler** maps user input to `UserAction` enum
 - **Platform chrome**: HeaderBar, GNotification, libadwaita styling
 
