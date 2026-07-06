@@ -52,6 +52,7 @@ pub fn render(
         container.append(&search);
     }
 
+    // TODO(HUMBLE): W — list hardcodes "Contacts" a11y label and local variable names; use generic list label from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     // Contact list
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::Single)

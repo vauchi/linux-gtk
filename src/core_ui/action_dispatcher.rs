@@ -78,6 +78,7 @@ pub(crate) fn handle_app_engine_result(
                 );
             }
         }
+        // TODO(HUMBLE): D — frontend maps StartDeviceLink to AppScreen::DeviceLinking instead of core emitting NavigateTo (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         ActionResult::StartDeviceLink => {
             app_engine
                 .borrow_mut()
@@ -118,6 +119,7 @@ pub(crate) fn handle_app_engine_result(
         ActionResult::Commands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
         }
+        // TODO(HUMBLE): D — frontend constructs VerifyFingerprint screen from domain result instead of core emitting NavigateTo (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         ActionResult::VerifyFingerprint { contact_id } => {
             app_engine
                 .borrow_mut()
@@ -398,6 +400,7 @@ fn handle_exchange_commands(
                     false,
                 );
             }
+            // TODO(HUMBLE): T — frontend distinguishes DirectSendCard from DirectSend via card_leg; core should emit a single opaque transport command (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
             // Second wired leg: swap the AEAD-encrypted cards over a fresh TCP
             // connection (the QR-payload leg closed its socket). Core decrypts
             // the peer's card and completes the exchange.
@@ -622,6 +625,7 @@ fn open_image_file_picker(
 /// TCP is blocking — spawning a thread prevents stalling the GTK main loop.
 /// Results are polled via `glib::timeout_add_local` and dispatched back
 /// to the engine as `Event`.
+// TODO(HUMBLE): T — card_leg parameter forces frontend to choose DirectCardReceived vs DirectPayloadReceived event; core should decide event type (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
 fn execute_direct_send(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,

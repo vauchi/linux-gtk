@@ -30,6 +30,7 @@ mod inner {
     use crate::core_ui::screen_renderer::handle_app_engine_result;
     use crate::locale::detect_locale;
 
+    // TODO(HUMBLE): T — frontend implements Vauchi APDU protocol (AID, EXCHANGE, SW1/SW2); move APDU framing into vauchi-core and forward raw bytes (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     /// Vauchi NFC Application ID.
     const VAUCHI_AID: &[u8] = b"\xF0\x56\x41\x55\x43\x48\x49";
 

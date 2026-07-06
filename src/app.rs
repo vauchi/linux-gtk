@@ -186,6 +186,7 @@ fn build_ui(app: &adw::Application) {
                 gtk4::gdk::Key::_5 => Some(4),
                 _ => None,
             };
+            // TODO(HUMBLE): D — keyboard shortcuts reverse-map TabInfo.id strings to AppScreen instead of using an opaque navigable handle from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
             if let Some(idx) = index {
                 let tabs = app_engine.borrow().sidebar_items(detect_locale());
                 if let Some(screen) = tabs.get(idx).and_then(|t| AppScreen::from_screen_id(&t.id)) {
@@ -236,6 +237,7 @@ fn build_sidebar(
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
     let list_box_for_nav = list_box.clone();
+    // TODO(HUMBLE): D — sidebar reverse-maps TabInfo.id strings to AppScreen instead of using an opaque navigable handle from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
         let tabs = app_engine.borrow().sidebar_items(detect_locale());
@@ -310,6 +312,7 @@ fn register_event_handler(
             for notif in &notifications {
                 let n = gio::Notification::new(&notif.title);
                 n.set_body(Some(&notif.body));
+                // TODO(HUMBLE): D — frontend maps NotificationCategory::EmergencyAlert to urgent OS priority instead of using core-provided urgency hint (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
                 if notif.category
                     == vauchi_app::notification_types::NotificationCategory::EmergencyAlert
                 {
@@ -472,6 +475,7 @@ fn open_import_dialog(
 
     let filter = gtk4::FileFilter::new();
     filter.add_pattern("*.vcf");
+    // TODO(HUMBLE): W — import dialog hardcodes English vCard file-filter label; core should provide localized filter label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     filter.set_name(Some("vCard Files (.vcf)"));
 
     let filters = gio::ListStore::new::<gtk4::FileFilter>();
@@ -522,6 +526,7 @@ fn handle_import_file(
     };
 
     let engine = app_engine.borrow();
+    // TODO(HUMBLE): T/W — frontend formats import results and relies on English "Missing:" sentinel; core should return a localized summary string (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     match engine.vauchi().import_contacts_from_vcf(&data) {
         Ok(result) => {
             let locale = detect_locale();

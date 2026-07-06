@@ -79,6 +79,7 @@ pub fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: 
         container.remove(&child);
     }
 
+    // TODO(HUMBLE): D — screen_renderer special-cases ScreenLayout::Fixed with a domain scenario comment instead of a generic scrollable flag from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     // Wrap all content in a ScrolledWindow so long screens (Settings) can scroll.
     // `ScreenLayout::Fixed` screens (e.g. the QR exchange) must not scroll or
     // reflow — a moving QR breaks the peer camera lock
@@ -157,6 +158,7 @@ pub fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: 
         content.append(&widget);
     }
 
+    // TODO(HUMBLE): D — screen_renderer overrides action.enabled for Primary buttons based on local entry text instead of driving enabled state from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     // Action buttons — respect engine's enabled state, but also dynamically
     // update sensitivity as the user types (without re-rendering).
     let button_box = GtkBox::new(Orientation::Horizontal, tokens.border_radius.md_lg as i32);

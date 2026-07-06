@@ -28,6 +28,7 @@ pub fn render(
 
     let frame = Frame::builder().css_classes(["card"]).build();
     frame.set_widget_name("card_preview");
+    // TODO(HUMBLE): W — preview hardcodes "Contact card" a11y label; core should supply a11y.label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     frame.update_property(&[Property::Label(&format!("Contact card: {}", name))]);
 
     let container = GtkBox::new(Orientation::Vertical, sm);

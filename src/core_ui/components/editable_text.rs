@@ -57,6 +57,7 @@ pub fn render(
             .valign(gtk4::Align::Center)
             .build();
 
+        // TODO(HUMBLE): T — editable_text invents {id}_save action ID; core should supply explicit save_action_id (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         // Save button: emit TextChanged with current value, then ActionPressed
         {
             let on_action = on_action.clone();
@@ -118,6 +119,7 @@ pub fn render(
             .valign(gtk4::Align::Center)
             .build();
 
+        // TODO(HUMBLE): T — editable_text invents {id}_edit action ID; core should supply explicit edit_action_id (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         let on_action = on_action.clone();
         let action_id = format!("{}_edit", id);
         edit_btn.connect_clicked(move |_| {

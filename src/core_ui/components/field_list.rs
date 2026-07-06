@@ -25,6 +25,7 @@ pub fn render(
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
+    // TODO(HUMBLE): W — field_list hardcodes English a11y label "Fields"; use core-supplied or localized label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     list_box.update_property(&[Property::Label("Fields")]);
 
     let sm = tokens.spacing.sm as i32;

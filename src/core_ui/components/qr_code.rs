@@ -36,6 +36,7 @@ pub fn render(
     container.set_halign(gtk4::Align::Center);
     container.set_widget_name(id);
 
+    // TODO(HUMBLE): W — qr_code hardcodes QR a11y labels; core should supply a11y.label or i18n keys (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     match mode {
         QrMode::Display => {
             container.update_property(&[Property::Label("QR code for contact exchange")]);
@@ -90,6 +91,7 @@ fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
                 .halign(gtk4::Align::Center)
                 .accessible_role(gtk4::AccessibleRole::Img)
                 .build();
+            // TODO(HUMBLE): W — qr_code hardcodes QR drawing area a11y label; core should supply a11y.label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
             drawing_area.update_property(&[Property::Label("QR code for contact exchange")]);
 
             drawing_area.set_draw_func(move |_area, cr, width, height| {

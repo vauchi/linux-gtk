@@ -41,6 +41,7 @@ pub fn render(
     // Warning icon + text
     let warning_box = GtkBox::new(Orientation::Horizontal, sm);
     let icon = Label::builder().label("⚠").build();
+    // TODO(HUMBLE): W — inline_confirm hardcodes English a11y label "Warning"; use core-supplied or localized label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     icon.update_property(&[Property::Label("Warning")]);
     warning_box.append(&icon);
     let warning_label = Label::builder()

@@ -23,6 +23,7 @@ pub fn render(
         .css_classes(["boxed-list"])
         .build();
     list_box.set_widget_name(id);
+    // TODO(HUMBLE): W — action_list hardcodes English a11y label "Actions"; use core-supplied or localized label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     list_box.update_property(&[Property::Label("Actions")]);
 
     let sm = tokens.spacing.sm as i32;

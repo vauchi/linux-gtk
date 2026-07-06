@@ -39,6 +39,7 @@ pub fn render(
             .build();
         apply_a11y(&btn, a11y);
         let on_action = on_action.clone();
+        // TODO(HUMBLE): W — avatar_preview hardcodes edit_avatar action ID; core should supply action ID (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         btn.connect_clicked(move |_| {
             on_action(UserAction::ActionPressed {
                 action_id: "edit_avatar".to_string(),
