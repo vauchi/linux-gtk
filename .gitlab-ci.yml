@@ -401,6 +401,7 @@ lint:humble:
   tags: [docker]
   needs: []
   before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
     - mkdir -p .ratchet-scripts
     - |
       curl --silent --fail \
