@@ -391,6 +391,38 @@ check:removed-symbols:
   extends: .removed-symbols-job
   variables:
     SEARCH_DIRS: "src/ tests/"
+
+# Humble-UI ratchet: block new domain logic / domain vocabulary leaks
+# into the view layer (ADR-043 Amendment 6). Snapshot counts are
+# tracked in vauchi/scripts; the ratchet may only drop.
+lint:humble:
+  stage: lint
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:3.11-slim
+  tags: [docker]
+  needs: []
+  before_script:
+    - mkdir -p .ratchet-scripts
+    - |
+      curl --silent --fail \
+        "${CI_API_V4_URL}/projects/vauchi%2Fscripts/repository/files/scripts%2Fhumble_check.py/raw?ref=main" \
+        -o .ratchet-scripts/humble_check.py
+      curl --silent --fail \
+        "${CI_API_V4_URL}/projects/vauchi%2Fscripts/repository/files/scripts%2Fhumble_check_rules.json/raw?ref=main" \
+        -o .ratchet-scripts/humble_check_rules.json
+      curl --silent --fail \
+        "${CI_API_V4_URL}/projects/vauchi%2Fscripts/repository/files/scripts%2Fhumble_check.baseline.json/raw?ref=main" \
+        -o .ratchet-scripts/humble_check.baseline.json
+  script:
+    - python3 .ratchet-scripts/humble_check.py --repo "${CI_PROJECT_NAME}" --repo-path "${CI_PROJECT_DIR}" --config .ratchet-scripts/humble_check_rules.json --check .ratchet-scripts/humble_check.baseline.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/main
+        paths:
+          - "src/**/*.rs"
+          - ".gitlab-ci.yml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
 verify:upstream-compat:
   extends: [.linux-runner, .verify-on-upstream, .timeout-standard]
   stage: verify
