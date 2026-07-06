@@ -53,6 +53,33 @@ def content_fingerprint(app) -> str:
     return dump_tree(app, max_depth=12)
 
 
+def _wait_for_stable_fingerprint(
+    app, timeout=2.0, interval=0.05, required_stable_reads=3
+):
+    """Return the first accessibility-tree fingerprint that stays
+    unchanged for `required_stable_reads` consecutive polls.
+
+    GTK re-renders clear and rebuild the content area, so a single read
+    can catch a transient intermediate tree. Waiting for stability avoids
+    treating a same-screen re-render (e.g. clicking the already-active
+    sidebar item) as a successful transition.
+    """
+    deadline = time.monotonic() + timeout
+    last = content_fingerprint(app)
+    stable = 1
+    while time.monotonic() < deadline:
+        time.sleep(interval)
+        current = content_fingerprint(app)
+        if current == last:
+            stable += 1
+            if stable >= required_stable_reads:
+                return current
+        else:
+            stable = 1
+            last = current
+    return last
+
+
 def navigate_to(app, screen_label):
     """Navigate to a sidebar screen via AT-SPI, confirming a real transition.
 
@@ -61,9 +88,9 @@ def navigate_to(app, screen_label):
     `do_action(0)` on the row is a silent no-op. The Button child exposes
     a working "click" action whose handler drives the ListBox's
     `row-activated` navigation (deferred app-side to an idle tick).
-    Returns True only once the content tree actually changes — so a screen
-    that fails to transition (or that is already current) reports False
-    instead of a false positive.
+    Returns True only once the content tree has changed and settled on a
+    new state — so a screen that fails to transition (or that is already
+    current) reports False instead of a false positive.
     """
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
@@ -81,13 +108,18 @@ def navigate_to(app, screen_label):
             before = content_fingerprint(app)
             action.do_action(0)
             # Activation is deferred app-side (idle tick); wait for the
-            # content to actually change so callers observe the new screen.
+            # content to actually start changing so callers observe motion.
             wait_until(
                 lambda: content_fingerprint(app) != before,
                 timeout=3.0,
                 message=f"Screen did not change after activating '{screen_label}'",
             )
-            return True
+            # A same-screen re-render changes the tree transiently while
+            # GTK clears and repopulates the content area, then settles
+            # back to the original fingerprint. Wait for stability and
+            # only report success if the final tree is genuinely different.
+            final = _wait_for_stable_fingerprint(app)
+            return final != before
         except Exception:
             return False
     return False
