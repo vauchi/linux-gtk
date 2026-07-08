@@ -28,10 +28,10 @@ mdns = ["dep:mdns-sd"]
 
 [dependencies]
 vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
-vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["network"] }
+vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "main", default-features = false, features = ["network"] }
 gtk4 = { version = "0.9", features = ["v4_10"] }
 libadwaita = { version = "0.7", features = ["v1_2"] }
-qrcode = "0.14"
+qrcode = { version = "0.14", default-features = false }
 # Decodes golden ScreenModel fixtures in the `render-fixture` catalog harness.
 serde_json = "1"
 
@@ -43,7 +43,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"], optio
 tokio-stream = { version = "0.1", optional = true }
 
 # Camera QR scanning — rqrr and image are portable; nokhwa is target-gated below.
-rqrr = { version = "0.9", optional = true }
+rqrr = { version = "0.10", optional = true }
 image = { version = "0.25", optional = true, default-features = false }
 
 # NFC exchange via PC/SC (pcsclite) — optional, requires USB NFC reader
