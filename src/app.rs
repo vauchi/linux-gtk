@@ -125,7 +125,7 @@ fn build_ui(app: &adw::Application) {
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
-        .title("Vauchi")
+        .title(i18n::get_string(detect_locale(), "app.name"))
         .default_width(700)
         .default_height(600)
         .content(&root)
