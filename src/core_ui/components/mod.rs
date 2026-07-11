@@ -223,15 +223,16 @@ pub fn render_component(
             initials,
             bg_color,
             brightness,
-            editable,
+            edit_action_id,
             a11y,
+            ..
         } => avatar_preview::render(
             id,
             image_data,
             initials,
             bg_color,
             *brightness,
-            *editable,
+            edit_action_id,
             a11y,
             on_action,
             tokens,

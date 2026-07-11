@@ -78,13 +78,6 @@ pub(crate) fn handle_app_engine_result(
                 );
             }
         }
-        // TODO(HUMBLE): D — frontend maps StartDeviceLink to AppScreen::DeviceLinking instead of core emitting NavigateTo (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-        ActionResult::StartDeviceLink => {
-            app_engine
-                .borrow_mut()
-                .navigate_to(vauchi_app::ui::AppScreen::DeviceLinking);
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
         ActionResult::RequestCamera => {
             scan_or_paste_qr(container, app_engine, toast_overlay);
         }
@@ -118,13 +111,6 @@ pub(crate) fn handle_app_engine_result(
         }
         ActionResult::Commands { commands } => {
             handle_exchange_commands(container, app_engine, toast_overlay, &commands);
-        }
-        // TODO(HUMBLE): D — frontend constructs VerifyFingerprint screen from domain result instead of core emitting NavigateTo (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-        ActionResult::VerifyFingerprint { contact_id } => {
-            app_engine
-                .borrow_mut()
-                .navigate_to(vauchi_app::ui::AppScreen::VerifyFingerprint { contact_id });
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
         }
         ActionResult::OpenContact { .. }
         | ActionResult::EditContact { .. }

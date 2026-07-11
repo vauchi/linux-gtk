@@ -20,7 +20,7 @@ pub fn render(
     initials: &str,
     bg_color: &Option<[u8; 3]>,
     _brightness: f32,
-    editable: bool,
+    edit_action_id: &Option<String>,
     a11y: &Option<A11y>,
     on_action: &OnAction,
     _tokens: &DesignTokens,
@@ -32,17 +32,16 @@ pub fn render(
     };
     avatar_widget.set_widget_name(id);
 
-    if editable {
+    if let Some(action_id) = edit_action_id.clone() {
         let btn = Button::builder()
             .child(&avatar_widget)
             .css_classes(["flat", "circular"])
             .build();
         apply_a11y(&btn, a11y);
         let on_action = on_action.clone();
-        // TODO(HUMBLE): W — avatar_preview hardcodes edit_avatar action ID; core should supply action ID (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         btn.connect_clicked(move |_| {
             on_action(UserAction::ActionPressed {
-                action_id: "edit_avatar".to_string(),
+                action_id: action_id.clone(),
             });
         });
         btn.upcast()

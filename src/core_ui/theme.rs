@@ -130,6 +130,7 @@ mod tests {
             error: "#f38ba8".to_string(),
             warning: "#fab387".to_string(),
             border: "#45475a".to_string(),
+            ..default_theme().colors
         };
 
         let css = generate_css(&colors);
@@ -218,6 +219,7 @@ mod tests {
             error: "#ff0000".to_string(),
             warning: "#ffff00".to_string(),
             border: "#333333".to_string(),
+            ..default_theme().colors
         };
         let light = ThemeColors {
             bg_primary: "#ffffff".to_string(),
@@ -231,6 +233,7 @@ mod tests {
             error: "#cc0000".to_string(),
             warning: "#cc8800".to_string(),
             border: "#cccccc".to_string(),
+            ..default_theme().colors
         };
 
         let dark_css = generate_css(&dark);
