@@ -3,14 +3,14 @@
 
 //! Preview component renderer (UI-shaped per ADR-044).
 
-use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Frame, Label, Orientation, ToggleButton, Widget};
 use vauchi_app::DesignTokens;
 use vauchi_app::i18n::{self, Locale};
-use vauchi_app::ui::{Field, PreviewVariant, UserAction};
+use vauchi_app::ui::{A11y, Field, PreviewVariant, UserAction};
 
 use super::super::screen_renderer::OnAction;
+use super::apply_a11y;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -22,14 +22,14 @@ pub fn render(
     visible_fields: &[Field],
     on_action: &OnAction,
     tokens: &DesignTokens,
+    a11y: &Option<A11y>,
 ) -> Widget {
     let sm = tokens.spacing.sm as i32;
     let md = tokens.spacing.md as i32;
 
     let frame = Frame::builder().css_classes(["card"]).build();
     frame.set_widget_name("card_preview");
-    // TODO(HUMBLE): W — preview hardcodes "Contact card" a11y label; core should supply a11y.label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-    frame.update_property(&[Property::Label(&format!("Contact card: {}", name))]);
+    apply_a11y(&frame, a11y);
 
     let container = GtkBox::new(Orientation::Vertical, sm);
     container.set_margin_top(md);

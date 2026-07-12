@@ -108,6 +108,7 @@ pub fn render_component(
             variants,
             selected_variant,
             visible_fields,
+            a11y,
             ..
         } => preview::render(
             name,
@@ -118,6 +119,7 @@ pub fn render_component(
             visible_fields,
             on_action,
             tokens,
+            a11y,
         ),
         Component::InfoPanel {
             id,
