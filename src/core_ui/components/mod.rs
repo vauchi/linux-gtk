@@ -91,13 +91,13 @@ pub fn render_component(
             id,
             fields,
             visibility_mode,
-            available_groups,
+            available_scopes,
             ..
         } => field_list::render(
             id,
             fields,
             visibility_mode,
-            available_groups,
+            available_scopes,
             on_action,
             tokens,
         ),

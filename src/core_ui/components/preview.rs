@@ -89,7 +89,7 @@ pub fn render(
         {
             let on_action = on_action.clone();
             all_btn.connect_clicked(move |_| {
-                (on_action)(UserAction::GroupViewSelected { group_name: None });
+                (on_action)(UserAction::VariantSelected { variant_id: None });
             });
         }
         tab_bar.append(&all_btn);
@@ -104,11 +104,8 @@ pub fn render(
             let variant_id = variant.variant_id.clone();
             let on_action = on_action.clone();
             btn.connect_clicked(move |_| {
-                // UserAction::GroupViewSelected is the wire surface from
-                // frontend → core today; rename to a UI-shaped action is a
-                // separate sweep (post-Wire-Humble Tier 1).
-                (on_action)(UserAction::GroupViewSelected {
-                    group_name: Some(variant_id.clone()),
+                (on_action)(UserAction::VariantSelected {
+                    variant_id: Some(variant_id.clone()),
                 });
             });
             tab_bar.append(&btn);

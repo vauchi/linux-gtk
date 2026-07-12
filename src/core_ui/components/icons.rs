@@ -30,15 +30,19 @@ pub fn icon_widget(name: &str) -> Widget {
         "check" => "object-select-symbolic",
         "refresh" => "view-refresh-symbolic",
 
-        "people" | "group" => "system-users-symbolic",
-        "card" | "contact" => "contact-new-symbolic",
+        "people" => "system-users-symbolic",
+        "id_card" => "contact-new-symbolic",
 
         "devices" | "device" => "computer-symbolic",
         "server" => "network-server-symbolic",
 
         "eye" => "view-reveal-symbolic",
 
-        "backup" => "drive-harddisk-symbolic",
+        "drive" => "drive-harddisk-symbolic",
+        "folder" => "folder-symbolic",
+        "lifebuoy" => "help-about-symbolic",
+        "swap" => "media-playlist-repeat-symbolic",
+        "checkmark.seal" => "emblem-ok-symbolic",
 
         // Fallback: try using the name directly as an icon name
         _ => name,

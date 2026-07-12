@@ -17,7 +17,7 @@ pub fn render(
     _id: &str,
     fields: &[Field],
     visibility_mode: &VisibilityMode,
-    available_groups: &[String],
+    available_scopes: &[String],
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -71,7 +71,7 @@ pub fn render(
                 render_per_group_toggles(
                     &row,
                     field,
-                    available_groups,
+                    available_scopes,
                     on_action,
                     tokens.spacing.xs as i32,
                 );
@@ -114,34 +114,34 @@ fn render_show_hide_toggle(row: &GtkBox, field: &Field, on_action: &OnAction) {
 fn render_per_group_toggles(
     row: &GtkBox,
     field: &Field,
-    available_groups: &[String],
+    available_scopes: &[String],
     on_action: &OnAction,
     group_spacing: i32,
 ) {
-    let active_groups: Vec<&str> = match &field.visibility {
-        UiFieldVisibility::Groups(groups) => groups.iter().map(|s| s.as_str()).collect(),
-        UiFieldVisibility::Shown => available_groups.iter().map(|s| s.as_str()).collect(),
+    let active_scopes: Vec<&str> = match &field.visibility {
+        UiFieldVisibility::Scopes(scopes) => scopes.iter().map(|s| s.as_str()).collect(),
+        UiFieldVisibility::Shown => available_scopes.iter().map(|s| s.as_str()).collect(),
         UiFieldVisibility::Hidden | _ => vec![],
     };
 
     let group_box = GtkBox::new(Orientation::Horizontal, group_spacing);
     group_box.set_valign(gtk4::Align::Center);
 
-    for group_name in available_groups {
-        let is_active = active_groups.contains(&group_name.as_str());
+    for scope_name in available_scopes {
+        let is_active = active_scopes.contains(&scope_name.as_str());
 
         let check = CheckButton::builder()
-            .label(group_name)
+            .label(scope_name)
             .active(is_active)
             .build();
 
         let on_action = on_action.clone();
         let field_id = field.id.clone();
-        let group_id = group_name.clone();
+        let scope_id = scope_name.clone();
         check.connect_toggled(move |btn| {
             (on_action)(UserAction::FieldVisibilityChanged {
                 field_id: field_id.clone(),
-                group_id: Some(group_id.clone()),
+                group_id: Some(scope_id.clone()),
                 visible: btn.is_active(),
             });
         });
