@@ -14,7 +14,7 @@ use std::sync::mpsc;
 
 use vauchi_app::i18n;
 use vauchi_app::theme::DesignTokens;
-use vauchi_app::ui::{AppEngine, AppScreen, TabInfo, WorkflowEngine};
+use vauchi_app::ui::{AppEngine, TabInfo, UserAction, WorkflowEngine};
 use vauchi_core::api::VauchiEvent;
 
 use crate::core_ui::screen_renderer;
@@ -186,11 +186,12 @@ fn build_ui(app: &adw::Application) {
                 gtk4::gdk::Key::_5 => Some(4),
                 _ => None,
             };
-            // TODO(HUMBLE): D — keyboard shortcuts reverse-map TabInfo.id strings to AppScreen instead of using an opaque navigable handle from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
             if let Some(idx) = index {
                 let tabs = app_engine.borrow().sidebar_items(detect_locale());
-                if let Some(screen) = tabs.get(idx).and_then(|t| AppScreen::from_screen_id(&t.id)) {
-                    app_engine.borrow_mut().navigate_to(screen);
+                if let Some(action_id) = tabs.get(idx).map(|t| t.action_id.clone()) {
+                    let _ = app_engine
+                        .borrow_mut()
+                        .handle_action(UserAction::NavigateToTab { action_id });
                     screen_renderer::render_app_engine_screen(
                         &content,
                         &app_engine,
@@ -237,15 +238,13 @@ fn build_sidebar(
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
     let list_box_for_nav = list_box.clone();
-    // TODO(HUMBLE): D — sidebar reverse-maps TabInfo.id strings to AppScreen instead of using an opaque navigable handle from core (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
     list_box.connect_row_activated(move |_, row| {
         let index = row.index() as usize;
         let tabs = app_engine.borrow().sidebar_items(detect_locale());
-        if let Some(screen) = tabs
-            .get(index)
-            .and_then(|t| AppScreen::from_screen_id(&t.id))
-        {
-            app_engine.borrow_mut().navigate_to(screen);
+        if let Some(action_id) = tabs.get(index).map(|t| t.action_id.clone()) {
+            let _ = app_engine
+                .borrow_mut()
+                .handle_action(UserAction::NavigateToTab { action_id });
             screen_renderer::render_app_engine_screen(
                 &content,
                 &app_engine,
