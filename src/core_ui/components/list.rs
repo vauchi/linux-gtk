@@ -71,7 +71,7 @@ pub fn render(
         row.set_margin_end(inline_end);
 
         let avatar = Label::builder()
-            .label(&contact.avatar_initials)
+            .label(&contact.initials)
             .width_request(touch_min)
             .height_request(touch_min)
             .halign(gtk4::Align::Center)

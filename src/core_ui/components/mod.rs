@@ -4,13 +4,13 @@
 //! Component renderers — one GTK4 widget per `Component` enum variant.
 
 mod action_list;
-mod avatar_preview;
 mod banner;
 mod divider;
 mod dropdown;
 mod editable_text;
 mod field_list;
 pub mod icons;
+mod image_circle;
 mod indicator;
 mod info_panel;
 mod inline_confirm;
@@ -103,7 +103,7 @@ pub fn render_component(
         ),
         Component::Preview {
             name,
-            avatar_data,
+            image_data,
             fields,
             variants,
             selected_variant,
@@ -111,7 +111,7 @@ pub fn render_component(
             ..
         } => preview::render(
             name,
-            avatar_data,
+            image_data,
             fields,
             variants,
             selected_variant,
@@ -217,7 +217,7 @@ pub fn render_component(
             action_id,
             ..
         } => banner::render(text, action_label, action_id, on_action, tokens),
-        Component::AvatarPreview {
+        Component::ImageCircle {
             id,
             image_data,
             initials,
@@ -226,7 +226,7 @@ pub fn render_component(
             edit_action_id,
             a11y,
             ..
-        } => avatar_preview::render(
+        } => image_circle::render(
             id,
             image_data,
             initials,

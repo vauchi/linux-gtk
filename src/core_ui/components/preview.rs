@@ -15,7 +15,7 @@ use super::super::screen_renderer::OnAction;
 #[allow(clippy::too_many_arguments)]
 pub fn render(
     name: &str,
-    avatar_data: &Option<Vec<u8>>,
+    image_data: &Option<Vec<u8>>,
     _fields: &[Field],
     variants: &[PreviewVariant],
     selected_variant: &Option<String>,
@@ -37,7 +37,7 @@ pub fn render(
     container.set_margin_start(md);
     container.set_margin_end(md);
 
-    if let Some(data) = avatar_data {
+    if let Some(data) = image_data {
         let bytes = gtk4::glib::Bytes::from(data);
         let stream = gtk4::gio::MemoryInputStream::from_bytes(&bytes);
         if let Ok(pixbuf) =

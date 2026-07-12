@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! AvatarPreview component renderer — circular avatar with initials fallback.
+//! ImageCircle component renderer — circular image with initials fallback.
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, Widget};
