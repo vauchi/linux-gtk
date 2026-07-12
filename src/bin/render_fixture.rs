@@ -11,6 +11,11 @@
 //! `gvauchi` would paint for that screen.
 //!
 //! Usage: render-fixture <fixture.json> <out.png> [width] [height]
+//!
+//! Passing `--keep-open` in place of `<out.png>` presents the window through
+//! the same renderer but skips capture and does not quit, so an external
+//! accessibility reader (pyatspi) can walk the live AT-SPI tree — used to
+//! assert core-driven a11y labels reach the rendered widgets.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -34,6 +39,7 @@ fn main() {
     let out_path = args.next().unwrap_or_else(|| usage());
     let width: i32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(440);
     let height: i32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1280);
+    let keep_open = out_path == "--keep-open";
 
     let json = std::fs::read_to_string(&fixture_path)
         .unwrap_or_else(|e| panic!("read fixture {fixture_path}: {e}"));
@@ -58,6 +64,11 @@ fn main() {
         render_screen_model(&container, &screen, &on_action);
         window.set_content(Some(&container));
         window.present();
+
+        if keep_open {
+            eprintln!("[render-fixture] keep-open: window presented for AT-SPI inspection");
+            return;
+        }
 
         let frames = Rc::new(Cell::new(0u32));
         let out_path = out_path.clone();

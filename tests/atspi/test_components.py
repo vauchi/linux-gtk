@@ -145,21 +145,6 @@ class TestPinInputComponent:
             )
 
 
-class TestCardPreviewComponent:
-    """Card preview rendered by card_preview.rs."""
-
-    def test_card_preview_has_contact_label(self, gtk_app):
-        """CardPreview frame must have 'Contact card: <name>' accessible label."""
-        cards = [
-            e for e in find_all(gtk_app, role="panel")
-            if e.get_name() and e.get_name().startswith("Contact card:")
-        ]
-        for card in cards:
-            assert card.get_name().startswith("Contact card:"), (
-                f"Card preview label should start with 'Contact card:', got: '{card.get_name()}'"
-            )
-
-
 class TestInfoPanelComponent:
     """Info panels rendered by info_panel.rs."""
 
