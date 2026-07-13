@@ -70,7 +70,15 @@ def _launch_and_find(binary, env, attempts=2, find_timeout=15.0):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        app_root = find_app("gvauchi", timeout=find_timeout)
+        deadline = time.monotonic() + find_timeout
+        app_root = None
+        while time.monotonic() < deadline and app_root is None:
+            # Fail fast if the process died before registering with AT-SPI,
+            # instead of waiting the full timeout on a dead child.
+            if proc.poll() is not None:
+                break
+            app_root = find_app("gvauchi", timeout=0.5)
+
         if app_root is not None:
             return proc, app_root
 

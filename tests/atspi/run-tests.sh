@@ -27,10 +27,39 @@ export UPDATE_SNAPSHOTS
 exec env XDG_CURRENT_DESKTOP=none \
     xvfb-run -s '-screen 0 1280x720x24' \
     dbus-run-session -- bash -c "
+        set -euo pipefail
+
         /usr/lib/at-spi-bus-launcher &
-        sleep 0.5
         /usr/lib/at-spi2-registryd &
-        sleep 0.5
+
+        # Poll for AT-SPI readiness instead of fixed sleeps. The previous
+        # 0.5s sleeps were sufficient on most runners but caused 'app did
+        # not appear in AT-SPI tree' flakes on loaded self-hosted runners
+        # where registryd took > 1s to accept connections.
+        python3 - <<'PY'
+import sys, time
+try:
+    import gi
+    gi.require_version('Atspi', '2.0')
+    from gi.repository import Atspi
+except Exception as exc:
+    print(f'WARNING: cannot import Atspi for readiness probe: {exc}', file=sys.stderr)
+    sys.exit(0)
+
+deadline = time.monotonic() + 10.0
+while time.monotonic() < deadline:
+    try:
+        desktop = Atspi.get_desktop(0)
+        if desktop is not None and desktop.get_child_count() >= 0:
+            print('AT-SPI registry ready')
+            sys.exit(0)
+    except Exception:
+        pass
+    time.sleep(0.1)
+print('ERROR: AT-SPI registry did not become ready within 10s', file=sys.stderr)
+sys.exit(1)
+PY
+
         cd \"$SCRIPT_DIR\"
         python3 -m pytest . \"\$@\" -v
     " _ "$@"
