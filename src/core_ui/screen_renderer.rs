@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use vauchi_app::ui::{
-    ActionStyle, AppEngine, ScreenLayout, ScreenModel, UserAction, WorkflowEngine,
+    ActionStyle, AppEngine, ScreenAction, ScreenLayout, ScreenModel, UserAction, WorkflowEngine,
 };
 
 use super::components;
@@ -110,6 +110,23 @@ pub fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: 
     // All content goes into `inner` (scrollable). Keep `container` reference
     // for flush_focused_entry compatibility.
     let content = &inner;
+
+    // Top/leading chrome actions (ADR-044 Am2a). Core owns which chrome
+    // affordances exist; the frontend renders them without interpreting the
+    // screen role. The reserved `go_back` id dispatches the system-back
+    // `UserAction` so the visible button and the Escape gesture share one
+    // code path.
+    if !screen.nav_actions.is_empty() {
+        let nav_box = GtkBox::new(Orientation::Horizontal, tokens.border_radius.md_lg as i32);
+        nav_box.set_margin_bottom(sm);
+        nav_box.set_halign(gtk4::Align::Start);
+
+        for action in &screen.nav_actions {
+            let btn = build_nav_action_button(action, on_action);
+            nav_box.append(&btn);
+        }
+        content.append(&nav_box);
+    }
 
     if let Some(progress) = &screen.progress {
         let progress_text = if let Some(label) = &progress.label {
@@ -221,6 +238,52 @@ pub fn render_screen_model(container: &GtkBox, screen: &ScreenModel, on_action: 
     if !dynamic_buttons.borrow().is_empty() {
         wire_dynamic_button_sensitivity(content, &dynamic_buttons);
     }
+}
+
+/// Build a top/leading chrome button from a core `ScreenAction`.
+///
+/// The reserved `go_back` id is rendered like a back affordance and emits
+/// `UserAction::NavigateBack`; all other nav actions emit
+/// `UserAction::ActionPressed` so core can resolve them (e.g. `open_settings`).
+fn build_nav_action_button(action: &ScreenAction, on_action: &OnAction) -> gtk4::Button {
+    let label = if action.id == "go_back" {
+        format!("← {}", action.label)
+    } else {
+        action.label.clone()
+    };
+
+    let btn = gtk4::Button::builder()
+        .label(&label)
+        .sensitive(action.enabled)
+        .build();
+    btn.set_widget_name(&action.id);
+    components::apply_a11y(&btn, &action.a11y);
+
+    match action.style {
+        ActionStyle::Primary => {
+            btn.add_css_class("suggested-action");
+            btn.add_css_class("pill");
+        }
+        ActionStyle::Destructive => {
+            btn.add_css_class("destructive-action");
+            btn.add_css_class("pill");
+        }
+        ActionStyle::Secondary | _ => {}
+    }
+
+    let on_action = on_action.clone();
+    let action_id = action.id.clone();
+    btn.connect_clicked(move |_| {
+        if action_id == "go_back" {
+            (on_action)(UserAction::NavigateBack);
+        } else {
+            (on_action)(UserAction::ActionPressed {
+                action_id: action_id.clone(),
+            });
+        }
+    });
+
+    btn
 }
 
 /// Connect all named Entry widgets to update button sensitivity when text changes.

@@ -60,6 +60,17 @@ pub(crate) fn handle_app_engine_result(
             let on_action = build_on_action(container, app_engine, toast_overlay);
             render_screen_model(container, &screen, &on_action);
         }
+        ActionResult::PerformNativeBack => {
+            // Back reached a back-stopping root. Desktop's native default is
+            // to exit the application (ADR-044 Am2a).
+            if let Some(window) = container
+                .root()
+                .and_then(|r| r.downcast::<gtk4::Window>().ok())
+                && let Some(app) = window.application()
+            {
+                app.quit();
+            }
+        }
         ActionResult::ValidationError { .. } | ActionResult::Complete => {
             render_app_engine_screen(container, app_engine, toast_overlay, None);
         }

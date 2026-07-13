@@ -14,7 +14,7 @@ use std::sync::mpsc;
 
 use vauchi_app::i18n;
 use vauchi_app::theme::DesignTokens;
-use vauchi_app::ui::{AppEngine, TabInfo, UserAction, WorkflowEngine};
+use vauchi_app::ui::{ActionResult, AppEngine, TabInfo, UserAction, WorkflowEngine};
 use vauchi_core::api::VauchiEvent;
 
 use crate::core_ui::screen_renderer;
@@ -120,8 +120,10 @@ fn build_ui(app: &adw::Application) {
     // Register import action (needs app_engine + content + toast_overlay)
     register_import_action(app, &app_engine, &content, &toast_overlay);
 
-    // Poll for notifications periodically (E)
-    register_notification_poll(app, &app_engine);
+    // Core-driven wakeup tick (ADR-044 Am2a). Replaces the frontend-owned
+    // 30-second `poll_notifications()` loop with `on_wakeup()` so core owns
+    // when work is due; the shell only executes the native timer.
+    register_wakeup_poll(app, &app_engine, &content, &toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -155,25 +157,40 @@ fn build_ui(app: &adw::Application) {
         let content = content.clone();
         let toast_overlay = toast_overlay.clone();
         let sidebar_list = sidebar_list.clone();
+        let app_for_back = app.clone();
         key_ctrl.connect_key_pressed(move |_, key, _, modifier| {
-            // Escape → back. Routes through core's navigate_back(), which
-            // rewinds an engine-internal step (e.g. an exchange sub-flow)
-            // or pops the AppScreen nav-history. Gated on can_go_back() so
-            // Escape is a no-op at a root with nothing to pop.
+            // Escape → system back (ADR-044 Am2a). Forwarded unconditionally
+            // to core; core owns the "pop or stop" decision and returns
+            // `PerformNativeBack` when there is nothing to pop. The GTK
+            // renderer has no persistent overlay to close first; transient
+            // modal dialogs consume Escape at the window level before this
+            // controller sees it.
             if key == gtk4::gdk::Key::Escape
                 && !modifier.contains(gtk4::gdk::ModifierType::ALT_MASK)
             {
-                if app_engine.borrow().can_go_back() {
-                    app_engine.borrow_mut().navigate_back();
-                    screen_renderer::render_app_engine_screen(
-                        &content,
-                        &app_engine,
-                        &toast_overlay,
-                        Some(&sidebar_list),
-                    );
-                    return gtk4::glib::Propagation::Stop;
+                let result = app_engine
+                    .borrow_mut()
+                    .handle_action(UserAction::NavigateBack);
+                match result {
+                    ActionResult::PerformNativeBack => {
+                        app_for_back.quit();
+                    }
+                    _ => {
+                        screen_renderer::handle_app_engine_result(
+                            &content,
+                            &app_engine,
+                            &toast_overlay,
+                            result,
+                        );
+                        screen_renderer::render_app_engine_screen(
+                            &content,
+                            &app_engine,
+                            &toast_overlay,
+                            Some(&sidebar_list),
+                        );
+                    }
                 }
-                return gtk4::glib::Propagation::Proceed;
+                return gtk4::glib::Propagation::Stop;
             }
             if !modifier.contains(gtk4::gdk::ModifierType::ALT_MASK) {
                 return gtk4::glib::Propagation::Proceed;
@@ -324,19 +341,47 @@ fn register_event_handler(
     });
 }
 
-/// Register a timer to poll for OS notifications every 30 seconds.
-fn register_notification_poll(app: &adw::Application, app_engine: &Rc<RefCell<AppEngine>>) {
+/// Register a core-driven wakeup tick every 30 seconds (ADR-044 Am2a).
+///
+/// Replaces the frontend-owned `poll_notifications()` loop with
+/// `PlatformAppEngine::on_wakeup()`. Core decides what work is due and emits
+/// the next `ScheduleWakeup` command; the shell owns only the native timer.
+/// Returned OS notifications are posted, and any pending commands (e.g.
+/// screen-presentation lifecycle commands) are dispatched through the same
+/// path as `ActionResult::Commands`.
+fn register_wakeup_poll(
+    app: &adw::Application,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+) {
     let app_engine = app_engine.clone();
     let app = app.clone();
+    let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
 
     glib::timeout_add_local(std::time::Duration::from_secs(30), move || {
-        let notifications = app_engine.borrow_mut().poll_notifications();
+        let notifications = app_engine.borrow_mut().on_wakeup();
+        let commands = app_engine.borrow_mut().drain_pending_commands();
+
         for n in notifications {
             let notification = gio::Notification::new(&n.title);
             notification.set_body(Some(&n.body));
-            // In future: add default action to open the app to the contact detail
+            if n.category == vauchi_app::notification_types::NotificationCategory::EmergencyAlert {
+                notification.set_priority(gio::NotificationPriority::Urgent);
+            }
             app.send_notification(Some(&n.event_key), &notification);
         }
+
+        if !commands.is_empty() {
+            screen_renderer::handle_app_engine_result(
+                &content,
+                &app_engine,
+                &toast_overlay,
+                ActionResult::Commands { commands },
+            );
+        }
+
         glib::ControlFlow::Continue
     });
 }
