@@ -964,7 +964,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2967,7 +2967,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3359,7 +3359,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3755,8 +3755,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.52.7"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#6f0b2788defd4e02e0881fad02f8c1cc64f5a7b0"
+version = "0.52.8"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feature%2Fcore-on-wakeup-retire-heartbeat#7df9cf3dba6912d33e8fe6becd817c29f00b25dc"
 dependencies = [
  "base64",
  "hex",
@@ -3773,8 +3773,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.52.7"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#6f0b2788defd4e02e0881fad02f8c1cc64f5a7b0"
+version = "0.52.8"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feature%2Fcore-on-wakeup-retire-heartbeat#7df9cf3dba6912d33e8fe6becd817c29f00b25dc"
 dependencies = [
  "argon2",
  "base64",
@@ -3837,8 +3837,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.52.7"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#6f0b2788defd4e02e0881fad02f8c1cc64f5a7b0"
+version = "0.52.8"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feature%2Fcore-on-wakeup-retire-heartbeat#7df9cf3dba6912d33e8fe6becd817c29f00b25dc"
 dependencies = [
  "serde",
  "serde_json",
@@ -4023,7 +4023,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
