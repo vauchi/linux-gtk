@@ -165,6 +165,16 @@ test:a11y:
   needs:
     - job: build:app
   tags: [linux, self-hosted]
+  # Self-heal residual AT-SPI startup-timing flakes. The Cairo-renderer
+  # fix in run-tests.sh removes the GPU/DRI3 cause; retry absorbs the rare
+  # remaining "did not appear on the AT-SPI tree within Ns" race. A real
+  # regression still fails all attempts, so this cannot mask a true break.
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
   script:
     - chmod +x tests/atspi/run-tests.sh
     - tests/atspi/run-tests.sh -v --tb=short -k "not test_snapshots"

@@ -13,6 +13,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Force GTK4's Cairo (software) renderer so AT-SPI tests are deterministic
+# and never depend on a GPU. Headless CI (Xvfb) has no DRI3 device: the GL
+# renderer's "DRI3 error: Could not get DRI3 device" fallback both spams
+# stderr and delays first paint past the AT-SPI appear-timeout, flaking
+# test:a11y red. Cairo has no GL/EGL/DRI3 path.
+export GSK_RENDERER=cairo
+export LIBGL_ALWAYS_SOFTWARE=1
+
 # If already inside a display session with AT-SPI, run directly
 if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
     exec python3 -m pytest "$SCRIPT_DIR" "$@" -v
