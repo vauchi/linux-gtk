@@ -92,6 +92,11 @@ def navigate_to(app, screen_label):
     new state — so a screen that fails to transition (or that is already
     current) reports False instead of a false positive.
     """
+    # Defensive: ensure sidebar labels have resolved from i18n fallbacks
+    # before matching screen_label. This absorbs races where callers read
+    # names early in a fresh session.
+    wait_for_labels_loaded(app, timeout=5.0)
+
     sidebar = find_one(app, name="Navigation")
     if sidebar is None:
         return False
@@ -120,6 +125,12 @@ def navigate_to(app, screen_label):
             # only report success if the final tree is genuinely different.
             final = _wait_for_stable_fingerprint(app)
             return final != before
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            import sys
+
+            print(
+                f"WARNING: navigation to '{screen_label}' failed: {exc}",
+                file=sys.stderr,
+            )
             return False
     return False

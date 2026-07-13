@@ -19,51 +19,7 @@ from helpers import (
     find_one,
     wait_until,
 )
-
-
-# ---------------------------------------------------------------------------
-# Navigation helper
-# ---------------------------------------------------------------------------
-
-def navigate_to(app, screen_label, timeout=5.0):
-    """Navigate to a sidebar screen via AT-SPI action.
-
-    Only sidebar items are navigable — AT-SPI do_action(0) on list items
-    doesn't trigger navigation reliably for sub-screen (More) navigation.
-
-    Raises AssertionError (via wait_until) when navigation fires but the
-    screen takes longer than `timeout` seconds to render. This surfaces
-    the real failure reason instead of silently returning False, which
-    was previously caused by a bare `except Exception` swallowing the
-    wait timeout and misreporting it as "action interface unavailable".
-    """
-    sidebar = find_one(app, name="Navigation")
-    if sidebar is None:
-        return False
-
-    for role in ("list item", "label"):
-        items = find_all(sidebar, role=role, max_depth=5)
-        for item in items:
-            if item.get_name() == screen_label:
-                action = None
-                try:
-                    action = item.get_action_iface()
-                except Exception:
-                    continue
-                if action and action.get_n_actions() > 0:
-                    try:
-                        action.do_action(0)
-                    except Exception:
-                        continue
-                    # Let AssertionError propagate — caller gets the real
-                    # "navigation timed out" message, not "action unavailable".
-                    wait_until(
-                        lambda: len(find_all(app, role="label", max_depth=10)) > 0,
-                        timeout=timeout,
-                        message=f"Screen should have labels after clicking '{screen_label}'",
-                    )
-                    return True
-    return False
+from navigation import navigate_to, wait_for_labels_loaded
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +33,12 @@ class TestNavigateAllScreens:
         """Each sidebar item should be activatable via AT-SPI action."""
         sidebar = find_one(gtk_app, name="Navigation")
         assert sidebar is not None, "Sidebar not found"
+
+        # Wait for i18n labels to resolve before caching names. Otherwise a
+        # label that is "Missing: nav.myCard" when read may become "My Card"
+        # after the locale bundle loads, and the stale string navigates to
+        # nothing.
+        wait_for_labels_loaded(gtk_app, timeout=5.0)
 
         items = find_all(sidebar, role="list item", max_depth=5)
         assert len(items) >= 5, (
