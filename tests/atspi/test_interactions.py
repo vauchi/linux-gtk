@@ -45,13 +45,22 @@ class TestNavigateAllScreens:
             f"Expected >= 5 sidebar items, found {len(items)}.\n"
             f"Tree:\n{dump_tree(sidebar, 4)}"
         )
+        # Cache names before navigating — the AT-SPI item objects go stale
+        # once the content tree re-renders.
+        names = [item.get_name() for item in items]
 
-        for item in items:
-            name = item.get_name()
+        # The app opens on its default (home) screen. Activating the item
+        # that is already current is a no-op, which navigate_to correctly
+        # reports as False (no transition) — not "unreachable". Move to a
+        # known different screen first so every navigation below is a
+        # genuine transition, regardless of which item was the default.
+        navigate_to(gtk_app, names[-1])
+
+        for name in names:
             navigated = navigate_to(gtk_app, name)
             assert navigated, (
-                f"Failed to navigate to '{name}' — action interface unavailable.\n"
-                f"Tree:\n{dump_tree(gtk_app, 4)}"
+                f"Failed to navigate to '{name}' (see stderr for the AT-SPI "
+                f"reason).\nTree:\n{dump_tree(gtk_app, 4)}"
             )
 
 
