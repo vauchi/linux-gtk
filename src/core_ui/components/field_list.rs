@@ -13,16 +13,22 @@ use vauchi_app::ui::{A11y, Field, UiFieldVisibility, UserAction, VisibilityMode}
 
 use super::super::screen_renderer::OnAction;
 
-pub fn render(
-    _id: &str,
-    title: &str,
-    fields: &[Field],
-    visibility_mode: &VisibilityMode,
-    available_scopes: &[String],
-    a11y: &Option<A11y>,
-    on_action: &OnAction,
-    tokens: &DesignTokens,
-) -> Widget {
+pub struct RenderModel<'a> {
+    pub title: &'a str,
+    pub fields: &'a [Field],
+    pub visibility_mode: &'a VisibilityMode,
+    pub available_scopes: &'a [String],
+    pub a11y: &'a Option<A11y>,
+}
+
+pub fn render(model: RenderModel<'_>, on_action: &OnAction, tokens: &DesignTokens) -> Widget {
+    let RenderModel {
+        title,
+        fields,
+        visibility_mode,
+        available_scopes,
+        a11y,
+    } = model;
     let list_box = ListBox::builder()
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])

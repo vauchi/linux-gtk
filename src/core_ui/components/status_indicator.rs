@@ -11,16 +11,26 @@ use vauchi_app::ui::{A11y, Status};
 
 use super::apply_a11y;
 
-pub fn render(
-    id: &str,
-    icon: &Option<String>,
-    title: &str,
-    detail: &Option<String>,
-    status: &Status,
-    status_label: &str,
-    a11y: &Option<A11y>,
-    tokens: &DesignTokens,
-) -> Widget {
+pub struct RenderModel<'a> {
+    pub id: &'a str,
+    pub icon: &'a Option<String>,
+    pub title: &'a str,
+    pub detail: &'a Option<String>,
+    pub status: &'a Status,
+    pub status_label: &'a str,
+    pub a11y: &'a Option<A11y>,
+}
+
+pub fn render(model: RenderModel<'_>, tokens: &DesignTokens) -> Widget {
+    let RenderModel {
+        id,
+        icon,
+        title,
+        detail,
+        status,
+        status_label,
+        a11y,
+    } = model;
     let sm = tokens.spacing.sm as i32;
     let md = tokens.spacing.md as i32;
 

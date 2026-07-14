@@ -88,7 +88,7 @@ pub fn render_component(
             id, label, items, ..
         } => toggle_list::render(id, label, items, on_action, tokens),
         Component::FieldList {
-            id,
+            id: _,
             title,
             fields,
             visibility_mode,
@@ -96,12 +96,13 @@ pub fn render_component(
             a11y,
             ..
         } => field_list::render(
-            id,
-            title,
-            fields,
-            visibility_mode,
-            available_scopes,
-            a11y,
+            field_list::RenderModel {
+                title,
+                fields,
+                visibility_mode,
+                available_scopes,
+                a11y,
+            },
             on_action,
             tokens,
         ),
@@ -153,7 +154,18 @@ pub fn render_component(
             status_label,
             a11y,
             ..
-        } => status_indicator::render(id, icon, title, detail, status, status_label, a11y, tokens),
+        } => status_indicator::render(
+            status_indicator::RenderModel {
+                id,
+                icon,
+                title,
+                detail,
+                status,
+                status_label,
+                a11y,
+            },
+            tokens,
+        ),
         Component::PinInput {
             id,
             label,
