@@ -27,8 +27,8 @@ nfc = ["dep:pcsc"]
 mdns = ["dep:mdns-sd"]
 
 [dependencies]
-vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "main", features = ["secure-storage-linux"] }
-vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "main", default-features = false, features = ["network"] }
+vauchi-core = { git = "https://gitlab.com/vauchi/core.git", branch = "feat/production-release-hard-gates", features = ["secure-storage-linux"] }
+vauchi-app = { git = "https://gitlab.com/vauchi/core.git", branch = "feat/production-release-hard-gates", default-features = false, features = ["network"] }
 gtk4 = { version = "0.9", features = ["v4_10"] }
 libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = { version = "0.14", default-features = false }
@@ -82,4 +82,3 @@ split-debuginfo = "unpacked"
 [profile.test]
 debug = "line-tables-only"
 split-debuginfo = "off"
-

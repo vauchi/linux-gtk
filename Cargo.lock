@@ -1340,7 +1340,7 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2954,7 +2954,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2967,7 +2967,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3359,7 +3359,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3755,8 +3755,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.52.8"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#ab455c123f8a3d06acc0bc355fdcccab43315834"
+version = "0.53.0"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feat%2Fproduction-release-hard-gates#20e62126c872d71ad939b8e3880360cc1a6de692"
 dependencies = [
  "base64",
  "hex",
@@ -3773,8 +3773,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.52.8"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#ab455c123f8a3d06acc0bc355fdcccab43315834"
+version = "0.53.0"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feat%2Fproduction-release-hard-gates#20e62126c872d71ad939b8e3880360cc1a6de692"
 dependencies = [
  "argon2",
  "base64",
@@ -3837,8 +3837,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.52.8"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#ab455c123f8a3d06acc0bc355fdcccab43315834"
+version = "0.53.0"
+source = "git+https://gitlab.com/vauchi/core.git?branch=feat%2Fproduction-release-hard-gates#20e62126c872d71ad939b8e3880360cc1a6de692"
 dependencies = [
  "serde",
  "serde_json",
@@ -4023,7 +4023,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4601,11 +4601,3 @@ checksum = "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "vauchi-app"
-version = "0.53.0"
-
-[[patch.unused]]
-name = "vauchi-core"
-version = "0.53.0"
