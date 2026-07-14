@@ -10,7 +10,6 @@ use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Entry, Label, Orientation, Widget};
 use vauchi_app::DesignTokens;
-use vauchi_app::i18n::{self, Locale};
 use vauchi_app::ui::{A11y, UserAction};
 
 use super::super::screen_renderer::OnAction;
@@ -21,6 +20,12 @@ pub fn render(
     id: &str,
     label: &str,
     value: &str,
+    edit_text: &str,
+    save_text: &str,
+    cancel_text: &str,
+    edit_action_id: &str,
+    save_action_id: &str,
+    cancel_action_id: &str,
     editing: &bool,
     validation_error: &Option<String>,
     a11y: &Option<A11y>,
@@ -44,25 +49,40 @@ pub fn render(
     container.append(&lbl);
 
     if *editing {
-        // Edit mode: text entry + save button
+        // Edit mode: text entry + core-described cancel/save actions.
         let edit_row = GtkBox::new(Orientation::Horizontal, sm);
 
         let entry = Entry::builder().text(value).hexpand(true).build();
         entry.update_property(&[Property::Label(label)]);
         edit_row.append(&entry);
 
+        let cancel_btn = Button::builder()
+            .label(cancel_text)
+            .css_classes(["flat"])
+            .valign(gtk4::Align::Center)
+            .build();
+        {
+            let on_action = on_action.clone();
+            let action_id = cancel_action_id.to_string();
+            cancel_btn.connect_clicked(move |_| {
+                (on_action)(UserAction::ActionPressed {
+                    action_id: action_id.clone(),
+                });
+            });
+        }
+        edit_row.append(&cancel_btn);
+
         let save_btn = Button::builder()
-            .label(i18n::get_string(Locale::default(), "action.save"))
+            .label(save_text)
             .css_classes(["suggested-action"])
             .valign(gtk4::Align::Center)
             .build();
 
-        // TODO(HUMBLE): T — editable_text invents {id}_save action ID; core should supply explicit save_action_id (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         // Save button: emit TextChanged with current value, then ActionPressed
         {
             let on_action = on_action.clone();
             let component_id = id.to_string();
-            let action_id = format!("{}_save", id);
+            let action_id = save_action_id.to_string();
             let entry_ref = entry.clone();
             save_btn.connect_clicked(move |_| {
                 (on_action)(UserAction::TextChanged {
@@ -79,7 +99,7 @@ pub fn render(
         {
             let on_action = on_action.clone();
             let component_id = id.to_string();
-            let action_id = format!("{}_save", id);
+            let action_id = save_action_id.to_string();
             entry.connect_activate(move |entry| {
                 (on_action)(UserAction::TextChanged {
                     component_id: component_id.clone(),
@@ -114,14 +134,13 @@ pub fn render(
         display_row.append(&value_label);
 
         let edit_btn = Button::builder()
-            .label(i18n::get_string(Locale::default(), "action.edit"))
+            .label(edit_text)
             .css_classes(["flat"])
             .valign(gtk4::Align::Center)
             .build();
 
-        // TODO(HUMBLE): T — editable_text invents {id}_edit action ID; core should supply explicit edit_action_id (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
         let on_action = on_action.clone();
-        let action_id = format!("{}_edit", id);
+        let action_id = edit_action_id.to_string();
         edit_btn.connect_clicked(move |_| {
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),

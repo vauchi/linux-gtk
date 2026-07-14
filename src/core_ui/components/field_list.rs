@@ -9,15 +9,17 @@ use gtk4::{
     Box as GtkBox, Button, CheckButton, Label, ListBox, Orientation, SelectionMode, Widget,
 };
 use vauchi_app::DesignTokens;
-use vauchi_app::ui::{Field, UiFieldVisibility, UserAction, VisibilityMode};
+use vauchi_app::ui::{A11y, Field, UiFieldVisibility, UserAction, VisibilityMode};
 
 use super::super::screen_renderer::OnAction;
 
 pub fn render(
     _id: &str,
+    title: &str,
     fields: &[Field],
     visibility_mode: &VisibilityMode,
     available_scopes: &[String],
+    a11y: &Option<A11y>,
     on_action: &OnAction,
     tokens: &DesignTokens,
 ) -> Widget {
@@ -25,8 +27,11 @@ pub fn render(
         .selection_mode(SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
-    // TODO(HUMBLE): W — field_list hardcodes English a11y label "Fields"; use core-supplied or localized label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-    list_box.update_property(&[Property::Label("Fields")]);
+    let accessible_label = a11y
+        .as_ref()
+        .and_then(|value| value.label.as_deref())
+        .unwrap_or(title);
+    list_box.update_property(&[Property::Label(accessible_label)]);
 
     let sm = tokens.spacing.sm as i32;
     let list_start = tokens.spacing_direction.list_item_start as i32;

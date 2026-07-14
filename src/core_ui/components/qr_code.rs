@@ -36,14 +36,19 @@ pub fn render(
     container.set_halign(gtk4::Align::Center);
     container.set_widget_name(id);
 
-    // TODO(HUMBLE): W — qr_code hardcodes QR a11y labels; core should supply a11y.label or i18n keys (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
+    let accessible_label = a11y
+        .as_ref()
+        .and_then(|value| value.label.as_deref())
+        .or(label.as_deref());
+    if let Some(accessible_label) = accessible_label {
+        container.update_property(&[Property::Label(accessible_label)]);
+    }
+
     match mode {
         QrMode::Display => {
-            container.update_property(&[Property::Label("QR code for contact exchange")]);
-            render_display(&container, data, tokens);
+            render_display(&container, data, accessible_label, tokens);
         }
         QrMode::Scan | _ => {
-            container.update_property(&[Property::Label("Scan QR code")]);
             render_scan(&container, id, on_action, tokens);
         }
     }
@@ -63,7 +68,12 @@ pub fn render(
     container.upcast()
 }
 
-fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
+fn render_display(
+    container: &GtkBox,
+    data: &str,
+    accessible_label: Option<&str>,
+    tokens: &DesignTokens,
+) {
     let xs = tokens.spacing.xs as i32;
     let md = tokens.spacing.md as i32;
 
@@ -91,8 +101,9 @@ fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
                 .halign(gtk4::Align::Center)
                 .accessible_role(gtk4::AccessibleRole::Img)
                 .build();
-            // TODO(HUMBLE): W — qr_code hardcodes QR drawing area a11y label; core should supply a11y.label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-            drawing_area.update_property(&[Property::Label("QR code for contact exchange")]);
+            if let Some(accessible_label) = accessible_label {
+                drawing_area.update_property(&[Property::Label(accessible_label)]);
+            }
 
             drawing_area.set_draw_func(move |_area, cr, width, height| {
                 let (lr, lg, lb) = QR_MODULE_LIGHT;
@@ -121,12 +132,12 @@ fn render_display(container: &GtkBox, data: &str, tokens: &DesignTokens) {
 
             qr_area.append(&drawing_area);
         }
-        Err(e) => {
-            let error_label = Label::builder()
-                .label(format!("Failed to generate QR code: {e}"))
-                .css_classes(["error"])
-                .build();
-            qr_area.append(&error_label);
+        Err(_) => {
+            let warning = Label::builder().label("⚠").css_classes(["error"]).build();
+            if let Some(accessible_label) = accessible_label {
+                warning.update_property(&[Property::Label(accessible_label)]);
+            }
+            qr_area.append(&warning);
         }
     }
 
@@ -182,7 +193,7 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &Desi
         .placeholder_text(&paste_placeholder)
         .width_chars(30)
         .build();
-    entry.update_property(&[Property::Label("QR data input")]);
+    entry.update_property(&[Property::Label(&paste_placeholder)]);
     paste_row.append(&entry);
 
     let submit_label = i18n::get_string(locale, "platform.qr_submit");
@@ -190,7 +201,7 @@ fn render_scan(container: &GtkBox, id: &str, on_action: &OnAction, tokens: &Desi
         .label(&submit_label)
         .css_classes(["suggested-action"])
         .build();
-    submit_btn.update_property(&[Property::Label("Submit QR data")]);
+    submit_btn.update_property(&[Property::Label(&submit_label)]);
 
     let on_action_submit = on_action.clone();
     let component_id = id.to_string();

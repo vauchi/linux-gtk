@@ -18,6 +18,8 @@ pub fn render(
     warning: &str,
     confirm_text: &str,
     cancel_text: &str,
+    confirm_action_id: &str,
+    cancel_action_id: &str,
     destructive: &bool,
     a11y: &Option<A11y>,
     on_action: &OnAction,
@@ -41,8 +43,9 @@ pub fn render(
     // Warning icon + text
     let warning_box = GtkBox::new(Orientation::Horizontal, sm);
     let icon = Label::builder().label("⚠").build();
-    // TODO(HUMBLE): W — inline_confirm hardcodes English a11y label "Warning"; use core-supplied or localized label (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-    icon.update_property(&[Property::Label("Warning")]);
+    // Decorative: the core-owned warning text and component a11y label carry
+    // the meaning, so screen readers must not announce the glyph separately.
+    icon.set_accessible_role(gtk4::AccessibleRole::Presentation);
     warning_box.append(&icon);
     let warning_label = Label::builder()
         .label(warning)
@@ -65,13 +68,7 @@ pub fn render(
         .build();
     {
         let on_action = on_action.clone();
-        // Colon convention shared with iOS/Android renderers;
-        // `AppEngine::handle_action` normalizes it to the canonical
-        // `cancel_<id>` engines match. The previous `<id>_cancel`
-        // suffix form matched no engine handler — every InlineConfirm
-        // press was a silent no-op
-        // (2026-06-11-add-entry-form-cannot-be-exited).
-        let action_id = format!("{}:cancel", id);
+        let action_id = cancel_action_id.to_string();
         cancel_btn.connect_clicked(move |_| {
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),
@@ -91,7 +88,7 @@ pub fn render(
         .build();
     {
         let on_action = on_action.clone();
-        let action_id = format!("{}:confirm", id);
+        let action_id = confirm_action_id.to_string();
         confirm_btn.connect_clicked(move |_| {
             (on_action)(UserAction::ActionPressed {
                 action_id: action_id.clone(),

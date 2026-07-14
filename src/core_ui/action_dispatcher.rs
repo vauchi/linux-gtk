@@ -103,15 +103,16 @@ pub(crate) fn handle_app_engine_result(
         ActionResult::ShowToast {
             message,
             undo_action_id,
+            undo_label,
         } => {
             let toast = adw::Toast::new(&message);
-            if let Some(undo_id) = undo_action_id {
-                toast.set_button_label(Some("Undo"));
+            if let (Some(undo_id), Some(undo_label)) = (undo_action_id, undo_label) {
+                toast.set_button_label(Some(&undo_label));
                 let app_engine = app_engine.clone();
                 let container = container.clone();
                 let toast_overlay = toast_overlay.clone();
                 toast.connect_button_clicked(move |_| {
-                    let action = UserAction::ActionPressed {
+                    let action = UserAction::UndoPressed {
                         action_id: undo_id.clone(),
                     };
                     let result = app_engine.borrow_mut().handle_action(action);
