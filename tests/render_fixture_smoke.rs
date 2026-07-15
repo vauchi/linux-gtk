@@ -38,9 +38,6 @@ fn render_fixture_writes_valid_png() {
         fixture.display()
     );
 
-    let out = std::env::temp_dir().join("vauchi_gtk_render_fixture_smoke.png");
-    let _ = std::fs::remove_file(&out);
-
     let bin = env!("CARGO_BIN_EXE_render_fixture");
     let width = 900;
     let height = 1400;
@@ -49,6 +46,9 @@ fn render_fixture_writes_valid_png() {
         eprintln!("skip: xvfb-run not available — cannot render headlessly");
         return;
     }
+
+    let output_dir = tempfile::tempdir().expect("create isolated render output directory");
+    let out = output_dir.path().join("render_fixture_smoke.png");
 
     let status = Command::new("xvfb-run")
         .args([
@@ -78,6 +78,4 @@ fn render_fixture_writes_valid_png() {
         "PNG suspiciously small ({} bytes) — likely a blank/unpainted frame",
         bytes.len()
     );
-
-    let _ = std::fs::remove_file(&out);
 }
