@@ -17,12 +17,29 @@ use vauchi_core::storage::{PlatformKeyring, SecureStorage};
 const DEFAULT_RELAY_URL: &str = "wss://relay.vauchi.app";
 
 /// Returns the XDG data directory for vauchi (`$XDG_DATA_HOME/vauchi` or `~/.local/share/vauchi`).
-fn data_dir() -> PathBuf {
-    std::env::var_os("XDG_DATA_HOME")
+fn data_dir_from_env(
+    xdg_data_home: Option<std::ffi::OsString>,
+    home: Option<std::ffi::OsString>,
+) -> std::io::Result<PathBuf> {
+    xdg_data_home
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join("vauchi")
+        .filter(|path| path.is_absolute())
+        .or_else(|| {
+            home.map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+                .map(|path| path.join(".local/share"))
+        })
+        .map(|path| path.join("vauchi"))
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "neither XDG_DATA_HOME nor HOME identifies an absolute data directory",
+            )
+        })
+}
+
+fn data_dir() -> std::io::Result<PathBuf> {
+    data_dir_from_env(std::env::var_os("XDG_DATA_HOME"), std::env::var_os("HOME"))
 }
 
 /// Resolve relay URL: config file > env var > default.
@@ -74,7 +91,7 @@ fn detect_secure_storage(install_id: &str) -> Option<Arc<dyn SecureStorage>> {
 }
 
 pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
-    let data_path = data_dir();
+    let data_path = data_dir()?;
     std::fs::create_dir_all(&data_path)?;
 
     let install_id = vauchi_core::install_id::read_or_create_install_id(&data_path)?;
@@ -97,6 +114,49 @@ pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // @internal
+    #[test]
+    fn data_dir_prefers_absolute_xdg_data_home() {
+        let path = data_dir_from_env(Some("/srv/vauchi-data".into()), Some("/home/alice".into()))
+            .expect("absolute XDG data home should resolve");
+
+        assert_eq!(path, PathBuf::from("/srv/vauchi-data/vauchi"));
+    }
+
+    // @internal
+    #[test]
+    fn data_dir_uses_absolute_home_when_xdg_is_relative() {
+        let path = data_dir_from_env(Some("relative".into()), Some("/home/alice".into()))
+            .expect("absolute home should replace an invalid XDG data home");
+
+        assert_eq!(path, PathBuf::from("/home/alice/.local/share/vauchi"));
+    }
+
+    // @internal
+    #[test]
+    fn data_dir_without_environment_fails_closed() {
+        let error = data_dir_from_env(None, None).expect_err("missing data roots must fail");
+
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!(
+            error.to_string(),
+            "neither XDG_DATA_HOME nor HOME identifies an absolute data directory"
+        );
+    }
+
+    // @internal
+    #[test]
+    fn data_dir_with_only_relative_environment_fails_closed() {
+        let error = data_dir_from_env(Some("relative".into()), Some("also-relative".into()))
+            .expect_err("relative data roots must fail");
+
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!(
+            error.to_string(),
+            "neither XDG_DATA_HOME nor HOME identifies an absolute data directory"
+        );
+    }
 
     // @internal
     #[test]
