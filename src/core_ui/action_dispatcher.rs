@@ -89,9 +89,6 @@ pub(crate) fn handle_app_engine_result(
                 );
             }
         }
-        ActionResult::RequestCamera => {
-            scan_or_paste_qr(container, app_engine, toast_overlay);
-        }
         ActionResult::OpenEntryDetail { .. } => {
             // Handled internally by AppEngine
             render_app_engine_screen(container, app_engine, toast_overlay, None);
