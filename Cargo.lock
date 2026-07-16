@@ -126,15 +126,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
-name = "atomic-polyfill"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cf2bce30dfe09ef0bfaef228b9d414faaf7e563035494d7fe092dba54b300f4"
-dependencies = [
- "critical-section",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -617,12 +608,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "critical-section"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
-
-[[package]]
 name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -964,7 +949,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1511,15 +1496,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hash32"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1567,20 +1543,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
 dependencies = [
  "hashbrown 0.14.5",
-]
-
-[[package]]
-name = "heapless"
-version = "0.7.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdc6457c0eb62c71aac4bc17216026d8410337c4126773b9c5daba343f17964f"
-dependencies = [
- "atomic-polyfill",
- "hash32",
- "rustc_version",
- "serde",
- "spin",
- "stable_deref_trait",
 ]
 
 [[package]]
@@ -2683,7 +2645,6 @@ dependencies = [
  "cobs",
  "embedded-io 0.4.0",
  "embedded-io 0.6.1",
- "heapless",
  "serde",
 ]
 
@@ -2967,7 +2928,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3359,7 +3320,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3755,8 +3716,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.53.0"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#15859d96e4b0502b0114ccbafc49dc7a40132525"
+version = "0.55.4"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#3bea8ce625ffc11a73fe258c03dc1d34fd1373d9"
 dependencies = [
  "base64",
  "hex",
@@ -3773,8 +3734,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.53.0"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#15859d96e4b0502b0114ccbafc49dc7a40132525"
+version = "0.55.4"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#3bea8ce625ffc11a73fe258c03dc1d34fd1373d9"
 dependencies = [
  "argon2",
  "base64",
@@ -3807,6 +3768,7 @@ dependencies = [
  "tracing",
  "unicode-normalization",
  "ureq",
+ "url",
  "uuid",
  "vauchi-protocol",
  "webpki-roots",
@@ -3837,8 +3799,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.53.0"
-source = "git+https://gitlab.com/vauchi/core.git?branch=main#15859d96e4b0502b0114ccbafc49dc7a40132525"
+version = "0.55.4"
+source = "git+https://gitlab.com/vauchi/core.git?branch=main#3bea8ce625ffc11a73fe258c03dc1d34fd1373d9"
 dependencies = [
  "serde",
  "serde_json",
@@ -4023,7 +3985,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
