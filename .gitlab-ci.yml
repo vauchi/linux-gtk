@@ -8,7 +8,7 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: ci-templates-v2026.07.2
+    ref: 5f6614ba3de5f462978d5222b682c27d2dfe8d3a
     file:
       - '/ci-templates/rust-base.yml'
       - '/ci-templates/security.yml'
