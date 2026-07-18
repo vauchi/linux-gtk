@@ -26,7 +26,7 @@ include:
       - '/ci-templates/coverage.yml'
 
 variables:
-  VAUCHI_SCRIPTS_REF: "ci-templates-v2026.07.2"
+  VAUCHI_SCRIPTS_REF: "5f6614ba3de5f462978d5222b682c27d2dfe8d3a"
   # Set to "true" to make downstream GTK verification advisory during runner incidents.
   GTK_VERIFY_ALLOW_FAILURE: "false"
 
