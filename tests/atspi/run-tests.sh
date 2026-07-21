@@ -32,13 +32,31 @@ fi
 UPDATE_SNAPSHOTS="${UPDATE_SNAPSHOTS:-}"
 export UPDATE_SNAPSHOTS
 
+# Resolve the AT-SPI helper binaries: Debian ships them under /usr/libexec,
+# Arch (and others) under /usr/lib. Hardcoding /usr/lib silently left the
+# registry unlaunched on the Debian CI runner — the app then never appears on
+# the AT-SPI tree and test:a11y fails every retry. Search both, then PATH.
+find_atspi() {
+    local name="$1" dir
+    for dir in /usr/libexec /usr/lib/at-spi2-core /usr/lib; do
+        if [ -x "$dir/$name" ]; then printf '%s\n' "$dir/$name"; return 0; fi
+    done
+    command -v "$name" 2>/dev/null && return 0
+    return 1
+}
+AT_SPI_BUS_LAUNCHER="$(find_atspi at-spi-bus-launcher)" \
+    || { echo "ERROR: at-spi-bus-launcher not found (install at-spi2-core)" >&2; exit 1; }
+AT_SPI_REGISTRYD="$(find_atspi at-spi2-registryd)" \
+    || { echo "ERROR: at-spi2-registryd not found (install at-spi2-core)" >&2; exit 1; }
+export AT_SPI_BUS_LAUNCHER AT_SPI_REGISTRYD
+
 exec env XDG_CURRENT_DESKTOP=none \
     xvfb-run -s '-screen 0 1280x720x24' \
     dbus-run-session -- bash -c "
         set -euo pipefail
 
-        /usr/lib/at-spi-bus-launcher &
-        /usr/lib/at-spi2-registryd &
+        \"\$AT_SPI_BUS_LAUNCHER\" &
+        \"\$AT_SPI_REGISTRYD\" &
 
         # Poll for AT-SPI readiness instead of fixed sleeps. The previous
         # 0.5s sleeps were sufficient on most runners but caused 'app did
