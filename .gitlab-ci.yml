@@ -8,7 +8,7 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: 5f6614ba3de5f462978d5222b682c27d2dfe8d3a
+    ref: ci-templates-v2026.07.11
     file:
       - '/ci-templates/rust-base.yml'
       - '/ci-templates/security.yml'
@@ -26,7 +26,7 @@ include:
       - '/ci-templates/coverage.yml'
 
 variables:
-  VAUCHI_SCRIPTS_REF: "5f6614ba3de5f462978d5222b682c27d2dfe8d3a"
+  VAUCHI_SCRIPTS_REF: "ci-templates-v2026.07.11"
   # Set to "true" to make downstream GTK verification advisory during runner incidents.
   GTK_VERIFY_ALLOW_FAILURE: "false"
 
@@ -98,13 +98,13 @@ lint:format:
   extends: [.linux-runner, .lint-format, .validation-rust, .timeout-quick]
 
 lint:clippy:
-  extends: [.linux-runner, .lint-clippy, .validation-rust, .timeout-standard]
+  extends: [.linux-runner, .lint-clippy, .validation-rust, .timeout-cold-rebuild]
   needs: []
   before_script:
     - !reference [.self-hosted, before_script]
 
 build:app:
-  extends: [.linux-runner, .timeout-standard]
+  extends: [.linux-runner, .timeout-cold-rebuild]
   stage: build
   needs:
     - job: lint:format
@@ -137,7 +137,7 @@ build:app:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:unit:
-  extends: [.linux-runner, .timeout-standard]
+  extends: [.linux-runner, .timeout-cold-rebuild]
   stage: test
   needs:
     - job: lint:format
@@ -268,7 +268,7 @@ test:snapshots:record:
 
 # Coverage: cargo-llvm-cov on main merges (not MRs)
 coverage:workspace:
-  extends: [.coverage-job, .linux-runner, .timeout-long]
+  extends: [.coverage-job, .linux-runner, .timeout-cold-rebuild]
   before_script:
     - !reference [.self-hosted, before_script]
     - sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libadwaita-1-dev 2>/dev/null || true
@@ -321,7 +321,7 @@ security:deny:
 
 # Binary size tracking (main merges + release tags)
 perf:binary-size:
-  extends: [.binary-size-tracking-job, .linux-runner, .timeout-long]
+  extends: [.binary-size-tracking-job, .linux-runner, .timeout-cold-rebuild]
   before_script:
     - !reference [.self-hosted, before_script]
   variables:
