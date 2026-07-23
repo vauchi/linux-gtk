@@ -485,14 +485,12 @@ fn handle_exchange_commands(
             // core clear the pending capture immediately instead of waiting
             // out the request timeout. Silent (no toast): location is a
             // background capture, not a user-initiated action.
-            Command::LocationRequest { .. } => {
-                if notified_unavailable.insert("location") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "location".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+            Command::LocationRequest { .. } if notified_unavailable.insert("location") => {
+                let event = Event::HardwareUnavailable {
+                    transport: "location".into(),
+                };
+                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
+                    handle_app_engine_result(container, app_engine, toast_overlay, result);
                 }
             }
             _ => {
