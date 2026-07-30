@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Dispatches `ActionResult` and `Command` from the core engine.
+//! Executes platform commands from the Core reducer.
 //!
 //! Handles navigation, alerts, toasts, hardware command dispatch (BLE, NFC,
 //! audio, camera), and QR paste fallback.
+
+mod file_picker;
 
 use gtk4::Box as GtkBox;
 use libadwaita as adw;
@@ -15,133 +17,18 @@ use std::rc::Rc;
 
 use vauchi_app::i18n::{self, Locale};
 use vauchi_app::theme::DesignTokens;
-use vauchi_app::ui::{ActionResult, AppEngine, UserAction, WorkflowEngine};
-use vauchi_core::{Command, Event};
+use vauchi_app::ui::AppEngine;
+use vauchi_core::{Command, Event, NotificationUrgency};
 
 use crate::platform::hardware;
 
-use super::screen_renderer::{CURRENT_SCREEN_ID, render_app_engine_screen, render_screen_model};
-
-fn build_on_action(
-    container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine>>,
-    toast_overlay: &adw::ToastOverlay,
-) -> super::screen_renderer::OnAction {
-    let app_engine = app_engine.clone();
-    let container = container.clone();
-    let toast_overlay = toast_overlay.clone();
-    Rc::new(move |action: UserAction| {
-        let result = app_engine.borrow_mut().handle_action(action);
-        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-    })
-}
-
-pub(crate) fn handle_app_engine_result(
-    container: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine>>,
-    toast_overlay: &adw::ToastOverlay,
-    result: ActionResult,
-) {
-    match result {
-        ActionResult::UpdateScreen(screen) => {
-            // Skip re-render if the screen_id hasn't changed. This happens
-            // when focus-out emits TextChanged — the engine acknowledges the
-            // input but the screen is identical. Re-rendering would destroy
-            // the button the user is about to click.
-            let same = CURRENT_SCREEN_ID.with(|id| *id.borrow() == screen.screen_id);
-            if !same {
-                CURRENT_SCREEN_ID.with(|id| *id.borrow_mut() = screen.screen_id.clone());
-                let on_action = build_on_action(container, app_engine, toast_overlay);
-                render_screen_model(container, &screen, &on_action);
-            }
-        }
-        ActionResult::NavigateTo(screen) => {
-            CURRENT_SCREEN_ID.with(|id| *id.borrow_mut() = screen.screen_id.clone());
-            let on_action = build_on_action(container, app_engine, toast_overlay);
-            render_screen_model(container, &screen, &on_action);
-        }
-        ActionResult::PerformNativeBack => {
-            // Back reached a back-stopping root. Desktop's native default is
-            // to exit the application (ADR-044 Am2a).
-            if let Some(window) = container
-                .root()
-                .and_then(|r| r.downcast::<gtk4::Window>().ok())
-                && let Some(app) = window.application()
-            {
-                app.quit();
-            }
-        }
-        ActionResult::ValidationError { .. } | ActionResult::Complete => {
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-        ActionResult::ShowAlert { title, message } => {
-            show_alert(container, &title, &message);
-        }
-        ActionResult::OpenUrl { url } => {
-            if let Err(e) = gtk4::gio::AppInfo::launch_default_for_uri(
-                &url,
-                None::<&gtk4::gio::AppLaunchContext>,
-            ) {
-                show_alert(
-                    container,
-                    &i18n::get_string(Locale::default(), "platform.error_could_not_open_link"),
-                    e.message(),
-                );
-            }
-        }
-        ActionResult::OpenEntryDetail { .. } => {
-            // Handled internally by AppEngine
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-        ActionResult::WipeComplete => {
-            // Reset — re-render from scratch
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-        ActionResult::ShowToast {
-            message,
-            undo_action_id,
-            undo_label,
-        } => {
-            let toast = adw::Toast::new(&message);
-            if let (Some(undo_id), Some(undo_label)) = (undo_action_id, undo_label) {
-                toast.set_button_label(Some(&undo_label));
-                let app_engine = app_engine.clone();
-                let container = container.clone();
-                let toast_overlay = toast_overlay.clone();
-                toast.connect_button_clicked(move |_| {
-                    let action = UserAction::UndoPressed {
-                        action_id: undo_id.clone(),
-                    };
-                    let result = app_engine.borrow_mut().handle_action(action);
-                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                });
-            }
-            toast_overlay.add_toast(toast);
-        }
-        ActionResult::Commands { commands } => {
-            handle_exchange_commands(container, app_engine, toast_overlay, &commands);
-        }
-        ActionResult::OpenContact { .. }
-        | ActionResult::EditContact { .. }
-        | ActionResult::PreviewAs { .. }
-        | ActionResult::ShowContactPicker => {
-            // Resolved to NavigateTo by AppEngine (`route_result`) before
-            // reaching here — the frontend never maps a domain action to a
-            // screen itself (ADR-043 Humble UI). Re-render as fallback.
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-        _ => {
-            // Future ActionResult variant — re-render as safe fallback.
-            render_app_engine_screen(container, app_engine, toast_overlay, None);
-        }
-    }
-}
+use super::contextual_surface::dispatch_platform_event;
 
 /// Dispatch exchange hardware commands to platform-specific actions (ADR-031).
 ///
 /// Commands arrive in batches (e.g., BleStartScanning + BleStartAdvertising together).
 /// We deduplicate "unavailable" toasts per transport to avoid spamming the user.
-fn handle_exchange_commands(
+pub(crate) fn handle_exchange_commands(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
@@ -154,10 +41,8 @@ fn handle_exchange_commands(
     for cmd in commands {
         match cmd {
             Command::QrDisplay { .. } => {
-                // QR data changed mid-session. The ExchangeSession updated its
-                // state, so re-rendering the current screen will pick up the new
-                // QR via Component::QrCode in the screen model.
-                render_app_engine_screen(container, app_engine, toast_overlay, None);
+                // The paired ReplaceSurface command already carries the
+                // updated generic QR node.
             }
             Command::QrRequestScan => {
                 scan_or_paste_qr(container, app_engine, toast_overlay);
@@ -190,7 +75,7 @@ fn handle_exchange_commands(
                         }
                     }
                 } else if notified_unavailable.insert("audio") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Audio");
+                    report_hardware_unavailable(container, app_engine, toast_overlay, "Audio");
                 }
             }
             Command::AudioListenForResponse { timeout_ms, .. } => {
@@ -217,7 +102,7 @@ fn handle_exchange_commands(
                         }
                     }
                 } else if notified_unavailable.insert("audio") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Audio");
+                    report_hardware_unavailable(container, app_engine, toast_overlay, "Audio");
                 }
             }
             Command::AudioStop => {
@@ -250,7 +135,12 @@ fn handle_exchange_commands(
                         }
                     }
                 } else if notified_unavailable.insert("ble") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                    report_hardware_unavailable(
+                        container,
+                        app_engine,
+                        toast_overlay,
+                        "Bluetooth LE",
+                    );
                 }
             }
             Command::BleStartAdvertising {
@@ -270,7 +160,12 @@ fn handle_exchange_commands(
                         let _ = service_uuid;
                     }
                 } else if notified_unavailable.insert("ble") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "Bluetooth LE");
+                    report_hardware_unavailable(
+                        container,
+                        app_engine,
+                        toast_overlay,
+                        "Bluetooth LE",
+                    );
                 }
             }
             Command::BleConnect { device_id } => {
@@ -288,7 +183,7 @@ fn handle_exchange_commands(
                     let _ = device_id;
                 }
             }
-            Command::BleWriteCharacteristic { uuid, data } => {
+            Command::BleWriteCharacteristic { uuid, data, .. } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::write_characteristic(
@@ -304,7 +199,7 @@ fn handle_exchange_commands(
                     let _ = (uuid, data);
                 }
             }
-            Command::BleReadCharacteristic { uuid } => {
+            Command::BleReadCharacteristic { uuid, .. } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::read_characteristic(
@@ -319,7 +214,7 @@ fn handle_exchange_commands(
                     let _ = uuid;
                 }
             }
-            Command::BleDisconnect => {
+            Command::BleDisconnect { .. } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 crate::platform::ble::disconnect(toast_overlay);
             }
@@ -349,7 +244,7 @@ fn handle_exchange_commands(
                         }
                     }
                 } else if notified_unavailable.insert("nfc") {
-                    report_hardware_unavailable(app_engine, toast_overlay, "NFC");
+                    report_hardware_unavailable(container, app_engine, toast_overlay, "NFC");
                 }
             }
             Command::NfcDeactivate => {
@@ -360,25 +255,50 @@ fn handle_exchange_commands(
 
             // ── Image picking (avatar editor) ────────────────────────
             Command::ImagePickFromFile => {
-                open_image_file_picker(container, app_engine, toast_overlay);
+                file_picker::open_image_picker(container, app_engine, toast_overlay);
+            }
+            Command::FilePickFromUser {
+                accepted_mime_types,
+                ..
+            } => {
+                file_picker::open_file_picker(
+                    container,
+                    app_engine,
+                    toast_overlay,
+                    accepted_mime_types,
+                );
+            }
+            Command::ExportFile { file } => {
+                file_picker::open_export(container, app_engine, toast_overlay, file.clone());
+            }
+            Command::PostNotification { notification } => {
+                post_notification(container, notification);
+            }
+            Command::ResetApplication => {
+                // ReplaceSurface in the same atomic reducer batch has already
+                // reset the platform-owned presentation projection.
             }
             Command::ImagePickFromLibrary => {
                 // Linux desktop has no photo library — report unavailable
-                let event = Event::HardwareUnavailable {
-                    transport: "photo_library".into(),
-                };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(container, app_engine, toast_overlay, result);
-                }
+                dispatch_platform_event(
+                    container,
+                    app_engine,
+                    toast_overlay,
+                    Event::HardwareUnavailable {
+                        transport: "photo_library".into(),
+                    },
+                );
             }
             Command::ImageCaptureFromCamera => {
                 // Camera capture not supported on desktop — report unavailable
-                let event = Event::HardwareUnavailable {
-                    transport: "camera".into(),
-                };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(container, app_engine, toast_overlay, result);
-                }
+                dispatch_platform_event(
+                    container,
+                    app_engine,
+                    toast_overlay,
+                    Event::HardwareUnavailable {
+                        transport: "camera".into(),
+                    },
+                );
             }
 
             // ── USB / TCP direct exchange ────────────────────────────
@@ -422,22 +342,12 @@ fn handle_exchange_commands(
             // default."
             Command::SetScreenBrightness { .. } => {
                 if notified_unavailable.insert("screen_brightness") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "screen_brightness".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+                    dispatch_unavailable(container, app_engine, toast_overlay, "screen_brightness");
                 }
             }
             Command::SetIdleTimerDisabled { .. } => {
                 if notified_unavailable.insert("idle_timer") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "idle_timer".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+                    dispatch_unavailable(container, app_engine, toast_overlay, "idle_timer");
                 }
             }
             // ShowShareSheet is the iOS / Android system share affordance;
@@ -445,24 +355,14 @@ fn handle_exchange_commands(
             // URL or uses the app's own share dialog). Answer unavailable.
             Command::ShowShareSheet { .. } => {
                 if notified_unavailable.insert("share_sheet") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "share_sheet".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+                    dispatch_unavailable(container, app_engine, toast_overlay, "share_sheet");
                 }
             }
             // SwitchCamera is multi-stage exchange's front/rear flip —
             // desktop webcams don't have a front/rear distinction.
             Command::SwitchCamera { .. } => {
                 if notified_unavailable.insert("camera_switch") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "camera_switch".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+                    dispatch_unavailable(container, app_engine, toast_overlay, "camera_switch");
                 }
             }
             // Phase 2c screen-presentation: orientation lock is a
@@ -470,12 +370,7 @@ fn handle_exchange_commands(
             // don't rotate with the device. Answer unavailable.
             Command::SetOrientationLock { .. } => {
                 if notified_unavailable.insert("orientation_lock") {
-                    let event = Event::HardwareUnavailable {
-                        transport: "orientation_lock".into(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(container, app_engine, toast_overlay, result);
-                    }
+                    dispatch_unavailable(container, app_engine, toast_overlay, "orientation_lock");
                 }
             }
 
@@ -486,12 +381,7 @@ fn handle_exchange_commands(
             // out the request timeout. Silent (no toast): location is a
             // background capture, not a user-initiated action.
             Command::LocationRequest { .. } if notified_unavailable.insert("location") => {
-                let event = Event::HardwareUnavailable {
-                    transport: "location".into(),
-                };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(container, app_engine, toast_overlay, result);
-                }
+                dispatch_unavailable(container, app_engine, toast_overlay, "location");
             }
             _ => {
                 // Future exchange command — no-op until implemented.
@@ -500,10 +390,30 @@ fn handle_exchange_commands(
     }
 }
 
+fn post_notification(container: &GtkBox, notification: &vauchi_core::NotificationSpec) {
+    let Some(application) = container
+        .root()
+        .and_then(|root| root.downcast::<gtk4::Window>().ok())
+        .and_then(|window| window.application())
+    else {
+        return;
+    };
+    let native = gtk4::gio::Notification::new(&notification.title);
+    native.set_body(Some(&notification.body));
+    native.set_priority(match notification.urgency {
+        NotificationUrgency::Default => gtk4::gio::NotificationPriority::Normal,
+        NotificationUrgency::High => gtk4::gio::NotificationPriority::High,
+        NotificationUrgency::Urgent => gtk4::gio::NotificationPriority::Urgent,
+        _ => gtk4::gio::NotificationPriority::Normal,
+    });
+    application.send_notification(None, &native);
+}
+
 /// Report a hardware transport as unavailable — sends `HardwareUnavailable` back
 /// to core so the ExchangeSession can trigger transport fallback, and shows a
 /// toast to the user.
 fn report_hardware_unavailable(
+    container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     transport: &str,
@@ -516,99 +426,21 @@ fn report_hardware_unavailable(
     let toast = adw::Toast::new(&msg);
     toast_overlay.add_toast(toast);
 
-    // Notify core so the session can fall back to another transport
-    let event = Event::HardwareUnavailable {
-        transport: transport.to_string(),
-    };
-    app_engine.borrow_mut().handle_hardware_event(event);
+    dispatch_unavailable(container, app_engine, toast_overlay, transport);
 }
 
-/// Open a file chooser dialog for selecting an image file (avatar editor).
-///
-/// On selection, reads the file bytes and sends `ImageReceived` to core.
-/// On cancel, sends `ImagePickCancelled`.
-fn open_image_file_picker(
+fn dispatch_unavailable(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
+    transport: &str,
 ) {
-    let window = match container
-        .root()
-        .and_then(|r| r.downcast::<gtk4::Window>().ok())
-    {
-        Some(w) => w,
-        None => return,
-    };
-
-    let filter = gtk4::FileFilter::new();
-    filter.add_mime_type("image/png");
-    filter.add_mime_type("image/jpeg");
-    filter.add_mime_type("image/webp");
-    filter.add_mime_type("image/bmp");
-    let filter_label = i18n::get_string(Locale::default(), "platform.image_files_filter");
-    filter.set_name(Some(&filter_label));
-
-    let filters = gtk4::gio::ListStore::new::<gtk4::FileFilter>();
-    filters.append(&filter);
-
-    let dialog = gtk4::FileDialog::builder()
-        .title(i18n::get_string(
-            Locale::default(),
-            "platform.select_image_title",
-        ))
-        .filters(&filters)
-        .build();
-
-    let app_engine = app_engine.clone();
-    let container = container.clone();
-    let toast_overlay = toast_overlay.clone();
-
-    dialog.open(
-        Some(&window),
-        None::<&gtk4::gio::Cancellable>,
-        move |result| match result {
-            Ok(file) => {
-                if let Some(path) = file.path() {
-                    match std::fs::read(&path) {
-                        Ok(data) => {
-                            let event = Event::ImageReceived { data };
-                            if let Some(result) =
-                                app_engine.borrow_mut().handle_hardware_event(event)
-                            {
-                                handle_app_engine_result(
-                                    &container,
-                                    &app_engine,
-                                    &toast_overlay,
-                                    result,
-                                );
-                            }
-                        }
-                        Err(_) => {
-                            let event = Event::HardwareError {
-                                transport: "file_picker".into(),
-                                error: "Failed to read image file".into(),
-                            };
-                            if let Some(result) =
-                                app_engine.borrow_mut().handle_hardware_event(event)
-                            {
-                                handle_app_engine_result(
-                                    &container,
-                                    &app_engine,
-                                    &toast_overlay,
-                                    result,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            Err(_) => {
-                // User cancelled — notify core
-                let event = Event::ImagePickCancelled;
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                }
-            }
+    dispatch_platform_event(
+        container,
+        app_engine,
+        toast_overlay,
+        Event::HardwareUnavailable {
+            transport: transport.to_string(),
         },
     );
 }
@@ -656,19 +488,19 @@ fn execute_direct_send(
                 } else {
                     Event::DirectPayloadReceived { data }
                 };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                }
+                dispatch_platform_event(&container, &app_engine, &toast_overlay, event);
                 gtk4::glib::ControlFlow::Break
             }
             Ok(Err(err)) => {
-                let event = Event::HardwareError {
-                    transport: "USB".into(),
-                    error: err,
-                };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                }
+                dispatch_platform_event(
+                    &container,
+                    &app_engine,
+                    &toast_overlay,
+                    Event::HardwareError {
+                        transport: "USB".into(),
+                        error: err,
+                    },
+                );
                 gtk4::glib::ControlFlow::Break
             }
             Err(mpsc::TryRecvError::Empty) => gtk4::glib::ControlFlow::Continue,
@@ -762,10 +594,12 @@ fn show_qr_paste_dialog(
                 }
 
                 // Forward to core as a hardware event
-                let event = Event::QrScanned { data };
-                if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                    handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                }
+                dispatch_platform_event(
+                    &container,
+                    &app_engine,
+                    &toast_overlay,
+                    Event::QrScanned { data },
+                );
             }
         }
     });

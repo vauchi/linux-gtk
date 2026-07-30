@@ -1,0 +1,231 @@
+// SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! Humble GTK state adapter for Core presentation commands.
+
+mod commands;
+mod environment;
+mod overlays;
+mod widgets;
+
+pub(crate) use commands::handle_commands;
+pub(crate) use environment::install_environment_reporting;
+pub(crate) use widgets::{
+    dispatch_platform_event, dispatch_shortcut, render_current_surface, request_back,
+};
+
+use std::collections::HashMap;
+use vauchi_core::{
+    ActionSpec, Command, ContextBar, Event, InteractionId, MotionPreference, OverlayKind,
+    OverlaySpec, PaneLayout, PresentationProfile, StandardShortcut, SurfaceId, SurfaceSpec,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GtkContextRole {
+    Back,
+    Navigation,
+    Primary,
+    Secondary,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GtkContextControl<'a> {
+    pub role: GtkContextRole,
+    pub action: &'a ActionSpec,
+    pub emphasized: bool,
+}
+
+pub fn context_controls(bar: &ContextBar) -> Vec<GtkContextControl<'_>> {
+    [
+        (GtkContextRole::Back, bar.back.as_ref()),
+        (GtkContextRole::Navigation, bar.navigation.as_ref()),
+        (GtkContextRole::Primary, bar.primary.as_ref()),
+        (GtkContextRole::Secondary, bar.secondary.as_ref()),
+    ]
+    .into_iter()
+    .filter_map(|(role, action)| {
+        action.map(|action| GtkContextControl {
+            role,
+            action,
+            emphasized: role == GtkContextRole::Primary,
+        })
+    })
+    .collect()
+}
+
+pub fn interaction_for_shortcut(
+    bar: &ContextBar,
+    shortcut: StandardShortcut,
+) -> Option<&InteractionId> {
+    context_controls(bar)
+        .into_iter()
+        .find(|control| control.action.shortcut == Some(shortcut))
+        .map(|control| &control.action.interaction_id)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GtkOverlayTransition {
+    NavigationSlide,
+    NavigationReveal,
+    ActionScale,
+    ActionCrossfade,
+}
+
+impl GtkOverlayTransition {
+    pub fn for_overlay(kind: OverlayKind, motion: MotionPreference) -> Self {
+        match (kind, motion) {
+            (OverlayKind::Navigation, MotionPreference::Full) => Self::NavigationSlide,
+            (OverlayKind::Navigation, MotionPreference::Reduced) => Self::NavigationReveal,
+            (OverlayKind::ActionMenu, MotionPreference::Full) => Self::ActionScale,
+            (OverlayKind::ActionMenu, MotionPreference::Reduced) => Self::ActionCrossfade,
+            _ => Self::ActionCrossfade,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct GtkPresentationState {
+    surfaces: HashMap<SurfaceId, SurfaceSpec>,
+    context_bars: HashMap<SurfaceId, (u64, ContextBar)>,
+    profile: Option<PresentationProfile>,
+    overlays: HashMap<SurfaceId, (u64, OverlaySpec)>,
+    last_surface: Option<SurfaceId>,
+}
+
+impl GtkPresentationState {
+    pub fn apply(&mut self, command: Command) -> bool {
+        match command {
+            Command::ReplaceSurface { surface } => {
+                let replace = self
+                    .surfaces
+                    .get(&surface.surface_id)
+                    .is_none_or(|current| surface.revision >= current.revision);
+                if replace {
+                    let surface_id = surface.surface_id.clone();
+                    self.surfaces.insert(surface_id.clone(), surface);
+                    self.context_bars.remove(&surface_id);
+                    self.overlays.remove(&surface_id);
+                    self.last_surface = Some(surface_id);
+                }
+                replace
+            }
+            Command::SetContextBar {
+                surface_id,
+                revision,
+                bar,
+            } if self.is_current_revision(&surface_id, revision) => {
+                self.context_bars.insert(surface_id, (revision, *bar));
+                true
+            }
+            Command::SetPresentationProfile { profile } => {
+                self.profile = Some(profile);
+                true
+            }
+            Command::PresentOverlay {
+                surface_id,
+                revision,
+                overlay,
+            } if self.is_current_revision(&surface_id, revision) => {
+                self.overlays.insert(surface_id, (revision, overlay));
+                true
+            }
+            Command::SetContextBar { .. } | Command::PresentOverlay { .. } => false,
+            _ => true,
+        }
+    }
+
+    pub fn context_bar(&self) -> Option<(&SurfaceId, &ContextBar)> {
+        let surface_id = self.active_surface_id()?;
+        self.context_bars
+            .get_key_value(surface_id)
+            .map(|(surface, (_, bar))| (surface, bar))
+    }
+
+    pub fn surface(&self) -> Option<&SurfaceSpec> {
+        self.active_surface_id()
+            .and_then(|surface_id| self.surfaces.get(surface_id))
+    }
+
+    pub fn surface_by_id(&self, surface_id: &SurfaceId) -> Option<&SurfaceSpec> {
+        self.surfaces.get(surface_id)
+    }
+
+    pub fn visible_surface_ids(&self) -> Vec<SurfaceId> {
+        let Some(profile) = &self.profile else {
+            return self.last_surface.clone().into_iter().collect();
+        };
+        match profile.pane_layout {
+            PaneLayout::Split => std::iter::once(&profile.primary_surface)
+                .chain(profile.detail_surface.as_ref())
+                .filter(|surface_id| self.surfaces.contains_key(*surface_id))
+                .cloned()
+                .collect(),
+            PaneLayout::Single | _ => {
+                let surface_id = if self.surfaces.contains_key(&profile.active_surface) {
+                    &profile.active_surface
+                } else {
+                    &profile.primary_surface
+                };
+                self.surfaces
+                    .contains_key(surface_id)
+                    .then(|| surface_id.clone())
+                    .into_iter()
+                    .collect()
+            }
+        }
+    }
+
+    pub fn visible_surfaces(&self) -> Vec<&SurfaceSpec> {
+        self.visible_surface_ids()
+            .iter()
+            .filter_map(|surface_id| self.surfaces.get(surface_id))
+            .collect()
+    }
+
+    pub fn profile(&self) -> Option<&PresentationProfile> {
+        self.profile.as_ref()
+    }
+
+    pub fn overlay(&self) -> Option<(&SurfaceId, &OverlaySpec)> {
+        let surface_id = self.active_surface_id()?;
+        self.overlays
+            .get_key_value(surface_id)
+            .map(|(surface, (_, overlay))| (surface, overlay))
+    }
+
+    pub fn take_overlay(&mut self) -> Option<(SurfaceId, OverlaySpec)> {
+        let surface_id = self.active_surface_id()?.clone();
+        self.overlays
+            .remove(&surface_id)
+            .map(|(_, overlay)| (surface_id, overlay))
+    }
+
+    pub fn activation_events(&self, interaction_id: &InteractionId) -> Vec<Event> {
+        let Some((surface_id, _)) = self.context_bar() else {
+            return Vec::new();
+        };
+        vec![
+            Event::SurfaceActivated {
+                surface_id: surface_id.clone(),
+            },
+            Event::ActionActivated {
+                surface_id: surface_id.clone(),
+                interaction_id: interaction_id.clone(),
+            },
+        ]
+    }
+
+    fn is_current_revision(&self, surface_id: &SurfaceId, revision: u64) -> bool {
+        self.surfaces
+            .get(surface_id)
+            .is_some_and(|surface| surface.revision == revision)
+    }
+
+    fn active_surface_id(&self) -> Option<&SurfaceId> {
+        self.profile
+            .as_ref()
+            .map(|profile| &profile.active_surface)
+            .filter(|surface_id| self.surfaces.contains_key(*surface_id))
+            .or(self.last_surface.as_ref())
+    }
+}

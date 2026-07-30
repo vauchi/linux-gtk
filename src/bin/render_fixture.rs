@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Offscreen catalog harness: render a golden `ScreenModel` JSON fixture
-//! through the production `render_screen_model` and save it as a PNG.
+//! Offscreen catalog harness: render a generic `SurfaceSpec` JSON fixture
+//! through the production renderer and save it as a PNG.
 //!
 //! Built for the design screenshot catalog
 //! (`_private/docs/problems/2026-06-12-device-screenshot-catalog/`); it is a
@@ -25,8 +25,8 @@ use gtk4::{Box as GtkBox, Orientation, glib, graphene};
 use libadwaita as adw;
 use libadwaita::prelude::*;
 
-use vauchi_app::ui::ScreenModel;
-use vauchi_gtk::core_ui::screen_renderer::{OnAction, render_screen_model};
+use vauchi_core::SurfaceSpec;
+use vauchi_gtk::core_ui::generic_surface::{OnEvent, render};
 
 // Capture only after the window has produced a few frames — a WidgetPaintable
 // of a just-presented window mirrors a blank surface until realize + allocate
@@ -43,7 +43,7 @@ fn main() {
 
     let json = std::fs::read_to_string(&fixture_path)
         .unwrap_or_else(|e| panic!("read fixture {fixture_path}: {e}"));
-    let screen: ScreenModel =
+    let surface: SurfaceSpec =
         serde_json::from_str(&json).unwrap_or_else(|e| panic!("decode {fixture_path}: {e}"));
 
     let app = adw::Application::builder()
@@ -60,8 +60,8 @@ fn main() {
             .build();
 
         let container = GtkBox::new(Orientation::Vertical, 0);
-        let on_action: OnAction = Rc::new(|_action| {});
-        render_screen_model(&container, &screen, &on_action);
+        let on_event: OnEvent = Rc::new(|_event| {});
+        render(&container, &surface, &on_event);
         window.set_content(Some(&container));
         window.present();
 

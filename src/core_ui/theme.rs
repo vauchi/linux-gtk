@@ -60,15 +60,6 @@ window {{
     color: @vauchi_text_primary;
 }}
 
-.navigation-sidebar {{
-    background-color: @vauchi_bg_secondary;
-    border-right: 1px solid @vauchi_border;
-}}
-
-.navigation-sidebar row:selected {{
-    background-color: @vauchi_bg_tertiary;
-}}
-
 .suggested-action {{
     background-color: @vauchi_accent;
     color: @vauchi_bg_primary;
@@ -191,10 +182,6 @@ mod tests {
         let css = generate_css(&theme.colors);
 
         assert!(css.contains("window {"), "CSS should style the window");
-        assert!(
-            css.contains(".navigation-sidebar {"),
-            "CSS should style the sidebar"
-        );
         assert!(
             css.contains(".suggested-action {"),
             "CSS should style suggested actions"

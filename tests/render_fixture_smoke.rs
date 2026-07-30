@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Smoke test for the `render-fixture` catalog harness: a golden ScreenModel
+//! Smoke test for the `render-fixture` catalog harness: a generic surface
 //! fixture must render through the production renderer to a valid, non-trivial
 //! PNG. Guards the design screenshot catalog
 //! (`_private/docs/problems/2026-06-12-device-screenshot-catalog/`).
@@ -11,14 +11,11 @@
 //! display path is available, so a developer without Xvfb still gets a green
 //! suite; CI provides Xvfb.
 
-use std::path::PathBuf;
 use std::process::Command;
-
-fn fixture(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../core/vauchi-core/tests/fixtures/golden")
-        .join(name)
-}
+use vauchi_core::{
+    AccessibilitySpec, PresentationNode, PresentationTextStyle, PresentationTokens, SurfaceId,
+    SurfaceLayout, SurfaceSpec,
+};
 
 fn have(cmd: &str) -> bool {
     Command::new("sh")
@@ -31,13 +28,6 @@ fn have(cmd: &str) -> bool {
 // @internal
 #[test]
 fn render_fixture_writes_valid_png() {
-    let fixture = fixture("identity_check.json");
-    assert!(
-        fixture.exists(),
-        "golden fixture missing at {} — is core/ checked out?",
-        fixture.display()
-    );
-
     let bin = env!("CARGO_BIN_EXE_render_fixture");
     let width = 900;
     let height = 1400;
@@ -48,7 +38,41 @@ fn render_fixture_writes_valid_png() {
     }
 
     let output_dir = tempfile::tempdir().expect("create isolated render output directory");
+    let fixture = output_dir.path().join("generic_surface.json");
     let out = output_dir.path().join("render_fixture_smoke.png");
+    let surface = SurfaceSpec {
+        surface_id: SurfaceId::new("fixture").expect("surface id"),
+        revision: 1,
+        title: "Generic surface".into(),
+        subtitle: Some("Rendered from the canonical protocol".into()),
+        accessibility_label: "Generic surface".into(),
+        layout: SurfaceLayout::Scroll,
+        tokens: PresentationTokens {
+            spacing_small: 8,
+            spacing_medium: 16,
+            spacing_large: 24,
+            corner_radius: 12,
+            minimum_target_size: 44,
+        },
+        nodes: vec![
+            PresentationNode::Text {
+                id: None,
+                content: "Prepared entirely by Core".into(),
+                style: PresentationTextStyle::Heading,
+                accessibility: AccessibilitySpec::label("Prepared entirely by Core"),
+            },
+            PresentationNode::Progress {
+                label: Some("Migration progress".into()),
+                value: Some(0.75),
+                accessibility: AccessibilitySpec::label("Migration progress"),
+            },
+        ],
+    };
+    std::fs::write(
+        &fixture,
+        serde_json::to_vec_pretty(&surface).expect("serialize surface"),
+    )
+    .expect("write generic fixture");
 
     let status = Command::new("xvfb-run")
         .args([

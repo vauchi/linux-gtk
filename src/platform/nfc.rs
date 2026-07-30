@@ -27,7 +27,7 @@ mod inner {
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
-    use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::core_ui::contextual_surface::dispatch_platform_event;
     use crate::locale::detect_locale;
 
     // TODO(HUMBLE): T — frontend implements Vauchi APDU protocol (AID, EXCHANGE, SW1/SW2); move APDU framing into vauchi-core and forward raw bytes (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
@@ -84,20 +84,24 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             match rx.try_recv() {
                 Ok(Ok(data)) => {
-                    let event = Event::NfcDataReceived { data };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::NfcDataReceived { data },
+                    );
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "NFC".into(),
-                        error: e.clone(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "NFC".into(),
+                            error: e.clone(),
+                        },
+                    );
                     let msg = i18n::get_string_with_args(
                         detect_locale(),
                         "platform.nfc_exchange_failed",

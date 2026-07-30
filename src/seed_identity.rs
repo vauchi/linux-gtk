@@ -3,15 +3,13 @@
 
 //! Headless identity seeder for AT-SPI tests.
 //!
-//! Creates a test identity by driving the onboarding state machine
-//! without any GUI. The resulting database can be used by the GTK
-//! app so it starts past onboarding on My Info.
+//! Creates a test identity directly through the Core API without a GUI. The
+//! resulting database can be used by the GTK app so it starts past onboarding.
 //!
 //! Usage: seed-identity <data-dir>
 
 use std::sync::Arc;
 
-use vauchi_app::ui::{AppEngine, UserAction, WorkflowEngine};
 use vauchi_core::api::{Vauchi, VauchiConfig};
 use vauchi_core::storage::{PlatformKeyring, SecureStorage};
 
@@ -33,7 +31,7 @@ fn main() {
     );
 
     let config = VauchiConfig::with_storage_path(db_path.clone());
-    let vauchi = match ss {
+    let mut vauchi = match ss {
         Some(s) => Vauchi::with_secure_storage(config, s),
         None => Vauchi::new(config),
     }
@@ -44,45 +42,11 @@ fn main() {
         return;
     }
 
-    let mut engine = AppEngine::new(vauchi);
-
-    let actions = [
-        UserAction::ActionPressed {
-            action_id: "create_new".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "get_started".into(),
-        },
-        UserAction::TextChanged {
-            component_id: "display_name".into(),
-            value: "Test User".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "continue".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "skip_to_finish".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "continue".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "skip".into(),
-        },
-        UserAction::ActionPressed {
-            action_id: "start".into(),
-        },
-    ];
-
-    for action in &actions {
-        let _ = engine.handle_action(action.clone());
-    }
-
-    let screen = engine.current_screen();
-    eprintln!("[seed] final screen: {}", screen.screen_id);
-
-    // Drop engine to flush db writes
-    drop(engine);
+    vauchi
+        .create_identity("Test User")
+        .expect("create test identity");
+    eprintln!("[seed] identity created");
+    drop(vauchi);
 
     // Verify: reopen db and confirm identity persisted
     let config2 = VauchiConfig::with_storage_path(db_path);

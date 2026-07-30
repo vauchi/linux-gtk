@@ -21,7 +21,7 @@ mod inner {
     use vauchi_core::Event;
     use vauchi_core::exchange::CpalAudioBackend;
 
-    use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::core_ui::contextual_surface::dispatch_platform_event;
 
     /// Play already-encoded ultrasonic samples on a background thread.
     ///
@@ -93,23 +93,27 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok((samples, sample_rate))) => {
-                    let event = Event::AudioSamplesRecorded {
-                        samples,
-                        sample_rate,
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::AudioSamplesRecorded {
+                            samples,
+                            sample_rate,
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "Audio".into(),
-                        error: e.clone(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "Audio".into(),
+                            error: e.clone(),
+                        },
+                    );
                     let msg = i18n::get_string_with_args(
                         Locale::default(),
                         "platform.audio_listen_failed",

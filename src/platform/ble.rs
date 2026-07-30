@@ -23,7 +23,7 @@ mod inner {
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
-    use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::core_ui::contextual_surface::dispatch_platform_event;
 
     /// Persistent BLE connection state shared across connect/write/read/disconnect calls.
     struct BleConnection {
@@ -85,25 +85,20 @@ mod inner {
             match rx.try_recv() {
                 Ok(Ok(events)) => {
                     for event in events {
-                        if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                            handle_app_engine_result(
-                                &container,
-                                &app_engine,
-                                &toast_overlay,
-                                result,
-                            );
-                        }
+                        dispatch_platform_event(&container, &app_engine, &toast_overlay, event);
                     }
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "BLE".into(),
-                        error: e.clone(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "BLE".into(),
+                            error: e.clone(),
+                        },
+                    );
                     let msg = i18n::get_string_with_args(
                         Locale::default(),
                         "platform.ble_scan_failed",
@@ -242,22 +237,26 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok(())) => {
-                    let event = Event::BleConnected {
-                        device_id: device_id_for_event.clone(),
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::BleConnected {
+                            device_id: device_id_for_event.clone(),
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "BLE".into(),
-                        error: e,
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "BLE".into(),
+                            error: e,
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
@@ -305,13 +304,15 @@ mod inner {
             match rx.try_recv() {
                 Ok(Ok(())) => glib::ControlFlow::Break,
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "BLE".into(),
-                        error: e,
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "BLE".into(),
+                            error: e,
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
@@ -356,23 +357,27 @@ mod inner {
         glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             match rx.try_recv() {
                 Ok(Ok(data)) => {
-                    let event = Event::BleCharacteristicRead {
-                        uuid: uuid_for_event.clone(),
-                        data,
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::BleCharacteristicRead {
+                            uuid: uuid_for_event.clone(),
+                            data,
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Ok(Err(e)) => {
-                    let event = Event::HardwareError {
-                        transport: "BLE".into(),
-                        error: e,
-                    };
-                    if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                        handle_app_engine_result(&container, &app_engine, &toast_overlay, result);
-                    }
+                    dispatch_platform_event(
+                        &container,
+                        &app_engine,
+                        &toast_overlay,
+                        Event::HardwareError {
+                            transport: "BLE".into(),
+                            error: e,
+                        },
+                    );
                     glib::ControlFlow::Break
                 }
                 Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,

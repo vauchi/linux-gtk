@@ -23,7 +23,7 @@ mod inner {
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
-    use crate::core_ui::screen_renderer::handle_app_engine_result;
+    use crate::core_ui::contextual_surface::dispatch_platform_event;
     use crate::locale::detect_locale;
 
     /// Result from the camera thread: either a decoded QR string or a frame for preview.
@@ -127,15 +127,12 @@ mod inner {
                     Ok(CameraMsg::QrFound(data)) => {
                         stop_for_poll.store(true, Ordering::SeqCst);
                         dialog.close();
-                        let event = Event::QrScanned { data };
-                        if let Some(result) = app_engine.borrow_mut().handle_hardware_event(event) {
-                            handle_app_engine_result(
-                                &container,
-                                &app_engine,
-                                &toast_overlay,
-                                result,
-                            );
-                        }
+                        dispatch_platform_event(
+                            &container,
+                            &app_engine,
+                            &toast_overlay,
+                            Event::QrScanned { data },
+                        );
                         return glib::ControlFlow::Break;
                     }
                     Ok(CameraMsg::Error(e)) => {
