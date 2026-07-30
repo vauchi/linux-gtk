@@ -8,7 +8,7 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: ci-templates-v2026.07.11
+    ref: feature/contextual-command-surface
     file:
       - '/ci-templates/rust-base.yml'
       - '/ci-templates/security.yml'
@@ -26,7 +26,7 @@ include:
       - '/ci-templates/coverage.yml'
 
 variables:
-  VAUCHI_SCRIPTS_REF: "ci-templates-v2026.07.11"
+  VAUCHI_SCRIPTS_REF: "feature/contextual-command-surface"
   # Set to "true" to make downstream GTK verification advisory during runner incidents.
   GTK_VERIFY_ALLOW_FAILURE: "false"
 
@@ -334,33 +334,36 @@ perf:binary-size:
 # verify:downstream-rust. Verifies this repo builds and tests
 # pass against the updated vauchi-core.
 
-# Design drift: verify all design-spec components are implemented
+# Presentation drift: verify every canonical presentation node is rendered.
 check:design-drift:
   extends: .design-drift-job
   variables:
-    DESIGN_DRIFT_COMPONENT_DIR: "src/core_ui/components"
+    DESIGN_DRIFT_PROTOCOL: "presentation"
+    DESIGN_DRIFT_MATCH_MODE: "grep"
+    DESIGN_DRIFT_GREP_FILE: "src/core_ui/generic_surface"
+    CORE_REF: "feature/contextual-command-surface"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/core_ui/components/**"
+          - "src/core_ui/generic_surface/**"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         paths:
-          - "src/core_ui/components/**"
+          - "src/core_ui/generic_surface/**"
           - ".gitlab-ci.yml"
 
-# Parser-parity gate: verify the hand-rolled Component dispatch in
-# `src/core_ui/components/mod.rs` covers every variant declared in
-# core's canonical `Component` enum. Catches silent drift when core
-# adds a variant.
+# Parser-parity gate for Core's canonical PresentationNode enum.
 check:parser-parity:
   extends: .parser-parity-job
   variables:
     FRONTEND_NAME: "linux-gtk"
-    PARSER_FILE: "src/core_ui/components/mod.rs"
+    PARSER_FILE: "src/core_ui/generic_surface"
+    PARSER_PROTOCOL: "presentation"
+    PARSER_SCRIPT_REF: "feature/contextual-command-surface"
+    CORE_REF: "feature/contextual-command-surface"
 
 # Removed symbols: detect stale references to removed features
 check:removed-symbols:

@@ -3,11 +3,15 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Label, Orientation, Widget};
+use vauchi_app::i18n::{self, Locale};
 use vauchi_core::{
     BindingId, InputValue, PresentationNode, PresentationQrPurpose, PresentationRow, SurfaceId,
 };
 
 use super::{OnEvent, action_button, emit_value, render_node};
+
+const QR_LIGHT_RGB: (f64, f64, f64) = (1.0, 1.0, 1.0);
+const QR_DARK_RGB: (f64, f64, f64) = (0.0, 0.0, 0.0);
 
 pub(super) fn render(
     node: &PresentationNode,
@@ -62,7 +66,7 @@ pub(super) fn render(
             if *searchable {
                 group.append(
                     &gtk4::SearchEntry::builder()
-                        .placeholder_text("Search")
+                        .placeholder_text(i18n::get_string(Locale::default(), "action.search"))
                         .build(),
                 );
             }
@@ -166,12 +170,12 @@ fn render_qr(payload: &str) -> DrawingArea {
             .collect::<Vec<_>>()
     });
     drawing.set_draw_func(move |_, context, width, height| {
-        context.set_source_rgb(1.0, 1.0, 1.0);
+        context.set_source_rgb(QR_LIGHT_RGB.0, QR_LIGHT_RGB.1, QR_LIGHT_RGB.2);
         let _ = context.paint();
         let Some(modules) = &modules else {
             return;
         };
-        context.set_source_rgb(0.0, 0.0, 0.0);
+        context.set_source_rgb(QR_DARK_RGB.0, QR_DARK_RGB.1, QR_DARK_RGB.2);
         let module_width = f64::from(width) / modules.len() as f64;
         let module_height = f64::from(height) / modules.len() as f64;
         for (y, row) in modules.iter().enumerate() {
@@ -194,11 +198,14 @@ fn render_qr(payload: &str) -> DrawingArea {
 fn render_qr_capture(id: &BindingId, surface_id: &SurfaceId, on_event: &OnEvent) -> GtkBox {
     let row = GtkBox::new(Orientation::Horizontal, 8);
     let entry = Entry::builder()
-        .placeholder_text("Paste scanned QR data")
+        .placeholder_text(i18n::get_string(
+            Locale::default(),
+            "platform.qr_paste_placeholder",
+        ))
         .hexpand(true)
         .build();
     entry.set_widget_name(id.as_str());
-    let button = Button::with_label("Submit");
+    let button = Button::with_label(&i18n::get_string(Locale::default(), "platform.qr_submit"));
     let entry_for_submit = entry.clone();
     let id = id.clone();
     let surface = surface_id.clone();
