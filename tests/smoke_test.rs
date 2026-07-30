@@ -6,6 +6,7 @@
 use vauchi_app::ui::AppEngine;
 use vauchi_core::{Command, Event, InputMode, MotionPreference, WindowClass, api::Vauchi};
 
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn fresh_install_boots_with_a_generic_surface_and_context_bar() {
     let mut engine = AppEngine::new(Vauchi::in_memory().expect("in-memory Core"));

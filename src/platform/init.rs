@@ -7,10 +7,11 @@
 //! 1. PlatformKeyring (kernel keyutils + Secret Service) — best option
 //! 2. FileKeyStorage (encrypted file in XDG data dir) — fallback
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use vauchi_core::api::{Vauchi, VauchiConfig};
+use vauchi_core::storage::local_keys::load_or_generate_fallback_key;
 use vauchi_core::storage::{PlatformKeyring, SecureStorage};
 
 /// Default relay URL.
@@ -84,10 +85,20 @@ fn detect_secure_storage(install_id: &str) -> Option<Arc<dyn SecureStorage>> {
         }
         Err(e) => {
             eprintln!("[vauchi] System keyring unavailable ({e}), running without secure storage");
-            eprintln!("[vauchi] Database will use config-derived key (less secure)");
             None
         }
     }
+}
+
+fn open_with_file_fallback(
+    data_path: &Path,
+    relay_url: &str,
+) -> Result<Vauchi, Box<dyn std::error::Error>> {
+    let storage_key = load_or_generate_fallback_key(data_path)?;
+    let config = VauchiConfig::with_storage_path(data_path.join("vauchi.db"))
+        .with_relay_url(relay_url.to_string())
+        .with_storage_key(storage_key);
+    Ok(Vauchi::new(config)?)
 }
 
 pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
@@ -97,14 +108,18 @@ pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
     let install_id = vauchi_core::install_id::read_or_create_install_id(&data_path)?;
 
     let relay_url = resolve_relay_url(&data_path);
-    let config =
-        VauchiConfig::with_storage_path(data_path.join("vauchi.db")).with_relay_url(relay_url);
-
     let secure_storage = detect_secure_storage(&install_id);
 
     Ok(match secure_storage {
-        Some(ss) => Vauchi::with_secure_storage(config, ss)?,
-        None => Vauchi::new(config)?,
+        Some(ss) => {
+            let config = VauchiConfig::with_storage_path(data_path.join("vauchi.db"))
+                .with_relay_url(relay_url);
+            Vauchi::with_secure_storage(config, ss)?
+        }
+        None => {
+            eprintln!("[vauchi] Using file-backed fallback key (less secure)");
+            open_with_file_fallback(&data_path, &relay_url)?
+        }
     })
 }
 
@@ -186,5 +201,24 @@ mod tests {
         let name = keyring_service_name(id);
         assert_ne!(name, "vauchi");
         assert!(name.starts_with("vauchi-gtk-"));
+    }
+
+    // @scenario: linux_desktop_reliability.feature :: GTK identity survives restart without a system keyring
+    #[test]
+    fn file_fallback_reopens_created_identity() {
+        let data_dir = tempfile::tempdir().expect("temporary data directory");
+
+        let mut first =
+            open_with_file_fallback(data_dir.path(), DEFAULT_RELAY_URL).expect("first open");
+        assert!(!first.has_identity());
+        first
+            .create_identity("Persistent Identity")
+            .expect("create identity");
+        assert!(first.has_identity());
+        drop(first);
+
+        let reopened =
+            open_with_file_fallback(data_dir.path(), DEFAULT_RELAY_URL).expect("second open");
+        assert!(reopened.has_identity());
     }
 }

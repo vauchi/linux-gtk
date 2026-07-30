@@ -19,7 +19,7 @@ from helpers import (
     find_one,
     wait_until,
 )
-from navigation import navigate_to, wait_for_labels_loaded
+from navigation import EXPECTED_DESTINATIONS, navigate_to
 
 
 # ---------------------------------------------------------------------------
@@ -27,36 +27,12 @@ from navigation import navigate_to, wait_for_labels_loaded
 # ---------------------------------------------------------------------------
 
 class TestNavigateAllScreens:
-    """Manual item: launch app, navigate sidebar screens."""
+    """Manual item: launch app, navigate contextual destinations."""
 
-    def test_all_sidebar_screens_reachable(self, gtk_app):
-        """Each sidebar item should be activatable via AT-SPI action."""
-        sidebar = find_one(gtk_app, name="Navigation")
-        assert sidebar is not None, "Sidebar not found"
-
-        # Wait for i18n labels to resolve before caching names. Otherwise a
-        # label that is "Missing: nav.myCard" when read may become "My Card"
-        # after the locale bundle loads, and the stale string navigates to
-        # nothing.
-        wait_for_labels_loaded(gtk_app, timeout=5.0)
-
-        items = find_all(sidebar, role="list item", max_depth=5)
-        assert len(items) >= 5, (
-            f"Expected >= 5 sidebar items, found {len(items)}.\n"
-            f"Tree:\n{dump_tree(sidebar, 4)}"
-        )
-        # Cache names before navigating — the AT-SPI item objects go stale
-        # once the content tree re-renders.
-        names = [item.get_name() for item in items]
-
-        # The app opens on its default (home) screen. Activating the item
-        # that is already current is a no-op, which navigate_to correctly
-        # reports as False (no transition) — not "unreachable". Move to a
-        # known different screen first so every navigation below is a
-        # genuine transition, regardless of which item was the default.
-        navigate_to(gtk_app, names[-1])
-
-        for name in names:
+    def test_all_contextual_destinations_reachable(self, gtk_app):
+        """Each Core-provided destination should cause a real transition."""
+        navigate_to(gtk_app, EXPECTED_DESTINATIONS[-1])
+        for name in EXPECTED_DESTINATIONS:
             navigated = navigate_to(gtk_app, name)
             assert navigated, (
                 f"Failed to navigate to '{name}' (see stderr for the AT-SPI "
@@ -107,7 +83,7 @@ class TestCardPreviewTabs:
     """Manual item: verify card preview group tabs switch fields."""
 
     def test_my_info_has_tab_buttons(self, gtk_app):
-        """My Info screen should have group tab toggle buttons."""
+        """My Card should expose native, named presentation actions."""
         navigate_to(gtk_app, "My Card")
         wait_until(
             lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
@@ -115,10 +91,10 @@ class TestCardPreviewTabs:
             message="My Info screen should have labels after navigation",
         )
 
-        toggles = find_all(gtk_app, role="toggle button", max_depth=15)
-        all_tab = find_one(gtk_app, name="All")
-        assert len(toggles) > 0 or all_tab is not None, (
-            f"No group tab buttons found on My Info.\n"
+        buttons = find_all(gtk_app, role="button", max_depth=15)
+        named = [button for button in buttons if button.get_name()]
+        assert named, (
+            f"No named native actions found on My Card.\n"
             f"Tree:\n{dump_tree(gtk_app, 6)}"
         )
 

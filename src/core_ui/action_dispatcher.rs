@@ -199,19 +199,25 @@ pub(crate) fn handle_exchange_commands(
                     let _ = (uuid, data);
                 }
             }
-            Command::BleReadCharacteristic { uuid, .. } => {
+            Command::BleReadCharacteristic {
+                device_id,
+                direction,
+                uuid,
+            } => {
                 #[cfg(all(feature = "ble", target_os = "linux"))]
                 {
                     crate::platform::ble::read_characteristic(
                         container,
                         app_engine,
                         toast_overlay,
+                        device_id.clone(),
+                        *direction,
                         uuid.clone(),
                     );
                 }
                 #[cfg(not(all(feature = "ble", target_os = "linux")))]
                 {
-                    let _ = uuid;
+                    let _ = (device_id, direction, uuid);
                 }
             }
             Command::BleDisconnect { .. } => {

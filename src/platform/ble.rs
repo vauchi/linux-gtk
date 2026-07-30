@@ -21,7 +21,7 @@ mod inner {
 
     use vauchi_app::i18n::{self, Locale};
     use vauchi_app::ui::AppEngine;
-    use vauchi_core::Event;
+    use vauchi_core::{BleLinkDirection, Event};
 
     use crate::core_ui::contextual_surface::dispatch_platform_event;
 
@@ -243,6 +243,7 @@ mod inner {
                         &toast_overlay,
                         Event::BleConnected {
                             device_id: device_id_for_event.clone(),
+                            direction: BleLinkDirection::Outbound,
                         },
                     );
                     glib::ControlFlow::Break
@@ -326,6 +327,8 @@ mod inner {
         container: &gtk4::Box,
         app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
+        device_id: String,
+        direction: BleLinkDirection,
         uuid: String,
     ) {
         let container = container.clone();
@@ -362,6 +365,8 @@ mod inner {
                         &app_engine,
                         &toast_overlay,
                         Event::BleCharacteristicRead {
+                            device_id: device_id.clone(),
+                            direction,
                             uuid: uuid_for_event.clone(),
                             data,
                         },

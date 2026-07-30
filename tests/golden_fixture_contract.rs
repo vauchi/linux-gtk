@@ -12,6 +12,7 @@ fn initial_batch() -> (AppEngine, Vec<Command>) {
     (engine, commands)
 }
 
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn initial_batch_is_a_serializable_generic_surface_transaction() {
     let (_, commands) = initial_batch();
@@ -42,6 +43,7 @@ fn initial_batch_is_a_serializable_generic_surface_transaction() {
     assert_eq!(*revision, surface.revision);
 }
 
+// @scenario: generic_presentation_protocol.feature :: Contextual controls expose four stable roles
 #[test]
 fn visible_context_actions_have_accessible_labels() {
     let (_, commands) = initial_batch();
@@ -66,6 +68,7 @@ fn visible_context_actions_have_accessible_labels() {
     }
 }
 
+// @scenario: generic_presentation_protocol.feature :: User interaction returns as an opaque event
 #[test]
 fn an_opaque_visible_action_round_trips_through_the_reducer() {
     let (mut engine, commands) = initial_batch();

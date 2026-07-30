@@ -18,6 +18,7 @@ from helpers import (
     wait_until,
     dump_tree,
 )
+from navigation import navigate_to
 
 
 class TestOnboardingWorkflow:
@@ -39,20 +40,61 @@ class TestOnboardingWorkflow:
                 "GTK4 may not expose ScreenAction buttons under Xvfb"
             )
 
+    def test_accessible_text_edit_advances_onboarding(self, gtk_app_onboarding):
+        """Accessible text editing must update Core before Continue."""
+        app = gtk_app_onboarding
+        assert wait_for_element(
+            app,
+            role="button",
+            name="Create new identity",
+            timeout=5.0,
+        ) is not None
+        assert click_button(app, "Create new identity")
+        assert wait_for_element(
+            app,
+            role="text",
+            name="Display name input",
+            timeout=5.0,
+        ) is not None, dump_tree(app, max_depth=12)
+
+        assert set_text(app, "Display name input", "Harness Explorer")
+        assert click_button(app, "Continue")
+
+        assert wait_for_element(
+            app,
+            role="label",
+            name="Choose your groups",
+            timeout=5.0,
+        ) is not None, dump_tree(app, max_depth=12)
+        assert click_button(app, "Continue")
+        assert wait_for_element(
+            app,
+            role="label",
+            name="Add contact info",
+            timeout=5.0,
+        ) is not None
+        assert click_button(app, "Continue")
+        assert wait_for_element(
+            app,
+            role="label",
+            name="What would you like to do?",
+            timeout=5.0,
+        ) is not None
+        assert click_button(app, "Start using the app")
+        assert wait_for_element(
+            app,
+            role="label",
+            name="Harness Explorer",
+            timeout=5.0,
+        ) is not None
+
 
 class TestNavigationWorkflow:
     """Test navigation between multiple screens."""
 
     def test_navigate_multiple_screens(self, gtk_app):
         """App should remain responsive after navigating multiple screens."""
-        sidebar = find_one(gtk_app, name="Navigation")
-        assert sidebar is not None, "Sidebar not found"
-
-        labels = find_all(gtk_app, role="label")
-        initial_count = len(labels)
-        assert initial_count > 0, "No labels found initially"
-
-        # The app should still have labels after any navigation
+        assert navigate_to(gtk_app, "Contacts")
         wait_until(
             lambda: len(find_all(gtk_app, role="label")) > 0,
             timeout=5.0,
@@ -80,11 +122,12 @@ class TestExchangeWorkflow:
 class TestSettingsWorkflow:
     """Settings screen interaction."""
 
-    def test_settings_has_toggles(self, gtk_app):
-        """Settings screen should have toggle switches for preferences."""
-        toggles = find_all(gtk_app, role="toggle button")
-        # Settings screen should have preference toggles
-        assert len(toggles) > 0, "Settings should have at least one toggle switch"
+    def test_more_destination_has_native_actions(self, gtk_app):
+        """The More destination should expose named native actions."""
+        assert navigate_to(gtk_app, "More")
+        buttons = find_all(gtk_app, role="button")
+        named = [button.get_name() for button in buttons if button.get_name()]
+        assert named, f"More screen has no named actions:\n{dump_tree(gtk_app, 12)}"
 
 
 class TestHardwareDegradation:

@@ -156,7 +156,7 @@ fn current_focus_name(container: &GtkBox) -> Option<String> {
     container
         .root()
         .and_then(|root| root.downcast::<gtk4::Window>().ok())
-        .and_then(|window| window.focus())
+        .and_then(|window| gtk4::prelude::GtkWindowExt::focus(&window))
         .map(|widget| widget.widget_name().to_string())
         .filter(|name| !name.is_empty())
 }

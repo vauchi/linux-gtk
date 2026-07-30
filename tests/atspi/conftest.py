@@ -22,6 +22,9 @@ from gi.repository import Atspi  # noqa: E402
 
 from helpers import dump_tree, find_app  # noqa: E402
 
+_ATSPI_DIR = os.path.dirname(os.path.abspath(__file__))
+_WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(_ATSPI_DIR)))
+
 
 def _wait_for_atspi_ready(timeout: float = 10.0) -> bool:
     """Poll AT-SPI registry until it responds to a desktop query.
@@ -77,7 +80,7 @@ def _launch_and_find(binary, env, attempts=2, find_timeout=15.0):
             # instead of waiting the full timeout on a dead child.
             if proc.poll() is not None:
                 break
-            app_root = find_app("gvauchi", timeout=0.5)
+            app_root = find_app("gvauchi", timeout=0.5, process_id=proc.pid)
 
         if app_root is not None:
             return proc, app_root
@@ -153,6 +156,8 @@ def gtk_app(gtk_binary, _session_data_dir):
     env["GTK_A11Y"] = "atspi"
     env["XDG_DATA_HOME"] = _session_data_dir
     env["VAUCHI_TEST_SEED"] = "1"
+    env["VAUCHI_TEST_NON_UNIQUE"] = "1"
+    env["VAUCHI_LOCALES_DIR"] = os.path.join(_WORKSPACE, "locales")
 
     if "DISPLAY" not in env and "WAYLAND_DISPLAY" not in env:
         pytest.skip("No display available")
@@ -179,6 +184,35 @@ def gtk_app_fresh(gtk_binary):
     env = os.environ.copy()
     env["GTK_A11Y"] = "atspi"
     env["XDG_DATA_HOME"] = data_dir
+    env["VAUCHI_TEST_NON_UNIQUE"] = "1"
+    env["VAUCHI_LOCALES_DIR"] = os.path.join(_WORKSPACE, "locales")
+
+    if "DISPLAY" not in env and "WAYLAND_DISPLAY" not in env:
+        pytest.skip("No display available")
+
+    proc, app_root = _launch_and_find(gtk_binary, env)
+
+    yield app_root
+
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=5)
+
+    shutil.rmtree(data_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def gtk_app_onboarding(gtk_binary):
+    """Launch an independent fresh app for a state-changing onboarding test."""
+    data_dir = tempfile.mkdtemp(prefix="vauchi-test-onboarding-")
+    env = os.environ.copy()
+    env["GTK_A11Y"] = "atspi"
+    env["XDG_DATA_HOME"] = data_dir
+    env["VAUCHI_TEST_NON_UNIQUE"] = "1"
+    env["VAUCHI_LOCALES_DIR"] = os.path.join(_WORKSPACE, "locales")
 
     if "DISPLAY" not in env and "WAYLAND_DISPLAY" not in env:
         pytest.skip("No display available")

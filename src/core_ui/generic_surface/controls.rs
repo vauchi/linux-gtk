@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_core::{InputValue, PresentationNode, SurfaceId};
@@ -14,7 +15,10 @@ pub(super) fn render(
 ) -> Widget {
     match node {
         PresentationNode::Text {
-            id, content, style, ..
+            id,
+            content,
+            style,
+            accessibility,
         } => {
             let label = Label::builder()
                 .label(content)
@@ -24,6 +28,11 @@ pub(super) fn render(
             if let Some(id) = id {
                 label.set_widget_name(id.as_str());
             }
+            let mut properties = vec![Property::Label(&accessibility.label)];
+            if let Some(description) = accessibility.description.as_deref() {
+                properties.push(Property::Description(description));
+            }
+            label.update_property(&properties);
             match style {
                 vauchi_core::PresentationTextStyle::Heading => label.add_css_class("title-2"),
                 vauchi_core::PresentationTextStyle::Muted => label.add_css_class("dim-label"),
@@ -41,7 +50,7 @@ pub(super) fn render(
             max_length,
             validation_error,
             enabled,
-            ..
+            accessibility,
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
             group.append(
@@ -61,12 +70,28 @@ pub(super) fn render(
                 ))
                 .build();
             entry.set_widget_name(binding_id.as_str());
+            let mut properties = vec![Property::Label(&accessibility.label)];
+            if let Some(description) = accessibility.description.as_deref() {
+                properties.push(Property::Description(description));
+            }
+            entry.update_property(&properties);
             if let Some(limit) = max_length.and_then(|value| i32::try_from(value).ok()) {
                 entry.set_max_length(limit);
             }
             let id = binding_id.clone();
             let surface = surface_id.clone();
             let callback = on_event.clone();
+            let changed_id = id.clone();
+            let changed_surface = surface.clone();
+            let changed_callback = callback.clone();
+            entry.connect_changed(move |entry| {
+                emit_value(
+                    &changed_surface,
+                    &changed_id,
+                    InputValue::Text(entry.text().to_string()),
+                    &changed_callback,
+                );
+            });
             let blur_id = id.clone();
             let blur_surface = surface.clone();
             let blur_callback = callback.clone();

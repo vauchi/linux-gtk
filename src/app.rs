@@ -26,6 +26,10 @@ const APP_ID: &str = "com.vauchi.desktop";
 static RESET_FOR_TESTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 pub fn run() {
+    if let Some(resource_dir) = std::env::var_os("VAUCHI_LOCALES_DIR") {
+        let _ = i18n::init(std::path::Path::new(&resource_dir));
+    }
+
     // Consume --reset-for-testing before GTK sees it (GTK rejects unknown flags).
     let args: Vec<String> = std::env::args()
         .filter(|a| {
@@ -40,7 +44,11 @@ pub fn run() {
 
     platform::screen_capture_protection::enable();
 
-    let app = adw::Application::builder().application_id(APP_ID).build();
+    let mut app_builder = adw::Application::builder().application_id(APP_ID);
+    if std::env::var("VAUCHI_TEST_NON_UNIQUE").as_deref() == Ok("1") {
+        app_builder = app_builder.flags(gio::ApplicationFlags::NON_UNIQUE);
+    }
+    let app = app_builder.build();
     app.connect_activate(build_ui);
     app.run_with_args(&args.iter().map(String::as_str).collect::<Vec<_>>());
 }

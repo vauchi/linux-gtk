@@ -8,7 +8,7 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: feature/contextual-command-surface
+    ref: 4e2c91d387aed482b80bd24e1b8d94477152aeef
     file:
       - '/ci-templates/rust-base.yml'
       - '/ci-templates/security.yml'
@@ -26,7 +26,7 @@ include:
       - '/ci-templates/coverage.yml'
 
 variables:
-  VAUCHI_SCRIPTS_REF: "feature/contextual-command-surface"
+  VAUCHI_SCRIPTS_REF: "4e2c91d387aed482b80bd24e1b8d94477152aeef"
   # Set to "true" to make downstream GTK verification advisory during runner incidents.
   GTK_VERIFY_ALLOW_FAILURE: "false"
 

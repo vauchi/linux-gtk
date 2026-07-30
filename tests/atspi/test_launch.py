@@ -35,10 +35,12 @@ class TestAppLaunch:
             f"No window with 'Vauchi' in name. Found: {window_names}"
         )
 
-    def test_sidebar_exists(self, gtk_app):
-        """The navigation sidebar should be discoverable."""
-        sidebar = find_one(gtk_app, name="Navigation")
-        assert sidebar is not None, f"Sidebar not found. Tree:\n{dump_tree(gtk_app, 5)}"
+    def test_contextual_navigation_exists(self, gtk_app):
+        """The Core-provided navigation action should be discoverable."""
+        navigation = find_one(gtk_app, role="button", name="More")
+        assert navigation is not None, (
+            f"Contextual navigation action not found. Tree:\n{dump_tree(gtk_app, 12)}"
+        )
 
     def test_screen_title_exists(self, gtk_app):
         """A screen title label should be visible."""
@@ -57,3 +59,13 @@ class TestAppLaunchFresh:
         label_names = [l.get_name() for l in labels if l.get_name()]
         # Should see setup/welcome/onboarding related content
         assert len(labels) > 0, "No labels found on fresh launch"
+
+    def test_fresh_app_has_no_missing_translation_labels(self, gtk_app_fresh):
+        """Runtime locale initialization must resolve onboarding copy."""
+        labels = [
+            label.get_name()
+            for label in find_all(gtk_app_fresh, role="label")
+            if label.get_name()
+        ]
+        missing = [label for label in labels if label.startswith("Missing:")]
+        assert missing == [], f"unresolved onboarding labels: {missing}"

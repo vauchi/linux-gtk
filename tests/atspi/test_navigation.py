@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Blocking AT-SPI sidebar-navigation smoke test.
+"""Blocking AT-SPI contextual-navigation smoke test.
 
 Lives in its own module (not test_snapshots.py) on purpose: the CI
 `test:a11y` job runs ``-k "not test_snapshots"`` and is BLOCKING, while
@@ -20,31 +20,20 @@ old test only checked that the action was *callable* (`navigated == True`)
 
 import pytest
 
-from helpers import find_all, find_one
-from navigation import content_fingerprint, navigate_to, wait_for_labels_loaded
+from navigation import EXPECTED_DESTINATIONS, content_fingerprint, navigate_to
 
 
-def test_sidebar_activation_changes_screen(gtk_app):
-    """AT-SPI do_action(0) on a sidebar item must cause a real transition.
+def test_contextual_navigation_changes_screen(gtk_app):
+    """A native navigation-overlay action must cause a real transition.
 
     Verified by a content-tree change — not by the action merely being
     callable. Requires >= 2 sidebar screens to each render a distinct
     content tree, so a regression back to the no-op navigation (every
     screen identical) fails loudly.
     """
-    sidebar = find_one(gtk_app, name="Navigation")
-    assert sidebar is not None, "Sidebar not found"
-    if not wait_for_labels_loaded(gtk_app, timeout=5.0):
-        pytest.skip("Sidebar labels still i18n fallbacks — locale bundle not loaded")
-
-    names = [
-        i.get_name()
-        for i in find_all(sidebar, role="list item", max_depth=5)
-        if i.get_name()
-    ]
     seen = {content_fingerprint(gtk_app)}
     transitioned: list[str] = []
-    for screen in names:
+    for screen in EXPECTED_DESTINATIONS:
         if not navigate_to(gtk_app, screen):
             continue
         fingerprint = content_fingerprint(gtk_app)
@@ -59,6 +48,6 @@ def test_sidebar_activation_changes_screen(gtk_app):
 
     assert len(transitioned) >= 2, (
         f"Expected >= 2 sidebar screens to transition; got {transitioned}. "
-        "AT-SPI sidebar do_action(0) is a no-op "
+        "AT-SPI contextual navigation action is a no-op "
         "(see 2026-05-16-linux-gtk-atspi-sidebar-navigate)."
     )

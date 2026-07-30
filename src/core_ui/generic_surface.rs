@@ -6,6 +6,8 @@
 mod collections;
 mod controls;
 
+use gtk4::accessible::Property;
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use std::rc::Rc;
@@ -103,13 +105,19 @@ pub(super) fn action_button(
         .sensitive(action.enabled)
         .build();
     button.set_widget_name(action.interaction_id.as_str());
+    button.update_property(&[Property::Label(&action.accessibility_label)]);
     if action.tone == vauchi_core::ActionTone::Destructive {
         button.add_css_class("destructive-action");
     }
     let action = action.clone();
     let surface_id = surface_id.clone();
     let on_event = on_event.clone();
-    button.connect_clicked(move |_| emit_activation(&surface_id, &action, &on_event));
+    button.connect_clicked(move |_| {
+        let action = action.clone();
+        let surface_id = surface_id.clone();
+        let on_event = on_event.clone();
+        glib::idle_add_local_once(move || emit_activation(&surface_id, &action, &on_event));
+    });
     button
 }
 

@@ -22,14 +22,22 @@ def wait_until(predicate, timeout=2.0, interval=0.05, message=""):
     raise AssertionError(message or f"Condition not met within {timeout}s")
 
 
-def find_app(name: str, timeout: float = 10.0) -> Atspi.Accessible | None:
-    """Find an application in the AT-SPI tree by name."""
+def find_app(
+    name: str,
+    timeout: float = 10.0,
+    process_id: int | None = None,
+) -> Atspi.Accessible | None:
+    """Find an application in the AT-SPI tree by name and optional PID."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         desktop = Atspi.get_desktop(0)
         for i in range(desktop.get_child_count()):
             child = desktop.get_child_at_index(i)
-            if child and child.get_name() == name:
+            if (
+                child
+                and child.get_name() == name
+                and (process_id is None or child.get_process_id() == process_id)
+            ):
                 return child
         time.sleep(0.05)
     return None

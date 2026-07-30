@@ -12,36 +12,31 @@ accessible label is missing from the rendered UI.
 import pytest
 
 from helpers import find_all, find_one, dump_tree
+from navigation import EXPECTED_DESTINATIONS, open_navigation
 
 
-class TestSidebar:
-    """Navigation sidebar (app.rs)."""
+class TestContextualNavigation:
+    """Core-driven navigation overlay."""
 
-    def test_sidebar_has_navigation_label(self, gtk_app):
-        """Sidebar list must have 'Navigation' accessible label."""
-        nav = find_one(gtk_app, name="Navigation")
+    def test_navigation_launcher_opens_overlay(self, gtk_app):
+        """The contextual navigation action must open a native overlay."""
+        nav = open_navigation(gtk_app)
         assert nav is not None, (
-            "Sidebar list missing 'Navigation' accessible label.\n"
+            "Contextual navigation overlay did not open.\n"
             f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=4)}"
         )
 
-    def test_sidebar_rows_have_labels(self, gtk_app):
-        """Each sidebar row must have an accessible label matching its text."""
-        nav = find_one(gtk_app, name="Navigation")
-        if nav is None:
-            pytest.skip("No sidebar found")
-        rows = find_all(nav, role="list item")
-        if len(rows) <= 1:
-            pytest.skip(
-                "App on onboarding (1 sidebar row) — "
-                "seed-identity may not have persisted"
-            )
-        for row in rows:
-            name = row.get_name()
-            assert name and len(name) > 0, (
-                f"Sidebar row has empty accessible label.\n"
-                f"Row tree:\n{dump_tree(row)}"
-            )
+    def test_navigation_actions_have_core_labels(self, gtk_app):
+        """Every top-level destination must be named and actionable."""
+        nav = open_navigation(gtk_app)
+        assert nav is not None
+        buttons = find_all(nav, role="button")
+        names = [button.get_name() for button in buttons if button.get_name()]
+        assert all(name in names for name in EXPECTED_DESTINATIONS), names
+        for button in buttons:
+            assert button.get_name(), dump_tree(button)
+            action = button.get_action_iface()
+            assert action is not None and action.get_n_actions() > 0
 
 
 class TestTextInputComponent:

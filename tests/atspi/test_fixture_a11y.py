@@ -1,19 +1,11 @@
 # SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Fixture-driven AT-SPI checks: rendered a11y labels come from core.
+"""Fixture-driven AT-SPI checks: rendered a11y labels come from Core.
 
 The Humble-UI contract (ADR-043/044) is that the frontend renders the
-`a11y` label core puts on a `Component`, never a locally-invented domain
-string. These tests assert that at the live AT-SPI layer: render a golden
-`ScreenModel` fixture through the production renderer (`render_fixture
---keep-open`) and assert the frame's accessible name equals the label the
-fixture (i.e. core) carries.
-
-Replaces the former `test_card_preview_has_contact_label`, which filtered
-panels already starting with 'Contact card:' then asserted they start with
-'Contact card:' (tautological — CC-20), pinned a since-removed frontend
-hardcode, and filtered role='panel' although the preview frame surfaces as
-role='grouping' — so it never matched and passed vacuously.
+`accessibility` label Core puts on a generic presentation node, never a
+frontend-invented domain string. The fixture is a current `SurfaceSpec`, the
+same protocol this MR renders in production.
 """
 import json
 import os
@@ -32,22 +24,9 @@ from helpers import find_all  # noqa: E402
 
 _ATSPI_DIR = os.path.dirname(os.path.abspath(__file__))
 _WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(_ATSPI_DIR)))
-_PREVIEW_FIXTURE = os.path.join(
-    _WORKSPACE,
-    "core/vauchi-core/tests/fixtures/golden/contact_edit_preview.json",
-)
-
-
-def _fixture_preview(path):
-    """(screen title, Preview a11y label) carried by the golden fixture.
-
-    The title is a stable anchor for locating the rendered app — independent
-    of the a11y label under test, so a regression surfaces as a clear label
-    assertion failure rather than 'app not found'.
-    """
-    with open(path) as f:
-        model = json.load(f)
-    return model["title"], model["components"][0]["Preview"]["a11y"]["label"]
+_ANCHOR_TITLE = "Generic accessibility fixture"
+_EXPECTED_LABEL = "Core supplied text label"
+_VISUAL_TEXT = "Frontend visual text"
 
 
 def _all_accessible_names(root, max_depth=20):
@@ -55,8 +34,8 @@ def _all_accessible_names(root, max_depth=20):
 
 
 @pytest.fixture(scope="module")
-def preview_fixture_app():
-    """Render the contact-edit preview fixture live for AT-SPI inspection.
+def preview_fixture_app(tmp_path_factory):
+    """Render a generic presentation fixture live for AT-SPI inspection.
 
     Uses `render_fixture --keep-open` so the production renderer builds the
     real widget tree and the window stays up on the a11y bus (no PNG capture,
@@ -67,26 +46,57 @@ def preview_fixture_app():
     binary = _find_binary("render_fixture")
     if binary is None:
         pytest.fail("render_fixture binary not found — run 'just build linux-gtk' first")
-    if not os.path.isfile(_PREVIEW_FIXTURE):
-        pytest.fail(f"golden fixture missing: {_PREVIEW_FIXTURE}")
     if not _wait_for_atspi_ready(timeout=10.0):
         pytest.fail("AT-SPI registry did not respond within 10s")
+
+    fixture_path = tmp_path_factory.mktemp("surface") / "accessibility.json"
+    fixture_path.write_text(
+        json.dumps(
+            {
+                "surface_id": "fixture",
+                "revision": 1,
+                "title": _ANCHOR_TITLE,
+                "subtitle": None,
+                "accessibility_label": "Fixture surface",
+                "layout": "scroll",
+                "tokens": {
+                    "spacing_small": 8,
+                    "spacing_medium": 16,
+                    "spacing_large": 24,
+                    "corner_radius": 12,
+                    "minimum_target_size": 44,
+                },
+                "nodes": [
+                    {
+                        "Text": {
+                            "id": None,
+                            "content": _VISUAL_TEXT,
+                            "style": "body",
+                            "accessibility": {
+                                "label": _EXPECTED_LABEL,
+                                "description": None,
+                            },
+                        }
+                    }
+                ],
+            }
+        )
+    )
 
     env = os.environ.copy()
     env["GTK_A11Y"] = "atspi"
     proc = subprocess.Popen(
-        [binary, _PREVIEW_FIXTURE, "--keep-open"],
+        [binary, str(fixture_path), "--keep-open"],
         env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
 
-    anchor_title, expected = _fixture_preview(_PREVIEW_FIXTURE)
     app_root = None
     deadline = time.monotonic() + 20.0
     while time.monotonic() < deadline and app_root is None:
         desktop = Atspi.get_desktop(0)
         for i in range(desktop.get_child_count()):
             app = desktop.get_child_at_index(i)
-            if app and anchor_title in _all_accessible_names(app):
+            if app and _ANCHOR_TITLE in _all_accessible_names(app):
                 app_root = app
                 break
         if app_root is None:
@@ -100,7 +110,7 @@ def preview_fixture_app():
             f"stderr: {err.decode(errors='replace')[:500]}"
         )
 
-    yield app_root, expected
+    yield app_root
 
     proc.terminate()
     try:
@@ -109,20 +119,16 @@ def preview_fixture_app():
         proc.kill()
 
 
-class TestPreviewA11yFromCore:
-    def test_frame_uses_core_supplied_a11y_label(self, preview_fixture_app):
-        """The preview frame's accessible name equals core's a11y label."""
-        app_root, expected = preview_fixture_app
-        names = _all_accessible_names(app_root)
-        assert expected in names, (
-            f"expected the core-supplied a11y label {expected!r} on a rendered "
+class TestGenericSurfaceA11yFromCore:
+    def test_text_uses_core_supplied_a11y_label(self, preview_fixture_app):
+        """The generic text node exposes Core's accessibility label."""
+        names = _all_accessible_names(preview_fixture_app)
+        assert _EXPECTED_LABEL in names, (
+            f"expected the Core-supplied a11y label {_EXPECTED_LABEL!r} on a rendered "
             f"widget; accessible names present: {sorted(names)}"
         )
 
-    def test_no_frontend_hardcoded_contact_card_label(self, preview_fixture_app):
-        """The removed frontend hardcode must not reappear at runtime."""
-        app_root, _ = preview_fixture_app
-        hardcoded = [n for n in _all_accessible_names(app_root) if n.startswith("Contact card:")]
-        assert not hardcoded, (
-            f"frontend re-introduced a hardcoded 'Contact card:' a11y label: {hardcoded}"
-        )
+    def test_visual_copy_does_not_override_core_a11y_label(self, preview_fixture_app):
+        """Visible copy must not replace the explicit accessibility label."""
+        names = _all_accessible_names(preview_fixture_app)
+        assert _VISUAL_TEXT not in names, names
