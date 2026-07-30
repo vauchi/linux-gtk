@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Orientation};
 use libadwaita as adw;
@@ -72,24 +73,36 @@ fn present_navigation(
     for item in overlay.items {
         let button = overlay_button(&item);
         let interaction_id = item.interaction_id;
-        let surface_id = surface_id.clone();
-        let app_engine = app_engine.clone();
-        let container = container.clone();
-        let toast_overlay = toast_overlay.clone();
-        let window = window.clone();
-        let activated = activated.clone();
-        button.connect_clicked(move |_| {
-            activated.set(true);
-            window.close();
-            dispatch_interaction(
-                &container,
-                &app_engine,
-                &toast_overlay,
-                &surface_id,
-                &interaction_id,
-                None,
-            );
-        });
+        // Weak window capture: button -> closure -> window would cycle and
+        // keep the modal alive past close(), leaking it into the AT-SPI tree.
+        button.connect_clicked(glib::clone!(
+            #[weak]
+            window,
+            #[strong]
+            activated,
+            #[strong]
+            container,
+            #[strong]
+            app_engine,
+            #[strong]
+            toast_overlay,
+            #[strong]
+            surface_id,
+            #[strong]
+            interaction_id,
+            move |_| {
+                activated.set(true);
+                window.destroy();
+                dispatch_interaction(
+                    &container,
+                    &app_engine,
+                    &toast_overlay,
+                    &surface_id,
+                    &interaction_id,
+                    None,
+                );
+            }
+        ));
         items.append(&button);
     }
 
@@ -146,24 +159,35 @@ fn present_action_menu(
     for item in overlay.items {
         let button = overlay_button(&item);
         let interaction_id = item.interaction_id;
-        let surface_id = surface_id.clone();
-        let app_engine = app_engine.clone();
-        let container = container.clone();
-        let toast_overlay = toast_overlay.clone();
-        let popover = popover.clone();
-        let activated = activated.clone();
-        button.connect_clicked(move |_| {
-            activated.set(true);
-            popover.popdown();
-            dispatch_interaction(
-                &container,
-                &app_engine,
-                &toast_overlay,
-                &surface_id,
-                &interaction_id,
-                None,
-            );
-        });
+        // Weak popover capture: same reference cycle as the navigation window.
+        button.connect_clicked(glib::clone!(
+            #[weak]
+            popover,
+            #[strong]
+            activated,
+            #[strong]
+            container,
+            #[strong]
+            app_engine,
+            #[strong]
+            toast_overlay,
+            #[strong]
+            surface_id,
+            #[strong]
+            interaction_id,
+            move |_| {
+                activated.set(true);
+                popover.popdown();
+                dispatch_interaction(
+                    &container,
+                    &app_engine,
+                    &toast_overlay,
+                    &surface_id,
+                    &interaction_id,
+                    None,
+                );
+            }
+        ));
         items.append(&button);
     }
 

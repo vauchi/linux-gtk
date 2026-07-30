@@ -5,16 +5,22 @@
 
 The navigation overlay is a modal GTK window created per activation, so
 its accessible subtree registers asynchronously: the frame appears in the
-AT-SPI tree before its destination buttons, and closed windows can linger
-as stale frames. Helpers therefore wait for a *populated* overlay — not
-just the frame — and ignore stale frames left over from earlier
-activations.
+AT-SPI tree before its destination buttons. Helpers therefore wait for a
+*populated* overlay — not just the frame. Window liveness is decided by
+the AT-SPI defunct state flag: closed or destroyed overlays go defunct
+(or vanish), and any frame that still answers getters but is defunct is
+a leftover that must not be reused.
 """
 
 import sys
 import time
 
-from helpers import dump_tree, find_all, find_one, wait_until
+import gi
+
+gi.require_version("Atspi", "2.0")
+from gi.repository import Atspi  # noqa: E402
+
+from helpers import dump_tree, find_all, find_one, wait_until  # noqa: E402
 
 NAVIGATION_LABEL = "More"
 EXPECTED_DESTINATIONS = ["My Card", "Contacts", "Exchange", "Groups", "More"]
@@ -29,6 +35,37 @@ def content_fingerprint(app) -> str:
     return dump_tree(app, max_depth=15)
 
 
+def _state_set(node):
+    """Return the node's AT-SPI state set, or None if it is unreachable."""
+    try:
+        return node.get_state_set()
+    except Exception:
+        return None
+
+
+def _is_defunct(node) -> bool:
+    """True if the accessible is defunct or no longer answers at all."""
+    states = _state_set(node)
+    if states is None:
+        return True
+    return states.contains(Atspi.StateType.DEFUNCT)
+
+
+def _overlay_gone(overlay) -> bool:
+    """True once the overlay window is closed: defunct or not showing.
+
+    After gtk4 Window.destroy() the accessible goes defunct; a merely
+    hidden window clears SHOWING instead. Both mean the user-facing
+    overlay is gone, so the transition wait accepts either.
+    """
+    states = _state_set(overlay)
+    if states is None:
+        return True
+    if states.contains(Atspi.StateType.DEFUNCT):
+        return True
+    return not states.contains(Atspi.StateType.SHOWING)
+
+
 def navigation_overlay(app):
     """Return the open Core-driven navigation window, if present."""
     frames = find_all(app, role="frame", name=NAVIGATION_LABEL, max_depth=4)
@@ -36,27 +73,22 @@ def navigation_overlay(app):
 
 
 def _populated_overlay(app):
-    """Return the navigation window once its destinations are registered.
+    """Return a live navigation window whose destinations are registered.
 
-    A frame without destination buttons is either mid-registration or a
-    stale leftover from a previous activation; neither is actionable.
+    A frame without destination buttons is mid-registration; a defunct
+    frame is a closed leftover. Neither is actionable. Newest frames are
+    preferred because AT-SPI appends freshly created windows last.
     """
     frames = find_all(app, role="frame", name=NAVIGATION_LABEL, max_depth=4)
     for frame in reversed(frames):
+        if _is_defunct(frame):
+            continue
         try:
             if find_all(frame, role="button", max_depth=8):
                 return frame
         except Exception:
             continue
     return None
-
-
-def _is_alive(node) -> bool:
-    try:
-        node.get_name()
-        return True
-    except Exception:
-        return False
 
 
 def _inside_overlay(button) -> bool:
@@ -94,21 +126,22 @@ def _click_launcher(app) -> bool:
 
 
 def open_navigation(app, timeout=3.0):
-    """Open and return the populated native navigation overlay."""
+    """Open and return the populated native navigation overlay.
+
+    One launcher click and the readiness wait share the same deadline, so
+    a call presents at most one window and never outlives its budget.
+    """
     overlay = _populated_overlay(app)
     if overlay is not None:
         return overlay
-    for _ in range(2):
-        if not _click_launcher(app):
-            return None
-        try:
-            return wait_until(
-                lambda: _populated_overlay(app),
-                timeout=timeout,
-                message="Contextual navigation overlay did not open",
-            )
-        except AssertionError:
-            continue
+    if not _click_launcher(app):
+        return None
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        overlay = _populated_overlay(app)
+        if overlay is not None:
+            return overlay
+        time.sleep(0.1)
     return None
 
 
@@ -182,7 +215,7 @@ def navigate_to(app, screen_label):
         # windows may still be open from earlier tests, so polling for
         # "any overlay is gone" would deadlock.
         wait_until(
-            lambda: not _is_alive(overlay),
+            lambda: _overlay_gone(overlay),
             timeout=3.0,
             message=f"Navigation overlay remained open after choosing {screen_label!r}",
         )
