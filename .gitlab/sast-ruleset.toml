@@ -18,6 +18,16 @@
       type = "semgrep_id"
       value = "vauchi-no-eprintln-in-lib"
 
+  # Disable args-args: this is a desktop app — process argv is the
+  # intended input channel, not an injection surface. Both flagged
+  # uses (seed_identity.rs data-dir arg, app.rs pre-GTK flag filter)
+  # are local CLI entry points.
+  [[semgrep.ruleset]]
+    disable = true
+    [semgrep.ruleset.identifier]
+      type = "semgrep_id"
+      value = "rust.lang.security.args.args"
+
   [[semgrep.passthrough]]
     type = "url"
     value = "https://semgrep.dev/c/p/rust"
