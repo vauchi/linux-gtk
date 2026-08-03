@@ -47,6 +47,56 @@ fn surface_spec(id: &str, revision: u64) -> SurfaceSpec {
 }
 
 // @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
+/// Core's revision advances only on user actions, so racing full rebuilds
+/// (wakeup re-load, invalidation dispatch) legitimately re-emit the same
+/// surface at the same revision. Only a strictly older revision is stale.
+///
+/// This shell already behaves correctly. The test exists because two other
+/// shells did not: Android and macOS both rejected an equal revision
+/// (`vauchi/android!610`, `vauchi/macos!346`), and on Android that failed
+/// every cold launch. Nothing pinned the behaviour here, so a future
+/// tightening of `>=` to `>` would reintroduce it silently.
+#[test]
+fn re_emitted_same_revision_re_applies_instead_of_being_rejected() {
+    let mut state = GtkPresentationState::default();
+    state.apply(Command::ReplaceSurface {
+        surface: surface_spec("contacts", 2),
+    });
+
+    let mut rebuilt = surface_spec("contacts", 2);
+    rebuilt.title = "Rebuilt contacts".into();
+    let replaced = state.apply(Command::ReplaceSurface {
+        surface: rebuilt.clone(),
+    });
+
+    assert!(
+        replaced,
+        "a surface re-emitted at the same revision must re-apply, not be rejected"
+    );
+    assert_eq!(
+        state.surface(),
+        Some(&rebuilt),
+        "last writer wins, so the rebuilt surface must be the live one"
+    );
+}
+
+#[test]
+fn strictly_older_revision_is_still_rejected() {
+    let mut state = GtkPresentationState::default();
+    state.apply(Command::ReplaceSurface {
+        surface: surface_spec("contacts", 2),
+    });
+
+    let stale = surface_spec("contacts", 1);
+    let replaced = state.apply(Command::ReplaceSurface { surface: stale });
+
+    assert!(
+        !replaced,
+        "a strictly older revision must still be rejected"
+    );
+    assert_eq!(state.surface(), Some(&surface_spec("contacts", 2)));
+}
+
 #[test]
 fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
     let mut state = GtkPresentationState::default();
