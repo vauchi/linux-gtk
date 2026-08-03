@@ -46,7 +46,6 @@ fn surface_spec(id: &str, revision: u64) -> SurfaceSpec {
     }
 }
 
-// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 /// Core's revision advances only on user actions, so racing full rebuilds
 /// (wakeup re-load, invalidation dispatch) legitimately re-emit the same
 /// surface at the same revision. Only a strictly older revision is stale.
@@ -56,6 +55,7 @@ fn surface_spec(id: &str, revision: u64) -> SurfaceSpec {
 /// (`vauchi/android!610`, `vauchi/macos!346`), and on Android that failed
 /// every cold launch. Nothing pinned the behaviour here, so a future
 /// tightening of `>=` to `>` would reintroduce it silently.
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn re_emitted_same_revision_re_applies_instead_of_being_rejected() {
     let mut state = GtkPresentationState::default();
@@ -80,6 +80,7 @@ fn re_emitted_same_revision_re_applies_instead_of_being_rejected() {
     );
 }
 
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn strictly_older_revision_is_still_rejected() {
     let mut state = GtkPresentationState::default();
@@ -97,6 +98,7 @@ fn strictly_older_revision_is_still_rejected() {
     assert_eq!(state.surface(), Some(&surface_spec("contacts", 2)));
 }
 
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
     let mut state = GtkPresentationState::default();
