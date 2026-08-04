@@ -8,7 +8,7 @@ committed baselines. On first run (no baselines), generates them.
 On subsequent runs, diffs against baselines and fails if pixels
 diverge beyond threshold.
 
-Sidebar navigation itself (the AT-SPI ``do_action(0)`` path) is gated by
+Contextual navigation itself (the AT-SPI ``do_action(0)`` path) is gated by
 the blocking ``test_navigation.py`` smoke test; this module is the
 visual-regression layer on top of it.
 
@@ -27,8 +27,12 @@ import time
 
 import pytest
 
-from helpers import find_all, find_one
-from navigation import navigate_to, wait_for_labels_loaded
+from navigation import (
+    EXPECTED_DESTINATIONS,
+    navigate_to,
+    sidebar_names,
+    wait_for_labels_loaded,
+)
 from screenshot import take_screenshot
 
 BASELINE_DIR = os.path.join(os.path.dirname(__file__), "snapshots", "baseline")
@@ -50,10 +54,9 @@ DIFF_THRESHOLD = 0.02  # 2% pixel difference allowed
 # _capture_stable) and not a real rendering bug.
 NONDETERMINISTIC_SCREENS = {"Activity", "Contacts", "My Card"}
 
-# Snapshot screens are discovered at runtime from the sidebar — labels depend
-# on i18n state (may be "My Card" or "Missing: nav.myCard" in CI without
-# bundled locale). Only sidebar items are snapshotable since AT-SPI can't
-# reliably navigate to More sub-screens.
+# Snapshot destinations are discovered from Core's contextual-navigation
+# overlay. Labels depend on i18n state (for example, "My Card" or
+# "Missing: nav.myCard" in CI without a bundled locale).
 
 
 def _screen_filename(name: str) -> str:
@@ -148,10 +151,10 @@ def _compare_images(baseline_path: str, actual_path: str, diff_path: str) -> flo
 
 
 class TestScreenSnapshots:
-    """Capture and compare screenshots for each sidebar screen."""
+    """Capture and compare screenshots for each navigation destination."""
 
-    def test_snapshot_all_sidebar_screens(self, gtk_app):
-        """Screenshot each sidebar screen and compare against baseline."""
+    def test_snapshot_all_navigation_destinations(self, gtk_app):
+        """Screenshot each contextual destination and compare against baseline."""
         # Pre-flight: fail fast with an honest message if no screenshot
         # tool is on PATH. Prior version hid this behind a post-hoc
         # `captured == 0` check that also fired on navigation failure,
@@ -165,24 +168,24 @@ class TestScreenSnapshots:
             "PATH seen by pytest: " + os.environ.get("PATH", "<unset>")
         )
 
-        sidebar = find_one(gtk_app, name="Navigation")
-        assert sidebar is not None, "Sidebar not found"
-
         # Wait for locale labels to resolve before caching names. Without
         # this, the test may freeze names like "Missing: nav.myCard"
         # (i18n fallback) then try to navigate by those stale strings
         # after the app loads real translations — every nav call fails.
         # See 2026-04-22-ci-pipeline-health-audit T2.1 root-cause.
         labels_loaded = wait_for_labels_loaded(gtk_app, timeout=5.0)
-        items = find_all(sidebar, role="list item", max_depth=5)
-        screen_names = [i.get_name() for i in items if i.get_name()]
+        available_names = sidebar_names(gtk_app)
+        screen_names = [
+            name for name in EXPECTED_DESTINATIONS if name in available_names
+        ]
         assert len(screen_names) >= 4, (
-            f"Expected >= 4 sidebar items, found {len(screen_names)}: {screen_names} "
-            f"(labels_loaded={labels_loaded})"
+            f"Expected >= 4 navigation destinations, found {len(screen_names)}: "
+            f"{screen_names} (available={available_names}, "
+            f"labels_loaded={labels_loaded})"
         )
         if not labels_loaded:
             pytest.skip(
-                f"Sidebar labels still i18n fallbacks after 5s: {screen_names}. "
+                f"Navigation labels still i18n fallbacks after 5s: {available_names}. "
                 "Locale bundle failed to load — this is a test infra issue, "
                 "not a real snapshot regression."
             )
@@ -240,7 +243,7 @@ class TestScreenSnapshots:
         if not captured:
             lines = [
                 "No screenshots captured for any of "
-                f"{len(screen_names)} sidebar screens.",
+                f"{len(screen_names)} navigation destinations.",
                 f"  Navigation failed: {nav_failed or 'none'}",
                 f"  Screenshot capture failed: {shot_failed or 'none'}",
                 f"  Screen names discovered: {screen_names}",
@@ -249,8 +252,8 @@ class TestScreenSnapshots:
             ]
             if nav_failed and not shot_failed:
                 lines.append(
-                    "Likely cause: AT-SPI navigation to every sidebar "
-                    "item failed. Check the AT-SPI registry / a11y bus "
+                    "Likely cause: every AT-SPI navigation action failed. "
+                    "Check the AT-SPI registry / a11y bus "
                     "and `navigate_to` in navigation.py."
                 )
             elif shot_failed and not nav_failed:
@@ -270,7 +273,7 @@ class TestScreenSnapshots:
         # instead of silently blessing identical bytes.
         distinct = set(captured_hashes.values())
         assert len(distinct) >= 4, (
-            "Sidebar navigation produced too few distinct screens: "
+            "Contextual navigation produced too few distinct screens: "
             f"{len(distinct)} unique capture(s) across {len(captured)} "
             f"navigated screen(s) {captured}. AT-SPI do_action(0) may be a "
             "no-op again (see 2026-05-16-linux-gtk-atspi-sidebar-navigate)."
