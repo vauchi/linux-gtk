@@ -50,7 +50,12 @@ AT_SPI_REGISTRYD="$(find_atspi at-spi2-registryd)" \
     || { echo "ERROR: at-spi2-registryd not found (install at-spi2-core)" >&2; exit 1; }
 export AT_SPI_BUS_LAUNCHER AT_SPI_REGISTRYD
 
-exec env XDG_CURRENT_DESKTOP=none \
+PYTEST_STATUS_FILE=$(mktemp)
+export PYTEST_STATUS_FILE
+trap 'rm -f "$PYTEST_STATUS_FILE"' EXIT INT TERM
+
+set +e
+env XDG_CURRENT_DESKTOP=none \
     xvfb-run -s '-screen 0 1280x720x24' \
     dbus-run-session -- bash -c "
         set -euo pipefail
@@ -87,5 +92,18 @@ sys.exit(1)
 PY
 
         cd \"$SCRIPT_DIR\"
+        set +e
         python3 -m pytest . \"\$@\" -v
+        pytest_status=\$?
+        set -e
+        printf '%s\\n' \"\$pytest_status\" > \"\$PYTEST_STATUS_FILE\"
+        exit \"\$pytest_status\"
     " _ "$@"
+wrapper_status=$?
+set -e
+
+if [ -s "$PYTEST_STATUS_FILE" ]; then
+    read -r pytest_status < "$PYTEST_STATUS_FILE"
+    exit "$pytest_status"
+fi
+exit "$wrapper_status"
