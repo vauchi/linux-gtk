@@ -80,13 +80,9 @@ fn build_ui(app: &adw::Application) {
 
     let mut vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
     maybe_seed_test_identity(&mut vauchi);
-    let app_engine = Rc::new(RefCell::new(AppEngine::new(vauchi)));
-
-    // Initial screen comes from `AppEngine::new` (Onboarding / Lock /
-    // MyInfo). The render path reads `current_screen()`, so no
-    // explicit navigate is needed — and an explicit `default_screen()`
-    // call would bypass the Lock state for password-protected
-    // installs.
+    let mut app_engine = AppEngine::new(vauchi);
+    app_engine.bootstrap();
+    let app_engine = Rc::new(RefCell::new(app_engine));
 
     // Main layout: header + body
     let root = GtkBox::new(Orientation::Vertical, 0);
