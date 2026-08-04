@@ -52,7 +52,7 @@ DIFF_THRESHOLD = 0.02  # 2% pixel difference allowed
 # Keep minimal: a screen belongs here only if its variance is inherent to
 # seeded data, not a render-timing artefact (those are handled by
 # _capture_stable) and not a real rendering bug.
-NONDETERMINISTIC_SCREENS = {"Activity", "Contacts", "My Card"}
+NONDETERMINISTIC_SCREENS = {"Contacts", "My Card"}
 
 # Snapshot destinations are discovered from Core's contextual-navigation
 # overlay. Labels depend on i18n state (for example, "My Card" or
@@ -175,6 +175,13 @@ class TestScreenSnapshots:
         # See 2026-04-22-ci-pipeline-health-audit T2.1 root-cause.
         labels_loaded = wait_for_labels_loaded(gtk_app, timeout=5.0)
         available_names = sidebar_names(gtk_app)
+        if not labels_loaded:
+            pytest.skip(
+                f"Navigation labels still i18n fallbacks after 5s: {available_names}. "
+                "Locale bundle failed to load — this is a test infra issue, "
+                "not a real snapshot regression."
+            )
+
         screen_names = [
             name for name in EXPECTED_DESTINATIONS if name in available_names
         ]
@@ -183,12 +190,6 @@ class TestScreenSnapshots:
             f"{screen_names} (available={available_names}, "
             f"labels_loaded={labels_loaded})"
         )
-        if not labels_loaded:
-            pytest.skip(
-                f"Navigation labels still i18n fallbacks after 5s: {available_names}. "
-                "Locale bundle failed to load — this is a test infra issue, "
-                "not a real snapshot regression."
-            )
 
         # Per-screen outcomes. Each screen ends up in exactly one bucket,
         # so the final assertions can report the real failure mode
