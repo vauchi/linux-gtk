@@ -129,7 +129,23 @@ impl GtkPresentationState {
                 self.overlays.insert(surface_id, (revision, overlay));
                 true
             }
-            Command::SetContextBar { .. } | Command::PresentOverlay { .. } => false,
+            // Core rewrites a repeat PresentOverlay into this so the
+            // context-bar buttons toggle. Matching on kind as well as surface
+            // keeps a stale dismiss from closing an overlay Core has since
+            // replaced.
+            Command::DismissOverlay {
+                surface_id, kind, ..
+            } if self
+                .overlays
+                .get(&surface_id)
+                .is_some_and(|(_, open)| open.kind == kind) =>
+            {
+                self.overlays.remove(&surface_id);
+                true
+            }
+            Command::SetContextBar { .. }
+            | Command::PresentOverlay { .. }
+            | Command::DismissOverlay { .. } => false,
             _ => true,
         }
     }

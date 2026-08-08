@@ -98,6 +98,53 @@ fn strictly_older_revision_is_still_rejected() {
     assert_eq!(state.surface(), Some(&surface_spec("contacts", 2)));
 }
 
+// Core makes the context-bar menu buttons toggle by rewriting a repeat
+// PresentOverlay into DismissOverlay. Every shell has to map it: Android and
+// iOS dropped it into a generic effect and the menu never closed on a second
+// tap (`vauchi/android!621`). GTK already scopes overlays per surface and
+// drops them on replacement, so this arm is the only half it was missing.
+// @internal
+#[test]
+fn dismiss_overlay_closes_the_open_overlay() {
+    let mut state = GtkPresentationState::default();
+    let profile = PresentationProfile {
+        window_class: WindowClass::Expanded,
+        pane_layout: PaneLayout::Single,
+        primary_surface: surface("contacts"),
+        detail_surface: None,
+        active_surface: surface("contacts"),
+    };
+    let overlay = OverlaySpec {
+        kind: OverlayKind::Navigation,
+        title: Some("Navigate".into()),
+        items: vec![action("opaque.target", None)],
+    };
+
+    state.apply(Command::ReplaceSurface {
+        surface: surface_spec("contacts", 4),
+    });
+    state.apply(Command::SetPresentationProfile { profile });
+    state.apply(Command::PresentOverlay {
+        surface_id: surface("contacts"),
+        revision: 4,
+        overlay: overlay.clone(),
+    });
+    assert_eq!(state.overlay(), Some((&surface("contacts"), &overlay)));
+
+    let handled = state.apply(Command::DismissOverlay {
+        surface_id: surface("contacts"),
+        revision: 4,
+        kind: OverlayKind::Navigation,
+    });
+
+    assert!(handled, "DismissOverlay must be handled by the shell state");
+    assert_eq!(
+        state.overlay(),
+        None,
+        "a dismissed overlay must leave nothing to render",
+    );
+}
+
 // @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
