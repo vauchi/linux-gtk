@@ -8,9 +8,10 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: ci-templates-v2026.07.13
+    ref: ci-templates-v2026.08.10
     file:
       - '/ci-templates/rust-base.yml'
+      - '/ci-templates/shell-command-conformance.yml'
       - '/ci-templates/security.yml'
       - '/ci-templates/mr-rules.yml'
       - '/ci-templates/downstream.yml'
@@ -537,3 +538,17 @@ pages:
 
 github-mirror:
   extends: .github-mirror
+
+# Fails if this shell renders an overlay it cannot close. Core opens a
+# menu with PresentOverlay and closes it with DismissOverlay; a shell
+# handling only the first leaves the menu over the destination and
+# reports nothing, because an unhandled command becomes a generic
+# effect. Shipped on Android, on iOS at priority critical, and on
+# web-demo before this existed.
+#
+# Gaps that are not defects go in .shell-command-conformance-allowlist
+# at this repo's root, with a mandatory reason.
+check:shell-command-conformance:
+  extends: .shell-command-conformance
+  variables:
+    VAUCHI_SHELL: linux-gtk
