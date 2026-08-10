@@ -550,5 +550,10 @@ github-mirror:
 # at this repo's root, with a mandatory reason.
 check:shell-command-conformance:
   extends: .shell-command-conformance
+  # Set here as well as in the template. The template shipped without
+  # runner tags, so the job sat pending with no runner (tui!540); the
+  # fix is scripts!521, but this repo does not pick it up until the
+  # pinned ref moves. Remove once this repo is on a tag that carries it.
+  tags: [docker]
   variables:
     VAUCHI_SHELL: linux-gtk
