@@ -32,7 +32,14 @@ printf "%s\n" "$count" > "$count_file"
 [ "$count" -eq 1 ] && exit 0
 exit "${PYTEST_STUB_EXIT:?}"'
 make_stub xvfb-run '
-[ "${1:-}" != "-s" ] || shift 2
+printf "%s\n" "$*" > "${XVFB_ARGS:?}"
+while [ $# -gt 0 ]; do
+    case $1 in
+        -a) shift ;;
+        -s) shift 2 ;;
+        *) break ;;
+    esac
+done
 set +e
 "$@"
 child_status=$?
@@ -44,11 +51,13 @@ run_case() {
     expected=$1
     count_file="$WORK/python-count-$expected"
     child_file="$WORK/child-status-$expected"
+    args_file="$WORK/xvfb-args-$expected"
     set +e
     PATH="$WORK:$PATH" \
         PYTHON_STUB_COUNT="$count_file" \
         PYTEST_STUB_EXIT="$expected" \
         XVFB_CHILD_STATUS="$child_file" \
+        XVFB_ARGS="$args_file" \
         "$SCRIPT_DIR/run-tests.sh" -k test_snapshots >/dev/null 2>&1
     actual=$?
     set -e
@@ -61,6 +70,17 @@ run_case() {
         printf 'FAIL: inner command did not preserve pytest status %s\n' "$expected" >&2
         exit 1
     fi
+    # Without auto-servernum every run claims the default :99, so test:a11y
+    # and test:snapshots — which start together on the same shell runner —
+    # tear down each other's display mid-suite.
+    case " $(cat "$args_file") " in
+        *' -a '*) ;;
+        *)
+            printf 'FAIL: xvfb-run lacks -a (auto-servernum): %s\n' \
+                "$(cat "$args_file")" >&2
+            exit 1
+            ;;
+    esac
 }
 
 run_case 0
