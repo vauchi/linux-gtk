@@ -55,8 +55,12 @@ export PYTEST_STATUS_FILE
 trap 'rm -f "$PYTEST_STATUS_FILE"' EXIT INT TERM
 
 set +e
+# -a picks a free server number. Without it every invocation claims the
+# default :99, and test:a11y and test:snapshots — which both `needs:
+# build:app` and share one self-hosted shell runner — start together and
+# tear down each other's display mid-suite.
 env XDG_CURRENT_DESKTOP=none \
-    xvfb-run -s '-screen 0 1280x720x24' \
+    xvfb-run -a -s '-screen 0 1280x720x24' \
     dbus-run-session -- bash -c "
         set -euo pipefail
 

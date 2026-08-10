@@ -165,6 +165,13 @@ test:a11y:
   needs:
     - job: build:app
   tags: [linux, self-hosted]
+  # Shared with test:snapshots. Both launch gvauchi under Xvfb, both
+  # `needs: build:app`, and both land on the same self-hosted shell
+  # runner — so without this they start within a second of each other
+  # and contend for the runner's display and AT-SPI registry. Every
+  # observed overlap failed; the runs that passed were the ones that
+  # happened not to overlap.
+  resource_group: gtk-xvfb
   # Self-heal residual AT-SPI startup-timing flakes. The Cairo-renderer
   # fix in run-tests.sh removes the GPU/DRI3 cause; retry absorbs the rare
   # remaining "did not appear on the AT-SPI tree within Ns" race. A real
@@ -217,6 +224,8 @@ test:snapshots:
   needs:
     - job: build:app
   tags: [linux, self-hosted]
+  # See test:a11y — these two must not share the runner's display.
+  resource_group: gtk-xvfb
   variables:
     VRT_PLATFORM: linux-gtk
     VRT_SCREENSHOT_DIR: tests/atspi/snapshots/baseline
@@ -252,6 +261,9 @@ test:snapshots:record:
   needs:
     - job: build:app
   tags: [linux, self-hosted]
+  # See test:a11y — manual, but it launches the same harness on the same
+  # runner, so it must queue behind the other two rather than beside them.
+  resource_group: gtk-xvfb
   variables:
     UPDATE_SNAPSHOTS: "1"
   script:
