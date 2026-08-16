@@ -6,7 +6,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_core::{InputValue, PresentationNode, SurfaceId};
 
-use super::{OnEvent, action_button, emit_value};
+use super::{OnEvent, action_button, emit_binding_gesture, emit_value};
 
 pub(super) fn render(
     node: &PresentationNode,
@@ -103,6 +103,15 @@ pub(super) fn render(
                         InputValue::Text(entry.text().to_string()),
                         &blur_callback,
                     );
+                    // GTK reports focus loss whatever took it, so no
+                    // click-outside handling is needed here.
+                    emit_binding_gesture(
+                        vauchi_core::Event::InputFocusEnded {
+                            surface_id: blur_surface.clone(),
+                            binding_id: blur_id.clone(),
+                        },
+                        &blur_callback,
+                    );
                 }
             });
             entry.connect_activate(move |entry| {
@@ -110,6 +119,15 @@ pub(super) fn render(
                     &surface,
                     &id,
                     InputValue::Text(entry.text().to_string()),
+                    &callback,
+                );
+                // `activate` is Enter in the entry — GTK's own submit
+                // gesture.
+                emit_binding_gesture(
+                    vauchi_core::Event::InputSubmitted {
+                        surface_id: surface.clone(),
+                        binding_id: id.clone(),
+                    },
                     &callback,
                 );
             });

@@ -121,6 +121,13 @@ pub(super) fn action_button(
     button
 }
 
+/// Report a gesture on a binding that carries no value of its own —
+/// submission and focus loss say *that* something happened, not what the
+/// field now holds.
+pub(super) fn emit_binding_gesture(event: Event, on_event: &OnEvent) {
+    on_event(event);
+}
+
 pub(super) fn emit_value(
     surface_id: &SurfaceId,
     binding_id: &vauchi_core::BindingId,
