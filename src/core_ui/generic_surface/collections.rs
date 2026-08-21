@@ -240,6 +240,26 @@ fn render_qr_capture(id: &BindingId, surface_id: &SurfaceId, on_event: &OnEvent)
     row
 }
 
+/// The row's avatar: Core's image bytes, or the initials it prepared for when
+/// there are none.
+fn row_leading(row: &PresentationRow) -> Option<Widget> {
+    if let Some(data) = &row.image_data {
+        let bytes = gtk4::glib::Bytes::from(data.as_slice());
+        if let Ok(texture) = gtk4::gdk::Texture::from_bytes(&bytes) {
+            let image = gtk4::Image::from_paintable(Some(&texture));
+            image.set_pixel_size(32);
+            return Some(image.upcast());
+        }
+    }
+    row.fallback_text.as_ref().map(|initials| {
+        Label::builder()
+            .label(initials)
+            .css_classes(["avatar"])
+            .build()
+            .upcast()
+    })
+}
+
 fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent) -> Widget {
     let content = GtkBox::new(Orientation::Vertical, 2);
     content.append(
@@ -257,20 +277,38 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
                 .build(),
         );
     }
+    if let Some(detail) = &row.detail {
+        content.append(
+            &Label::builder()
+                .label(detail)
+                .css_classes(["dim-label"])
+                .halign(gtk4::Align::Start)
+                .build(),
+        );
+    }
     for control in &row.controls {
         content.append(&render_node(control, surface_id, on_event));
     }
+    // Avatar and text form one accessible unit: the row's name has to cover
+    // what a reader will land on, not just the text beside the picture.
+    let inner = GtkBox::new(Orientation::Horizontal, 8);
+    if let Some(leading) = row_leading(row) {
+        inner.append(&leading);
+    }
+    content.set_hexpand(true);
+    inner.append(&content);
+
     let row_box = GtkBox::new(Orientation::Horizontal, 8);
     if let Some(action) = &row.activation {
         let button = action_button(action, surface_id, on_event);
-        button.set_child(Some(&content));
+        button.set_child(Some(&inner));
         button.set_hexpand(true);
         apply_accessibility(&button, &row.accessibility);
         row_box.append(&button);
     } else {
-        content.set_hexpand(true);
-        apply_accessibility(&content, &row.accessibility);
-        row_box.append(&content);
+        inner.set_hexpand(true);
+        apply_accessibility(&inner, &row.accessibility);
+        row_box.append(&inner);
     }
     for action in &row.secondary_actions {
         row_box.append(&action_button(action, surface_id, on_event));
