@@ -29,9 +29,11 @@ from surface_probe import (  # noqa: E402
     a11y_description,
     a11y_label,
     action_label,
+    any_name_contains,
     descriptions,
     dump,
     find_app_by_anchor,
+    find_named,
     load_fixture,
     names,
     nodes_with_role,
@@ -187,6 +189,39 @@ class TestSurfaceAndStructure:
         assert any("error" in nick for nick, _ in related), (
             f"input exposes no error-message relation, only {related!r}.\n"
             f"{dump(probe_app)}"
+        )
+
+
+class TestRowContentReachesAtspi:
+    """Row content Core populates must reach the tree at all.
+
+    Not accessibility mapping but the same failure for the same people: a
+    field the renderer never reads reaches nobody, sighted or not. These are
+    the linux row-field gaps tracked in
+    `backlog/2026-08-20-core-prepares-presentation-data-no-shell-renders`;
+    `icon_token` is deliberately absent because its SF-Symbol vocabulary has
+    to be decided before any non-Apple shell can map it.
+    """
+
+    def test_row_detail_is_rendered(self, probe_app):
+        assert any_name_contains(probe_app, "vis_detail"), (
+            "row detail never reached the tree — Core populates it on three "
+            f"row builders and it is shown nowhere.\n{dump(probe_app)}"
+        )
+
+    def test_row_fallback_text_is_rendered(self, probe_app):
+        assert any_name_contains(probe_app, "vis_initials"), (
+            "row fallback_text never reached the tree — the initials stand in "
+            f"for a missing avatar and are plain text.\n{dump(probe_app)}"
+        )
+
+    def test_row_image_data_is_rendered(self, probe_app):
+        """Scoped to the avatar row: the Qr node also exposes an image."""
+        row = find_named(probe_app, a11y_label("RowAvatar"))
+        assert row is not None, f"avatar row not on the tree\n{dump(probe_app)}"
+        assert nodes_with_role(row, ("image", "icon", "graphic")), (
+            "row image_data never reached the tree — Core sends avatar bytes "
+            f"and this shell draws nothing.\n{dump(probe_app)}"
         )
 
 

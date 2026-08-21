@@ -18,7 +18,10 @@
         "id": null,
         "content": "vis_text",
         "style": "body",
-        "accessibility": { "label": "A11Y_Text", "description": "DESC_Text" }
+        "accessibility": {
+          "label": "A11Y_Text",
+          "description": "DESC_Text"
+        }
       }
     },
     {
@@ -31,7 +34,10 @@
         "max_length": null,
         "validation_error": "vis_error",
         "enabled": true,
-        "accessibility": { "label": "A11Y_Input", "description": "DESC_Input" }
+        "accessibility": {
+          "label": "A11Y_Input",
+          "description": "DESC_Input"
+        }
       }
     },
     {
@@ -40,7 +46,10 @@
         "label": "vis_toggle",
         "value": false,
         "enabled": true,
-        "accessibility": { "label": "A11Y_Toggle", "description": "DESC_Toggle" }
+        "accessibility": {
+          "label": "A11Y_Toggle",
+          "description": "DESC_Toggle"
+        }
       }
     },
     {
@@ -48,9 +57,17 @@
         "binding_id": "probe_choice",
         "label": "vis_choice",
         "selected": "option_one",
-        "options": [{ "id": "option_one", "label": "vis_option_one" }],
+        "options": [
+          {
+            "id": "option_one",
+            "label": "vis_option_one"
+          }
+        ],
         "enabled": true,
-        "accessibility": { "label": "A11Y_Choice", "description": "DESC_Choice" }
+        "accessibility": {
+          "label": "A11Y_Choice",
+          "description": "DESC_Choice"
+        }
       }
     },
     {
@@ -59,7 +76,10 @@
         "label": "vis_group",
         "axis": "vertical",
         "children": [],
-        "accessibility": { "label": "A11Y_Group", "description": "DESC_Group" }
+        "accessibility": {
+          "label": "A11Y_Group",
+          "description": "DESC_Group"
+        }
       }
     },
     {
@@ -72,7 +92,7 @@
           {
             "title": "vis_row",
             "subtitle": null,
-            "detail": null,
+            "detail": "vis_detail",
             "icon_token": null,
             "image_data": null,
             "fallback_text": null,
@@ -97,10 +117,121 @@
               }
             ],
             "controls": [],
-            "accessibility": { "label": "A11Y_Row", "description": "DESC_Row" }
+            "accessibility": {
+              "label": "A11Y_Row",
+              "description": "DESC_Row"
+            }
+          },
+          {
+            "title": "vis_row_avatar",
+            "subtitle": null,
+            "detail": null,
+            "icon_token": null,
+            "image_data": [
+              137,
+              80,
+              78,
+              71,
+              13,
+              10,
+              26,
+              10,
+              0,
+              0,
+              0,
+              13,
+              73,
+              72,
+              68,
+              82,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              8,
+              6,
+              0,
+              0,
+              0,
+              31,
+              21,
+              196,
+              137,
+              0,
+              0,
+              0,
+              13,
+              73,
+              68,
+              65,
+              84,
+              120,
+              218,
+              99,
+              252,
+              207,
+              192,
+              80,
+              15,
+              0,
+              4,
+              133,
+              1,
+              128,
+              132,
+              169,
+              140,
+              33,
+              0,
+              0,
+              0,
+              0,
+              73,
+              69,
+              78,
+              68,
+              174,
+              66,
+              96,
+              130
+            ],
+            "fallback_text": null,
+            "selected": false,
+            "enabled": true,
+            "activation": null,
+            "secondary_actions": [],
+            "controls": [],
+            "accessibility": {
+              "label": "A11Y_RowAvatar",
+              "description": "DESC_RowAvatar"
+            }
+          },
+          {
+            "title": "vis_row_initials",
+            "subtitle": null,
+            "detail": null,
+            "icon_token": null,
+            "image_data": null,
+            "fallback_text": "vis_initials",
+            "selected": false,
+            "enabled": true,
+            "activation": null,
+            "secondary_actions": [],
+            "controls": [],
+            "accessibility": {
+              "label": "A11Y_RowInitials",
+              "description": "DESC_RowInitials"
+            }
           }
         ],
-        "accessibility": { "label": "A11Y_List", "description": "DESC_List" }
+        "accessibility": {
+          "label": "A11Y_List",
+          "description": "DESC_List"
+        }
       }
     },
     {
@@ -118,7 +249,10 @@
           "enabled": true,
           "shortcut": null
         },
-        "accessibility": { "label": "A11Y_Image", "description": "DESC_Image" }
+        "accessibility": {
+          "label": "A11Y_Image",
+          "description": "DESC_Image"
+        }
       }
     },
     {
@@ -130,16 +264,24 @@
         "badge": null,
         "tone": "neutral",
         "activation": null,
-        "accessibility": { "label": "A11Y_Status", "description": "DESC_Status" }
+        "accessibility": {
+          "label": "A11Y_Status",
+          "description": "DESC_Status"
+        }
       }
     },
     {
       "Qr": {
         "id": "probe_qr",
-        "payloads": ["VAUCHI-A11Y-PROBE"],
+        "payloads": [
+          "VAUCHI-A11Y-PROBE"
+        ],
         "purpose": "display",
         "label": "vis_qr",
-        "accessibility": { "label": "A11Y_Qr", "description": "DESC_Qr" }
+        "accessibility": {
+          "label": "A11Y_Qr",
+          "description": "DESC_Qr"
+        }
       }
     },
     {
@@ -178,7 +320,10 @@
         "step": null,
         "minimum_icon": null,
         "maximum_icon": null,
-        "accessibility": { "label": "A11Y_Slider", "description": "DESC_Slider" }
+        "accessibility": {
+          "label": "A11Y_Slider",
+          "description": "DESC_Slider"
+        }
       }
     },
     {

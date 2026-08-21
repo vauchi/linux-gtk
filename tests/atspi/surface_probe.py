@@ -132,6 +132,18 @@ def reachable_action_labels(root):
     return [label for label in labels if label]
 
 
+def find_named(root, name):
+    """First accessible in the subtree carrying this exact name."""
+    for node in walk(root):
+        if node.get_name() == name:
+            return node
+    return None
+
+
+def any_name_contains(root, needle):
+    return any(needle in name for name in names(root))
+
+
 def find_app_by_anchor(pid, timeout=25.0):
     """Return the AT-SPI application root whose subtree holds the anchor title."""
     deadline = time.monotonic() + timeout
