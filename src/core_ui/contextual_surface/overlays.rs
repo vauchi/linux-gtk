@@ -227,9 +227,7 @@ fn overlay_button(action: &vauchi_core::ActionSpec) -> Button {
         .halign(gtk4::Align::Fill)
         .build();
     button.set_widget_name(action.interaction_id.as_str());
-    button.update_property(&[gtk4::accessible::Property::Label(
-        &action.accessibility_label,
-    )]);
+    crate::core_ui::accessibility::apply_label(&button, &action.accessibility_label);
     if action.tone == vauchi_core::ActionTone::Destructive {
         button.add_css_class("destructive-action");
     }

@@ -3,6 +3,7 @@
 
 //! Native projections of the Core Event/Command presentation protocol.
 
+pub(crate) mod accessibility;
 pub mod action_dispatcher;
 pub mod contextual_surface;
 pub mod generic_surface;

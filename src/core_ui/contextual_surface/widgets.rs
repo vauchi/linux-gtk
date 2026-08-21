@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Orientation};
 use libadwaita as adw;
@@ -10,6 +9,8 @@ use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
 use vauchi_core::{ActionTone, Event, InteractionId, StandardShortcut, SurfaceId};
+
+use crate::core_ui::accessibility;
 
 use super::environment;
 use super::{GtkContextRole, GtkPresentationState, context_controls, interaction_for_shortcut};
@@ -100,7 +101,9 @@ fn build_button(
         .sensitive(action.enabled)
         .build();
     button.set_widget_name(action.interaction_id.as_str());
-    button.update_property(&[Property::Label(&action.accessibility_label)]);
+    // The Back control paints an arrow before its copy; announcing "← Back"
+    // reads the glyph aloud, so the accessible name stays Core's label.
+    accessibility::apply_label(&button, &action.accessibility_label);
 
     match role {
         GtkContextRole::Back => button.add_css_class("context-back"),

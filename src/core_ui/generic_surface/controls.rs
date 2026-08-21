@@ -5,8 +5,8 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_core::{InputValue, PresentationNode, SurfaceId};
 
-use super::accessibility::{apply as apply_accessibility, mark_invalid};
 use super::{OnEvent, action_button, emit_binding_gesture, emit_value};
+use crate::core_ui::accessibility::{apply as apply_accessibility, mark_invalid};
 
 pub(super) fn render(
     node: &PresentationNode,

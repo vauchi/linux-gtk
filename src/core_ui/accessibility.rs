@@ -9,7 +9,7 @@ use gtk4::{Accessible, AccessibleInvalidState, AccessibleRelation, AccessibleRol
 
 use vauchi_core::AccessibilitySpec;
 
-pub(super) fn apply(widget: &impl IsA<Accessible>, accessibility: &AccessibilitySpec) {
+pub(crate) fn apply(widget: &impl IsA<Accessible>, accessibility: &AccessibilitySpec) {
     make_nameable(widget);
     let mut properties = vec![Property::Label(&accessibility.label)];
     if let Some(description) = accessibility.description.as_deref() {
@@ -19,7 +19,7 @@ pub(super) fn apply(widget: &impl IsA<Accessible>, accessibility: &Accessibility
     detach_painted_label(widget);
 }
 
-pub(super) fn apply_label(widget: &impl IsA<Accessible>, label: &str) {
+pub(crate) fn apply_label(widget: &impl IsA<Accessible>, label: &str) {
     make_nameable(widget);
     widget.update_property(&[Property::Label(label)]);
     detach_painted_label(widget);
@@ -29,7 +29,7 @@ pub(super) fn apply_label(widget: &impl IsA<Accessible>, label: &str) {
 ///
 /// WCAG 2.1 SC 3.3.1 needs the error programmatically associated with the
 /// field; a sibling label carries no association at all.
-pub(super) fn mark_invalid(field: &impl IsA<Accessible>, message: &impl IsA<Accessible>) {
+pub(crate) fn mark_invalid(field: &impl IsA<Accessible>, message: &impl IsA<Accessible>) {
     field.update_state(&[State::Invalid(AccessibleInvalidState::True)]);
     field.update_relation(&[Relation::ErrorMessage(&[message.upcast_ref()])]);
 }

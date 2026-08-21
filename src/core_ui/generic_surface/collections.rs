@@ -8,8 +8,8 @@ use vauchi_core::{
     BindingId, InputValue, PresentationNode, PresentationQrPurpose, PresentationRow, SurfaceId,
 };
 
-use super::accessibility::apply as apply_accessibility;
 use super::{OnEvent, action_button, emit_value, render_node};
+use crate::core_ui::accessibility::apply as apply_accessibility;
 
 const QR_LIGHT_RGB: (f64, f64, f64) = (1.0, 1.0, 1.0);
 const QR_DARK_RGB: (f64, f64, f64) = (0.0, 0.0, 0.0);

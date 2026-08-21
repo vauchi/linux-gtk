@@ -3,7 +3,6 @@
 
 //! Native GTK renderer for Core's domain-free presentation nodes.
 
-mod accessibility;
 mod collections;
 mod controls;
 
@@ -13,6 +12,8 @@ use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use std::rc::Rc;
 
 use vauchi_core::{ActionSpec, Event, PresentationNode, SurfaceId, SurfaceLayout, SurfaceSpec};
+
+use super::accessibility;
 
 pub type OnEvent = Rc<dyn Fn(Event)>;
 
