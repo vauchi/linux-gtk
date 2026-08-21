@@ -1,0 +1,196 @@
+{
+  "surface_id": "a11y_node_probe",
+  "revision": 1,
+  "title": "Vauchi A11y Node Probe",
+  "subtitle": null,
+  "accessibility_label": "A11Y_Surface",
+  "layout": "scroll",
+  "tokens": {
+    "spacing_small": 8,
+    "spacing_medium": 16,
+    "spacing_large": 24,
+    "corner_radius": 12,
+    "minimum_target_size": 44
+  },
+  "nodes": [
+    {
+      "Text": {
+        "id": null,
+        "content": "vis_text",
+        "style": "body",
+        "accessibility": { "label": "A11Y_Text", "description": "DESC_Text" }
+      }
+    },
+    {
+      "Input": {
+        "binding_id": "probe_input",
+        "label": "vis_input",
+        "value": "",
+        "placeholder": null,
+        "input_kind": "text",
+        "max_length": null,
+        "validation_error": "vis_error",
+        "enabled": true,
+        "accessibility": { "label": "A11Y_Input", "description": "DESC_Input" }
+      }
+    },
+    {
+      "Toggle": {
+        "binding_id": "probe_toggle",
+        "label": "vis_toggle",
+        "value": false,
+        "enabled": true,
+        "accessibility": { "label": "A11Y_Toggle", "description": "DESC_Toggle" }
+      }
+    },
+    {
+      "Choice": {
+        "binding_id": "probe_choice",
+        "label": "vis_choice",
+        "selected": "option_one",
+        "options": [{ "id": "option_one", "label": "vis_option_one" }],
+        "enabled": true,
+        "accessibility": { "label": "A11Y_Choice", "description": "DESC_Choice" }
+      }
+    },
+    {
+      "Group": {
+        "id": null,
+        "label": "vis_group",
+        "axis": "vertical",
+        "children": [],
+        "accessibility": { "label": "A11Y_Group", "description": "DESC_Group" }
+      }
+    },
+    {
+      "List": {
+        "id": "probe_list",
+        "label": "vis_list",
+        "searchable": false,
+        "paging": null,
+        "rows": [
+          {
+            "title": "vis_row",
+            "subtitle": null,
+            "detail": null,
+            "icon_token": null,
+            "image_data": null,
+            "fallback_text": null,
+            "selected": false,
+            "enabled": true,
+            "activation": {
+              "interaction_id": "probe_row",
+              "label": "vis_action_row",
+              "accessibility_label": "A11Y_ACTION_Row",
+              "icon_token": null,
+              "enabled": true,
+              "shortcut": null
+            },
+            "secondary_actions": [
+              {
+                "interaction_id": "probe_row_menu",
+                "label": "vis_action_rowmenu",
+                "accessibility_label": "A11Y_ACTION_RowMenu",
+                "icon_token": null,
+                "enabled": true,
+                "shortcut": null
+              }
+            ],
+            "controls": [],
+            "accessibility": { "label": "A11Y_Row", "description": "DESC_Row" }
+          }
+        ],
+        "accessibility": { "label": "A11Y_List", "description": "DESC_List" }
+      }
+    },
+    {
+      "Image": {
+        "id": null,
+        "data": null,
+        "fallback_text": "vis_image",
+        "shape": "natural",
+        "brightness": 1.0,
+        "activation": {
+          "interaction_id": "probe_image",
+          "label": "vis_action_image",
+          "accessibility_label": "A11Y_ACTION_Image",
+          "icon_token": null,
+          "enabled": true,
+          "shortcut": null
+        },
+        "accessibility": { "label": "A11Y_Image", "description": "DESC_Image" }
+      }
+    },
+    {
+      "Status": {
+        "id": null,
+        "title": "vis_status",
+        "detail": null,
+        "icon_token": null,
+        "badge": null,
+        "tone": "neutral",
+        "activation": null,
+        "accessibility": { "label": "A11Y_Status", "description": "DESC_Status" }
+      }
+    },
+    {
+      "Qr": {
+        "id": "probe_qr",
+        "payloads": ["VAUCHI-A11Y-PROBE"],
+        "purpose": "display",
+        "label": "vis_qr",
+        "accessibility": { "label": "A11Y_Qr", "description": "DESC_Qr" }
+      }
+    },
+    {
+      "Confirmation": {
+        "id": "probe_confirmation",
+        "warning": "vis_warning",
+        "confirm": {
+          "interaction_id": "probe_confirm",
+          "label": "vis_action_confirm",
+          "accessibility_label": "A11Y_ACTION_Confirm",
+          "icon_token": null,
+          "enabled": true,
+          "shortcut": null
+        },
+        "cancel": {
+          "interaction_id": "probe_cancel",
+          "label": "vis_action_cancel",
+          "accessibility_label": "A11Y_ACTION_Cancel",
+          "icon_token": null,
+          "enabled": true,
+          "shortcut": null
+        },
+        "accessibility": {
+          "label": "A11Y_Confirmation",
+          "description": "DESC_Confirmation"
+        }
+      }
+    },
+    {
+      "Slider": {
+        "binding_id": "probe_slider",
+        "label": "vis_slider",
+        "value": 0.5,
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "step": null,
+        "minimum_icon": null,
+        "maximum_icon": null,
+        "accessibility": { "label": "A11Y_Slider", "description": "DESC_Slider" }
+      }
+    },
+    {
+      "Progress": {
+        "label": "vis_progress",
+        "value": 0.5,
+        "accessibility": {
+          "label": "A11Y_Progress",
+          "description": "DESC_Progress"
+        }
+      }
+    },
+    "Divider"
+  ]
+}
