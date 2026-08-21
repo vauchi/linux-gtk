@@ -42,7 +42,14 @@ NODE_KINDS = (
     "Progress",
 )
 
-ACTION_KINDS = ("Row", "RowMenu", "Image", "Confirm", "Cancel")
+ACTION_KINDS = ("RowMenu", "Confirm", "Cancel")
+
+# Row and Image are deliberately absent. Where a node is both the content and
+# the affordance, Core prepares one name and puts it in both slots — a shell
+# can surface only one, because neither toolkit lets an application set an
+# AT-SPI action description. Those cases are covered by
+# `test_node_exposes_core_a11y_label`; the kinds listed here are separate
+# widgets whose action label is genuinely their own.
 
 # Kinds whose widget is addressable by AT-SPI role, so the test can assert
 # *that widget's own* name rather than mere presence in the tree. These are

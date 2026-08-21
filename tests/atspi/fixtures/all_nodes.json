@@ -101,7 +101,7 @@
             "activation": {
               "interaction_id": "probe_row",
               "label": "vis_action_row",
-              "accessibility_label": "A11Y_ACTION_Row",
+              "accessibility_label": "A11Y_Row",
               "icon_token": null,
               "enabled": true,
               "shortcut": null
@@ -244,7 +244,7 @@
         "activation": {
           "interaction_id": "probe_image",
           "label": "vis_action_image",
-          "accessibility_label": "A11Y_ACTION_Image",
+          "accessibility_label": "A11Y_Image",
           "icon_token": null,
           "enabled": true,
           "shortcut": null
