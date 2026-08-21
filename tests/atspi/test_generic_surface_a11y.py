@@ -170,23 +170,35 @@ class TestSurfaceAndStructure:
         )
 
     def test_invalid_input_announces_its_error(self, probe_app):
-        """A rejected field must be announced, not only painted red.
+        """A rejected field must announce why, not only be painted red.
 
-        WCAG 2.1 SC 3.3.1: the error has to be programmatically associated
-        with the field. A sibling label is not an association.
+        WCAG 2.1 SC 3.3.1. Core folds the reason into the field's accessible
+        description, because that is the one slot every toolkit maps — Qt has
+        no error-message relation and adding one would cost the field its text
+        interface.
+        """
+        entries = nodes_with_role(probe_app, ROLE_ADDRESSABLE["Input"])
+        assert entries, f"no input widget in the tree\n{dump(probe_app)}"
+        announced = [entry.get_description() for entry in entries]
+        assert "vis_error" in announced, (
+            "the rejected field does not announce why it was rejected; "
+            f"input descriptions on the bus: {announced!r}\n{dump(probe_app)}"
+        )
+
+    def test_invalid_input_also_carries_an_error_relation(self, probe_app):
+        """GTK4 can do better than the portable description, so it should.
+
+        An ErrorMessage relation plus the invalid state lets a screen reader
+        tie the message to the field and report the field as invalid. Qt has
+        no public equivalent, so this case is GTK-only by design.
         """
         entries = nodes_with_role(probe_app, ROLE_ADDRESSABLE["Input"])
         assert entries, f"no input widget in the tree\n{dump(probe_app)}"
         related = []
         for entry in entries:
             for relation in entry.get_relation_set():
-                nick = relation.get_relation_type().value_nick
-                targets = [
-                    relation.get_target(i).get_name()
-                    for i in range(relation.get_n_targets())
-                ]
-                related.append((nick, targets))
-        assert any("error" in nick for nick, _ in related), (
+                related.append(relation.get_relation_type().value_nick)
+        assert any("error" in nick for nick in related), (
             f"input exposes no error-message relation, only {related!r}.\n"
             f"{dump(probe_app)}"
         )

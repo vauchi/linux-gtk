@@ -32,11 +32,27 @@
         "placeholder": null,
         "input_kind": "text",
         "max_length": null,
-        "validation_error": "vis_error",
+        "validation_error": null,
         "enabled": true,
         "accessibility": {
           "label": "A11Y_Input",
           "description": "DESC_Input"
+        }
+      }
+    },
+    {
+      "Input": {
+        "binding_id": "probe_input_rejected",
+        "label": "vis_input_rejected",
+        "value": "",
+        "placeholder": null,
+        "input_kind": "text",
+        "max_length": null,
+        "validation_error": "vis_error",
+        "enabled": true,
+        "accessibility": {
+          "label": "A11Y_InputRejected",
+          "description": "vis_error"
         }
       }
     },
