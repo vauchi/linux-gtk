@@ -3,10 +3,10 @@
 
 //! Native GTK renderer for Core's domain-free presentation nodes.
 
+mod accessibility;
 mod collections;
 mod controls;
 
-use gtk4::accessible::Property;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
@@ -39,6 +39,8 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
     inner.set_margin_bottom(margin);
     scrolled.set_child(Some(&inner));
     container.append(&scrolled);
+
+    accessibility::apply_label(&inner, &surface.accessibility_label);
 
     let title = Label::builder()
         .label(&surface.title)
@@ -105,7 +107,7 @@ pub(super) fn action_button(
         .sensitive(action.enabled)
         .build();
     button.set_widget_name(action.interaction_id.as_str());
-    button.update_property(&[Property::Label(&action.accessibility_label)]);
+    accessibility::apply_label(&button, &action.accessibility_label);
     if action.tone == vauchi_core::ActionTone::Destructive {
         button.add_css_class("destructive-action");
     }

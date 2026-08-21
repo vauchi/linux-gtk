@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk4::accessible::Property;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use vauchi_core::{InputValue, PresentationNode, SurfaceId};
 
+use super::accessibility::{apply as apply_accessibility, mark_invalid};
 use super::{OnEvent, action_button, emit_binding_gesture, emit_value};
 
 pub(super) fn render(
@@ -28,11 +28,7 @@ pub(super) fn render(
             if let Some(id) = id {
                 label.set_widget_name(id.as_str());
             }
-            let mut properties = vec![Property::Label(&accessibility.label)];
-            if let Some(description) = accessibility.description.as_deref() {
-                properties.push(Property::Description(description));
-            }
-            label.update_property(&properties);
+            apply_accessibility(&label, accessibility);
             match style {
                 vauchi_core::PresentationTextStyle::Heading => label.add_css_class("title-2"),
                 vauchi_core::PresentationTextStyle::Muted => label.add_css_class("dim-label"),
@@ -70,11 +66,7 @@ pub(super) fn render(
                 ))
                 .build();
             entry.set_widget_name(binding_id.as_str());
-            let mut properties = vec![Property::Label(&accessibility.label)];
-            if let Some(description) = accessibility.description.as_deref() {
-                properties.push(Property::Description(description));
-            }
-            entry.update_property(&properties);
+            apply_accessibility(&entry, accessibility);
             if let Some(limit) = max_length.and_then(|value| i32::try_from(value).ok()) {
                 entry.set_max_length(limit);
             }
@@ -133,13 +125,13 @@ pub(super) fn render(
             });
             group.append(&entry);
             if let Some(error) = validation_error {
-                group.append(
-                    &Label::builder()
-                        .label(error)
-                        .css_classes(["error"])
-                        .halign(gtk4::Align::Start)
-                        .build(),
-                );
+                let message = Label::builder()
+                    .label(error)
+                    .css_classes(["error"])
+                    .halign(gtk4::Align::Start)
+                    .build();
+                mark_invalid(&entry, &message);
+                group.append(&message);
             }
             group.upcast()
         }
@@ -148,7 +140,7 @@ pub(super) fn render(
             label,
             value,
             enabled,
-            ..
+            accessibility,
         } => {
             let toggle = gtk4::CheckButton::builder()
                 .label(label)
@@ -156,6 +148,7 @@ pub(super) fn render(
                 .sensitive(*enabled)
                 .build();
             toggle.set_widget_name(binding_id.as_str());
+            apply_accessibility(&toggle, accessibility);
             let id = binding_id.clone();
             let surface = surface_id.clone();
             let callback = on_event.clone();
@@ -175,7 +168,7 @@ pub(super) fn render(
             selected,
             options,
             enabled,
-            ..
+            accessibility,
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
             group.append(
@@ -191,6 +184,7 @@ pub(super) fn render(
             let dropdown = gtk4::DropDown::from_strings(&labels);
             dropdown.set_sensitive(*enabled);
             dropdown.set_widget_name(binding_id.as_str());
+            apply_accessibility(&dropdown, accessibility);
             if let Some(index) = selected
                 .as_ref()
                 .and_then(|selected| options.iter().position(|option| &option.id == selected))
@@ -214,9 +208,11 @@ pub(super) fn render(
             warning,
             confirm,
             cancel,
+            accessibility,
             ..
         } => {
             let group = GtkBox::new(Orientation::Vertical, 8);
+            apply_accessibility(&group, accessibility);
             group.append(&Label::builder().label(warning).wrap(true).build());
             let buttons = GtkBox::new(Orientation::Horizontal, 8);
             buttons.append(&action_button(cancel, surface_id, on_event));
@@ -231,6 +227,7 @@ pub(super) fn render(
             minimum,
             maximum,
             step,
+            accessibility,
             ..
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
@@ -248,6 +245,7 @@ pub(super) fn render(
             );
             scale.set_value(*value);
             scale.set_widget_name(binding_id.as_str());
+            apply_accessibility(&scale, accessibility);
             let id = binding_id.clone();
             let surface = surface_id.clone();
             let callback = on_event.clone();
@@ -257,11 +255,16 @@ pub(super) fn render(
             group.append(&scale);
             group.upcast()
         }
-        PresentationNode::Progress { label, value, .. } => {
+        PresentationNode::Progress {
+            label,
+            value,
+            accessibility,
+        } => {
             let progress = gtk4::ProgressBar::new();
             progress.set_text(label.as_deref());
             progress.set_show_text(label.is_some());
             value.map_or_else(|| progress.pulse(), |value| progress.set_fraction(value));
+            apply_accessibility(&progress, accessibility);
             progress.upcast()
         }
         _ => Label::new(None).upcast(),

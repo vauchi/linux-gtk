@@ -8,6 +8,7 @@ use vauchi_core::{
     BindingId, InputValue, PresentationNode, PresentationQrPurpose, PresentationRow, SurfaceId,
 };
 
+use super::accessibility::apply as apply_accessibility;
 use super::{OnEvent, action_button, emit_value, render_node};
 
 const QR_LIGHT_RGB: (f64, f64, f64) = (1.0, 1.0, 1.0);
@@ -23,6 +24,7 @@ pub(super) fn render(
             label,
             axis,
             children,
+            accessibility,
             ..
         } => {
             let group = GtkBox::new(
@@ -45,15 +47,18 @@ pub(super) fn render(
             for child in children {
                 group.append(&render_node(child, surface_id, on_event));
             }
+            apply_accessibility(&group, accessibility);
             group.upcast()
         }
         PresentationNode::List {
             label,
             rows,
             searchable,
+            accessibility,
             ..
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
+            apply_accessibility(&group, accessibility);
             if let Some(label) = label {
                 group.append(
                     &Label::builder()
@@ -78,20 +83,23 @@ pub(super) fn render(
         PresentationNode::Image {
             fallback_text,
             activation,
+            accessibility,
             ..
         } => {
             let label = fallback_text.as_deref().unwrap_or("Image");
             activation.as_ref().map_or_else(
                 || {
-                    Label::builder()
+                    let image = Label::builder()
                         .label(label)
                         .css_classes(["avatar"])
-                        .build()
-                        .upcast()
+                        .build();
+                    apply_accessibility(&image, accessibility);
+                    image.upcast()
                 },
                 |action| {
                     let button = action_button(action, surface_id, on_event);
                     button.set_label(label);
+                    apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
             )
@@ -101,6 +109,7 @@ pub(super) fn render(
             detail,
             badge,
             activation,
+            accessibility,
             ..
         } => {
             let text = [Some(title.as_str()), detail.as_deref(), badge.as_deref()]
@@ -110,16 +119,18 @@ pub(super) fn render(
                 .join(" — ");
             activation.as_ref().map_or_else(
                 || {
-                    Label::builder()
+                    let status = Label::builder()
                         .label(&text)
                         .wrap(true)
                         .halign(gtk4::Align::Start)
-                        .build()
-                        .upcast()
+                        .build();
+                    apply_accessibility(&status, accessibility);
+                    status.upcast()
                 },
                 |action| {
                     let button = action_button(action, surface_id, on_event);
                     button.set_label(&text);
+                    apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
             )
@@ -129,13 +140,21 @@ pub(super) fn render(
             payloads,
             purpose,
             label,
+            accessibility,
             ..
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
+            apply_accessibility(&group, accessibility);
             match purpose {
                 PresentationQrPurpose::Display => {
                     if let Some(payload) = payloads.first() {
-                        group.append(&render_qr(payload));
+                        let code = render_qr(payload);
+                        // A custom-drawn surface has no intrinsic accessible
+                        // identity: unnamed and roleless, a screen reader
+                        // cannot announce the QR code at all.
+                        code.set_accessible_role(gtk4::AccessibleRole::Img);
+                        apply_accessibility(&code, accessibility);
+                        group.append(&code);
                     }
                 }
                 PresentationQrPurpose::Capture => {
@@ -246,9 +265,11 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
         let button = action_button(action, surface_id, on_event);
         button.set_child(Some(&content));
         button.set_hexpand(true);
+        apply_accessibility(&button, &row.accessibility);
         row_box.append(&button);
     } else {
         content.set_hexpand(true);
+        apply_accessibility(&content, &row.accessibility);
         row_box.append(&content);
     }
     for action in &row.secondary_actions {
