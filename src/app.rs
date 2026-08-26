@@ -16,7 +16,9 @@ use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::AppEngine;
 use vauchi_core::{Event, StandardShortcut, api::VauchiEvent};
 
-use crate::core_ui::contextual_surface::{handle_commands, render_current_surface};
+use crate::core_ui::contextual_surface::{
+    dispatch_platform_event, handle_commands, render_current_surface,
+};
 use crate::locale::detect_locale;
 use crate::platform;
 
@@ -136,10 +138,13 @@ fn build_ui(app: &adw::Application) {
         let content = content.clone();
         let toast_overlay = toast_overlay.clone();
         window.connect_notify_local(Some("is-active"), move |w, _| {
-            if !w.is_active()
-                && let Ok(commands) = app_engine.borrow_mut().dispatch(Event::AppBackgrounded)
-            {
-                handle_commands(&content, &app_engine, &toast_overlay, commands, None);
+            if !w.is_active() {
+                dispatch_platform_event(
+                    &content,
+                    &app_engine,
+                    &toast_overlay,
+                    Event::AppBackgrounded,
+                );
             }
         });
     }
