@@ -122,12 +122,17 @@ class TestExchangeWorkflow:
 class TestSettingsWorkflow:
     """Settings screen interaction."""
 
-    def test_more_destination_has_native_actions(self, gtk_app):
-        """The More destination should expose named native actions."""
-        assert navigate_to(gtk_app, "More")
+    def test_settings_destination_has_native_actions(self, gtk_app):
+        """A destination beyond the primary four still renders named actions.
+
+        This guarded the More overflow menu, which no longer exists — its
+        screens are first-class destinations now. Settings is the first of
+        them, so it carries the same intent.
+        """
+        assert navigate_to(gtk_app, "Settings")
         buttons = find_all(gtk_app, role="button")
         named = [button.get_name() for button in buttons if button.get_name()]
-        assert named, f"More screen has no named actions:\n{dump_tree(gtk_app, 12)}"
+        assert named, f"Settings screen has no named actions:\n{dump_tree(gtk_app, 12)}"
 
 
 class TestHardwareDegradation:

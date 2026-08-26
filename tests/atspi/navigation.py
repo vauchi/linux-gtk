@@ -22,8 +22,27 @@ from gi.repository import Atspi  # noqa: E402
 
 from helpers import dump_tree, find_all, find_one, wait_until  # noqa: E402
 
+# "More" names the control that *opens* the overlay, and the overlay's own
+# title — Core passes `nav.more` as the navigation label. It is not a place
+# you can go: the More overflow tab was retired and every shell now renders
+# one flat destination list (`AppEngine::available_screens`).
 NAVIGATION_LABEL = "More"
-EXPECTED_DESTINATIONS = ["My Card", "Contacts", "Exchange", "Groups", "More"]
+EXPECTED_DESTINATIONS = [
+    "My Card",
+    "Contacts",
+    "Exchange",
+    "Groups",
+    "Settings",
+    "Recovery",
+    "Devices",
+    "Backup",
+    "Privacy",
+    "Support",
+    "Help",
+    "Activity",
+    "Tags",
+    "Places",
+]
 
 
 def _warn(message):
