@@ -4,15 +4,15 @@
 //! Applies ordered Core command batches to the native GTK projection.
 
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Orientation, Separator};
+use gtk4::{Box as GtkBox, Orientation, Separator};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
-use vauchi_core::Command;
+use vauchi_core::{Command, InteractionId};
 
-use super::widgets::{COMMAND_STATE, dispatch_event, render_bar};
+use super::widgets::{COMMAND_STATE, context_bar_button, dispatch_event, render_bar};
 use super::{environment, overlays};
 use crate::core_ui::generic_surface::{self, OnEvent};
 
@@ -21,7 +21,7 @@ pub(crate) fn handle_commands(
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     commands: Vec<Command>,
-    origin: Option<&Button>,
+    origin: Option<&InteractionId>,
 ) {
     let mut platform_commands = Vec::new();
     let mut presentation_changed = false;
@@ -75,13 +75,17 @@ pub(crate) fn handle_commands(
         render_presentation(container, app_engine, toast_overlay);
     }
     if let Some((surface_id, overlay)) = pending_overlay {
+        // Resolved after the rebuild above, never before: the button that
+        // asked for this overlay is orphaned by `render_presentation`.
+        let anchor =
+            origin.and_then(|interaction_id| context_bar_button(container, interaction_id));
         overlays::present(
             container,
             app_engine,
             toast_overlay,
             surface_id,
             overlay,
-            origin,
+            anchor.as_ref(),
         );
     }
     if !platform_commands.is_empty() {

@@ -6,7 +6,6 @@
 mod collections;
 mod controls;
 
-use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use std::rc::Rc;
@@ -15,6 +14,12 @@ use vauchi_core::{ActionSpec, Event, PresentationNode, SurfaceId, SurfaceLayout,
 
 use super::accessibility;
 
+/// Reports a rendered control's gesture back to whoever owns the engine.
+///
+/// The renderer calls this straight from the GTK signal handler, so the
+/// callback must not rebuild this widget tree before returning — the shell's
+/// implementation queues Core's turn to the next main-loop idle for exactly
+/// that reason (`contextual_surface::widgets::dispatch_event`).
 pub type OnEvent = Rc<dyn Fn(Event)>;
 
 pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
@@ -115,12 +120,7 @@ pub(super) fn action_button(
     let action = action.clone();
     let surface_id = surface_id.clone();
     let on_event = on_event.clone();
-    button.connect_clicked(move |_| {
-        let action = action.clone();
-        let surface_id = surface_id.clone();
-        let on_event = on_event.clone();
-        glib::idle_add_local_once(move || emit_activation(&surface_id, &action, &on_event));
-    });
+    button.connect_clicked(move |_| emit_activation(&surface_id, &action, &on_event));
     button
 }
 

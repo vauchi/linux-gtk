@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Orientation};
 use libadwaita as adw;
@@ -60,14 +61,14 @@ pub(super) fn render_bar(
         let app_engine = app_engine.clone();
         let container = container.clone();
         let toast_overlay = toast_overlay.clone();
-        button.connect_clicked(move |origin| {
+        button.connect_clicked(move |_| {
             dispatch_interaction(
                 &container,
                 &app_engine,
                 &toast_overlay,
                 &surface_id,
                 &interaction_id,
-                Some(origin),
+                Some(&interaction_id),
             );
         });
         strip.append(&button);
@@ -85,6 +86,32 @@ fn remove_existing_bar(container: &GtkBox) {
         }
         child = next;
     }
+}
+
+/// Re-resolve a context-bar button by the interaction it carries.
+///
+/// The bar is rebuilt wholesale between the click and the overlay that click
+/// asks for, so the emitting widget is orphaned by then. Scoping the walk to
+/// the bar keeps a same-named surface control from being taken as the anchor.
+pub(super) fn context_bar_button(
+    container: &GtkBox,
+    interaction_id: &InteractionId,
+) -> Option<Button> {
+    let mut child = container.first_child();
+    while let Some(widget) = child {
+        if widget.widget_name() == CONTEXT_BAR_NAME {
+            let mut candidate = widget.first_child();
+            while let Some(control) = candidate {
+                if control.widget_name() == interaction_id.as_str() {
+                    return control.downcast::<Button>().ok();
+                }
+                candidate = control.next_sibling();
+            }
+            return None;
+        }
+        child = widget.next_sibling();
+    }
+    None
 }
 
 fn build_button(
@@ -188,7 +215,7 @@ pub(super) fn dispatch_interaction(
     toast_overlay: &adw::ToastOverlay,
     surface_id: &SurfaceId,
     interaction_id: &InteractionId,
-    origin: Option<&Button>,
+    origin: Option<&InteractionId>,
 ) {
     environment::report_environment(container, app_engine);
     for event in [
@@ -213,15 +240,37 @@ pub(crate) fn dispatch_platform_event(
     dispatch_event(container, app_engine, toast_overlay, event, None);
 }
 
+/// Hand an event to Core on the next main-loop idle, never inside the GTK
+/// signal emission that produced it.
+///
+/// Core's answer rebuilds the widget tree. Rebuilding from inside an emission
+/// leaves GTK resuming on widgets it has already dropped: the Actions popover
+/// anchored itself to the button the rebuild had just orphaned
+/// (`gtk_widget_realize` on a widget outside any toplevel, then SIGSEGV), and
+/// control handlers destroyed their own emitter. Deferring is the whole guard
+/// for that class, so it lives here — the one place the shell re-enters Core
+/// — instead of at each call site.
 pub(super) fn dispatch_event(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     event: Event,
-    origin: Option<&Button>,
+    origin: Option<&InteractionId>,
 ) {
-    let Ok(commands) = app_engine.borrow_mut().dispatch(event) else {
-        return;
-    };
-    super::commands::handle_commands(container, app_engine, toast_overlay, commands, origin);
+    let container = container.clone();
+    let app_engine = app_engine.clone();
+    let toast_overlay = toast_overlay.clone();
+    let origin = origin.cloned();
+    glib::idle_add_local_once(move || {
+        let Ok(commands) = app_engine.borrow_mut().dispatch(event) else {
+            return;
+        };
+        super::commands::handle_commands(
+            &container,
+            &app_engine,
+            &toast_overlay,
+            commands,
+            origin.as_ref(),
+        );
+    });
 }
