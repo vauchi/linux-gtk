@@ -205,6 +205,40 @@ def gtk_app_fresh(gtk_binary):
 
 
 @pytest.fixture
+def gtk_app_seeded_isolated(gtk_binary):
+    """Launch an independent seeded app for crash-regression tests.
+
+    Function-scoped with the process handle exposed: a regression under
+    test may kill the app, and that must neither take down the shared
+    session instance nor go unnoticed — tests assert proc.poll() directly.
+    """
+    data_dir = tempfile.mkdtemp(prefix="vauchi-test-crash-")
+    env = os.environ.copy()
+    env["GTK_A11Y"] = "atspi"
+    env["XDG_DATA_HOME"] = data_dir
+    env["VAUCHI_TEST_SEED"] = "1"
+    env["VAUCHI_TEST_NON_UNIQUE"] = "1"
+    env["VAUCHI_LOCALES_DIR"] = os.path.join(_WORKSPACE, "locales")
+
+    if "DISPLAY" not in env and "WAYLAND_DISPLAY" not in env:
+        pytest.skip("No display available")
+
+    proc, app_root = _launch_and_find(gtk_binary, env)
+
+    yield app_root, proc
+
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+
+    shutil.rmtree(data_dir, ignore_errors=True)
+
+
+@pytest.fixture
 def gtk_app_onboarding(gtk_binary):
     """Launch an independent fresh app for a state-changing onboarding test."""
     data_dir = tempfile.mkdtemp(prefix="vauchi-test-onboarding-")
