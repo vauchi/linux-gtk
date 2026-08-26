@@ -62,11 +62,12 @@ class TestActionsPopover:
         assert add_entry is not None
 
         assert _click(add_entry)
-        # The add-field form carries text inputs (field_value, field_label, ...).
-        form_input = wait_for_element(app, role="text", timeout=5.0)
+        # Add Entry lands on the entry-type chooser, not on a form: the value
+        # inputs come one step later, once a type is picked.
+        entry_type = wait_for_element(app, role="button", name="Phone", timeout=5.0)
         _assert_alive(proc, "activating 'Add Entry'")
-        assert form_input is not None, (
-            f"'Add Entry' did not open the add-field form.\n{dump_tree(app, 10)}"
+        assert entry_type is not None, (
+            f"'Add Entry' did not reach the entry-type chooser.\n{dump_tree(app, 14)}"
         )
 
 
