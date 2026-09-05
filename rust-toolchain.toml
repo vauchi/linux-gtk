@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Pin Rust toolchain for reproducible CI builds.
+# Update this version intentionally — do not rely on rust:latest.
+#
+# linux-gtk was the only Rust repo in the workspace without this file;
+# core, cli, tui, relay, e2e and ohttp-relay all pin 1.93.1. The CI job
+# falls back to `rustup default stable`, so until now this repo compiled
+# against whatever stable the runner happened to have installed — which
+# made a green pipeline a fact about the runner, not about the code.
+[toolchain]
+channel = "1.93.1"
+components = ["rustfmt", "clippy"]
