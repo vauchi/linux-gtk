@@ -3,7 +3,8 @@
 
 //! Camera-based QR code scanning with live preview.
 //!
-//! Uses `nokhwa` for V4L2 camera access and `rqrr` for QR decoding.
+//! Uses `nokhwa` for V4L2 camera access; decoding is core's scanner, so
+//! this shell only moves frames (ADR-066 — decoding is business logic).
 //! Shows a live video preview in a GTK dialog while scanning.
 
 #[cfg(all(feature = "camera", target_os = "linux"))]
@@ -22,6 +23,7 @@ mod inner {
     use vauchi_app::i18n;
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
+    use vauchi_core::qr::{ScannerBackend, scan_qr_from_luma};
 
     use crate::core_ui::contextual_surface::dispatch_platform_event;
     use crate::locale::detect_locale;
@@ -210,28 +212,13 @@ mod inner {
             })
             .ok();
 
-            // Try to decode QR from grayscale
-            let luma: Vec<u8> = rgb
-                .chunks_exact(3)
-                .map(|p| {
-                    let (r, g, b) = (p[0] as u32, p[1] as u32, p[2] as u32);
-                    ((r * 299 + g * 587 + b * 114) / 1000) as u8
-                })
-                .collect();
+            let luma = super::rgb_to_luma(rgb);
 
-            let mut prepared = rqrr::PreparedImage::prepare_from_greyscale(
-                width as usize,
-                height as usize,
-                |x, y| luma[y * width as usize + x],
-            );
-
-            let grids = prepared.detect_grids();
-            for grid in grids {
-                if let Ok((_, content)) = grid.decode() {
-                    camera.stop_stream().ok();
-                    tx.send(CameraMsg::QrFound(content)).ok();
-                    return Ok(());
-                }
+            let scan = scan_qr_from_luma(ScannerBackend::RqrrPreprocessed, &luma, width, height);
+            if let Some(content) = scan.decoded {
+                camera.stop_stream().ok();
+                tx.send(CameraMsg::QrFound(content)).ok();
+                return Ok(());
             }
         }
 
@@ -242,3 +229,91 @@ mod inner {
 
 #[cfg(all(feature = "camera", target_os = "linux"))]
 pub use inner::*;
+
+/// Pack an RGB frame into the 8-bit Y-plane core's scanner expects.
+///
+/// BT.601 luma weights, integer arithmetic to stay allocation-free per
+/// pixel. Deliberately outside the Linux-gated module: this is the one
+/// piece of the capture loop that is pure data, so keeping it here lets
+/// it compile and be tested on every host rather than only where V4L2
+/// builds.
+#[cfg(all(feature = "camera", any(target_os = "linux", test)))]
+pub(crate) fn rgb_to_luma(rgb: &[u8]) -> Vec<u8> {
+    rgb.chunks_exact(3)
+        .map(|p| {
+            let (r, g, b) = (u32::from(p[0]), u32::from(p[1]), u32::from(p[2]));
+            ((r * 299 + g * 587 + b * 114) / 1000) as u8
+        })
+        .collect()
+}
+
+#[cfg(all(test, feature = "camera"))]
+mod tests {
+    use vauchi_core::qr::{ScannerBackend, scan_qr_from_luma};
+
+    use super::rgb_to_luma;
+
+    /// Render `payload` as a QR code into an RGB buffer, one `scale`-sized
+    /// square per module plus a 4-module quiet zone (the spec minimum —
+    /// without it decoders cannot find the finder patterns).
+    fn render_qr_rgb(payload: &str, scale: usize) -> (Vec<u8>, u32) {
+        const QUIET_MODULES: usize = 4;
+
+        let code = qrcode::QrCode::new(payload).expect("payload fits a QR code");
+        let modules = code.to_colors();
+        let side_modules = code.width() + 2 * QUIET_MODULES;
+        let side_px = side_modules * scale;
+
+        let mut rgb = vec![255u8; side_px * side_px * 3];
+        for (i, color) in modules.iter().enumerate() {
+            if *color != qrcode::Color::Dark {
+                continue;
+            }
+            let (mx, my) = (i % code.width(), i / code.width());
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    let x = (mx + QUIET_MODULES) * scale + dx;
+                    let y = (my + QUIET_MODULES) * scale + dy;
+                    let at = (y * side_px + x) * 3;
+                    rgb[at..at + 3].fill(0);
+                }
+            }
+        }
+        (rgb, side_px as u32)
+    }
+
+    // @internal
+    #[test]
+    fn core_decodes_a_frame_converted_by_our_luma_packer() {
+        let payload = "vauchi://exchange/oNZq7xR2";
+        let (rgb, side) = render_qr_rgb(payload, 6);
+
+        let luma = rgb_to_luma(&rgb);
+        let scan = scan_qr_from_luma(ScannerBackend::RqrrPreprocessed, &luma, side, side);
+
+        assert_eq!(scan.decoded.as_deref(), Some(payload));
+    }
+
+    // @internal
+    #[test]
+    fn an_inverted_frame_does_not_decode() {
+        let payload = "vauchi://exchange/oNZq7xR2";
+        let (rgb, side) = render_qr_rgb(payload, 6);
+        let inverted: Vec<u8> = rgb.iter().map(|b| 255 - b).collect();
+
+        let luma = rgb_to_luma(&inverted);
+        let scan = scan_qr_from_luma(ScannerBackend::RqrrPreprocessed, &luma, side, side);
+
+        assert_eq!(scan.decoded, None);
+    }
+
+    // @internal
+    #[test]
+    fn luma_packer_emits_one_byte_per_pixel() {
+        let rgb = [255, 255, 255, 0, 0, 0, 255, 0, 0];
+
+        let luma = rgb_to_luma(&rgb);
+
+        assert_eq!(luma, vec![255, 0, 76]);
+    }
+}

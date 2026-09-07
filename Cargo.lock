@@ -3781,13 +3781,11 @@ version = "0.5.0-rc.0"
 dependencies = [
  "bluer",
  "gtk4",
- "image",
  "libadwaita",
  "mdns-sd",
  "nokhwa",
  "pcsc",
  "qrcode",
- "rqrr",
  "serde_json",
  "tempfile",
  "tokio",
