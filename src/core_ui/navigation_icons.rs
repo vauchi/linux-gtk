@@ -30,7 +30,21 @@ const NAMES_BY_TOKEN: &[(&str, &[&str])] = &[
         &["avatar-default", "avatar-default-symbolic"],
     ),
     ("person.2", &["system-users", "system-users-symbolic"]),
-    ("qrcode", &["qr-code", "qr-code-symbolic"]),
+    // Adwaita ships no QR or barcode glyph at all — verified against
+    // adwaita-icon-theme on Debian 13, where only `scanner` exists and that
+    // is a document scanner, the wrong metaphor. Breeze does have
+    // `view-barcode-qr`, so the QR names stay first for themes that carry
+    // them; a camera is the fallback because pointing one at the other
+    // person's code is the action this button starts.
+    (
+        "qrcode",
+        &[
+            "qr-code",
+            "qr-code-symbolic",
+            "view-barcode-qr-symbolic",
+            "camera-photo-symbolic",
+        ],
+    ),
     ("folder", &["folder", "folder-symbolic"]),
     ("tag", &["tag", "tag-symbolic", "user-bookmarks-symbolic"]),
     (
