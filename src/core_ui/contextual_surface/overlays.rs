@@ -11,6 +11,8 @@ use std::rc::Rc;
 use vauchi_app::ui::AppEngine;
 use vauchi_core::{Event, MotionPreference, OverlayKind, OverlaySpec, SurfaceId};
 
+use crate::core_ui::navigation_icons::resolve_icon_name;
+
 use super::widgets::{dispatch_event, dispatch_interaction};
 
 pub(super) fn present(
@@ -71,7 +73,7 @@ fn present_navigation(
     let activated = Rc::new(Cell::new(false));
 
     for item in overlay.items {
-        let button = overlay_button(&item);
+        let button = overlay_button(&item, OverlayKind::Navigation);
         let interaction_id = item.interaction_id;
         // Weak window capture: button -> closure -> window would cycle and
         // keep the modal alive past close(), leaking it into the AT-SPI tree.
@@ -157,7 +159,7 @@ fn present_action_menu(
     let activated = Rc::new(Cell::new(false));
 
     for item in overlay.items {
-        let button = overlay_button(&item);
+        let button = overlay_button(&item, OverlayKind::ActionMenu);
         let interaction_id = item.interaction_id;
         // Weak popover capture: same reference cycle as the navigation window.
         button.connect_clicked(glib::clone!(
@@ -220,12 +222,35 @@ fn present_action_menu(
     revealer.set_reveal_child(true);
 }
 
-fn overlay_button(action: &vauchi_core::ActionSpec) -> Button {
+/// Core names an icon on navigation items only, so an action menu stays plain
+/// rather than growing a column of neutral markers.
+fn overlay_icon_name(action: &vauchi_core::ActionSpec, kind: OverlayKind) -> Option<&'static str> {
+    if kind != OverlayKind::Navigation && action.icon_token.is_none() {
+        return None;
+    }
+    let theme = gtk4::gdk::Display::default().map(|display| gtk4::IconTheme::for_display(&display));
+    Some(resolve_icon_name(action.icon_token.as_deref(), |name| {
+        theme.as_ref().is_some_and(|theme| theme.has_icon(name))
+    }))
+}
+
+fn overlay_button(action: &vauchi_core::ActionSpec, kind: OverlayKind) -> Button {
     let button = Button::builder()
-        .label(&action.label)
         .sensitive(action.enabled)
         .halign(gtk4::Align::Fill)
         .build();
+    // Icon *and* label, never icon alone: the icon is a recognition aid for a
+    // reader who skims, and dropping the word would trade one barrier for
+    // another.
+    match overlay_icon_name(action, kind) {
+        Some(icon_name) => button.set_child(Some(
+            &adw::ButtonContent::builder()
+                .icon_name(icon_name)
+                .label(&action.label)
+                .build(),
+        )),
+        None => button.set_label(&action.label),
+    }
     button.set_widget_name(action.interaction_id.as_str());
     crate::core_ui::accessibility::apply_label(&button, &action.accessibility_label);
     if action.tone == vauchi_core::ActionTone::Destructive {
