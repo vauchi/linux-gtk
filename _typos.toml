@@ -5,3 +5,6 @@
 [default.extend-words]
 # PN532 is an NFC reader chip model number
 PN = "PN"
+# Core's navigation icon tokens are named after the SF Symbols core set,
+# where the map-pin symbol is spelled "mappin.and.ellipse".
+mappin = "mappin"
