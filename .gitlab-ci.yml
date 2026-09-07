@@ -28,6 +28,16 @@ include:
 
 variables:
   VAUCHI_SCRIPTS_REF: "ci-templates-v2026.08.10"
+  # cargo audit runs with --deny warnings; every entry here is an
+  # advisory with no fix available to us, not one we chose to skip.
+  # anyhow (RUSTSEC-2026-0190) and yanked spin were also flagged and are
+  # NOT here — a plain cargo update fixed both.
+  #   RUSTSEC-2024-0436  paste unmaintained, reached through nokhwa.
+  #   RUSTSEC-2026-0253  unsound lru, reached through vauchi-core's
+  #                      rqrr 0.10. Clears when a core tag carrying
+  #                      rqrr 0.11 lands. Record:
+  #                      problems/2026-09-07-core-rqrr-patch-does-not-reach-consumers
+  AUDIT_IGNORES: "--ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2026-0253"
   # Set to "true" to make downstream GTK verification advisory during runner incidents.
   GTK_VERIFY_ALLOW_FAILURE: "false"
 
