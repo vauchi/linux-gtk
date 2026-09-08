@@ -9,6 +9,8 @@ Tests query the AT-SPI tree — assertions can only fail if the
 accessible label is missing from the rendered UI.
 """
 
+import re
+
 import pytest
 
 from helpers import find_all, find_one, dump_tree
@@ -37,6 +39,42 @@ class TestContextualNavigation:
             assert button.get_name(), dump_tree(button)
             action = button.get_action_iface()
             assert action is not None and action.get_n_actions() > 0
+
+    def test_destination_icons_are_not_named_accessibles(self, gtk_app):
+        """The icon beside each word must not be its own AT-SPI object.
+
+        Every destination shows a themed icon next to its label. The icon
+        repeats what the label already says, so a screen reader should stop
+        once — on the button. If the icon reaches the bus as a named object
+        of its own, the reader stops twice, and the second stop announces a
+        freedesktop icon name: "system users symbolic", "preferences system
+        symbolic". The iOS shell had exactly this defect with SF Symbols
+        (`ios!649`), where the symbol identifier was read aloud verbatim.
+
+        Asserting on the *shape* of the name rather than on a copy of
+        `NAMES_BY_TOKEN`: the table changes whenever a theme turns out to
+        lack a glyph, and a test that has to be edited alongside it stops
+        being a check and becomes a mirror.
+        """
+        nav = open_navigation(gtk_app)
+        assert nav is not None
+        icon_name_shape = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)+$")
+        # This suite is expected to be green here from the start, so the
+        # pattern never gets a red run to prove it can fire (CC-27). Pin both
+        # directions against a real entry from `navigation_icons.rs` and a
+        # real destination label, so a pattern that matches nothing — or
+        # everything — is caught by the test that depends on it.
+        assert icon_name_shape.match("system-users-symbolic")
+        assert not icon_name_shape.match("My Card")
+        offenders = [
+            node.get_name()
+            for node in find_all(nav)
+            if node.get_name() and icon_name_shape.match(node.get_name())
+        ]
+        assert not offenders, (
+            f"These reach AT-SPI as icon names rather than words: {offenders}\n"
+            f"Overlay tree:\n{dump_tree(nav)}"
+        )
 
 
 class TestTextInputComponent:
