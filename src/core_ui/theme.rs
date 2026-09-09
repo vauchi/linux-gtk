@@ -107,6 +107,27 @@ mod tests {
     use super::*;
     use vauchi_app::theme::{ThemeColors, default_theme};
 
+    /// Both the standalone `Image` node and a list row's avatar hand their
+    /// initials to a `Label` carrying the `avatar` class, but nothing ever
+    /// defined that class — libadwaita's `avatar` styling belongs to
+    /// `AdwAvatar`, not to any widget that borrows the name. So the class
+    /// was inert and the initials rendered as a bare letter on the window
+    /// background, which is the same defect `ios!651` fixed on Apple.
+    #[test]
+    fn generated_css_gives_the_avatar_class_a_body() {
+        let css = generate_css(&default_theme().colors);
+
+        assert!(
+            css.contains(".avatar"),
+            "no `.avatar` rule: initials render as a bare letter, since a \
+             plain Label does not inherit AdwAvatar styling"
+        );
+        assert!(
+            css.contains("border-radius"),
+            "`.avatar` must round its ground, or the initials sit in a square"
+        );
+    }
+
     #[test]
     fn generate_css_includes_all_colors() {
         let colors = ThemeColors {
