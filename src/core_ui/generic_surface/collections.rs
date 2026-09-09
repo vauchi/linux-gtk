@@ -5,11 +5,85 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Label, Orientation, Widget};
 use vauchi_app::i18n::{self, Locale};
 use vauchi_core::{
-    BindingId, InputValue, PresentationNode, PresentationQrPurpose, PresentationRow, SurfaceId,
+    BindingId, InputValue, PresentationImageShape, PresentationNode, PresentationQrPurpose,
+    PresentationRow, SurfaceId,
 };
 
 use super::{OnEvent, action_button, emit_value, render_node};
 use crate::core_ui::accessibility::apply as apply_accessibility;
+
+/// What an `Image` node resolves to, decided before any widget exists so the
+/// choice can be asserted without a display.
+///
+/// The previous arm destructured `fallback_text, activation, accessibility,
+/// ..` — and the `..` swallowed `data`. A user who had set an avatar saw
+/// their initials on this shell, always, because the bytes were never
+/// decoded by anything.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ImageContent<'a> {
+    Picture(&'a [u8]),
+    Initials(&'a str),
+    Nothing,
+}
+
+pub(crate) fn image_content<'a>(
+    data: Option<&'a [u8]>,
+    fallback_text: Option<&'a str>,
+) -> ImageContent<'a> {
+    match (data, fallback_text) {
+        (Some(bytes), _) if !bytes.is_empty() => ImageContent::Picture(bytes),
+        (_, Some(initials)) if !initials.is_empty() => ImageContent::Initials(initials),
+        _ => ImageContent::Nothing,
+    }
+}
+
+/// Core's `shape` decides whether the result is round. It was read by
+/// nobody here, so an avatar and a diagram were drawn identically.
+fn shape_classes(shape: PresentationImageShape) -> Vec<&'static str> {
+    match shape {
+        PresentationImageShape::Circle => vec!["avatar"],
+        PresentationImageShape::Natural => vec!["avatar", "natural"],
+        // `PresentationImageShape` is `#[non_exhaustive]`. A shape this
+        // build has not learned is drawn with its corners rather than
+        // rounded away, because cropping content is the lossy choice.
+        _ => vec!["avatar", "natural"],
+    }
+}
+
+fn image_widget(content: &ImageContent<'_>, shape: PresentationImageShape) -> Widget {
+    match content {
+        ImageContent::Picture(bytes) => {
+            let gbytes = gtk4::glib::Bytes::from(*bytes);
+            gtk4::gdk::Texture::from_bytes(&gbytes).map_or_else(
+                |_| {
+                    // Undecodable bytes are not an avatar. Falling through to
+                    // an empty label keeps the surface intact rather than
+                    // asserting a picture that cannot be drawn.
+                    Label::builder()
+                        .label("")
+                        .css_classes(shape_classes(shape))
+                        .build()
+                        .upcast()
+                },
+                |texture| {
+                    let picture = gtk4::Picture::for_paintable(&texture);
+                    picture.set_can_shrink(true);
+                    picture.set_css_classes(&shape_classes(shape));
+                    picture.upcast()
+                },
+            )
+        }
+        ImageContent::Initials(initials) => Label::builder()
+            .label(*initials)
+            .css_classes(shape_classes(shape))
+            .build()
+            .upcast(),
+        // Nothing to show shows nothing: an empty avatar shape carrying the
+        // node's accessibility label would announce a picture that is not
+        // there.
+        ImageContent::Nothing => GtkBox::new(Orientation::Horizontal, 0).upcast(),
+    }
+}
 
 const QR_LIGHT_RGB: (f64, f64, f64) = (1.0, 1.0, 1.0);
 const QR_DARK_RGB: (f64, f64, f64) = (0.0, 0.0, 0.0);
@@ -81,24 +155,29 @@ pub(super) fn render(
             group.upcast()
         }
         PresentationNode::Image {
+            data,
             fallback_text,
+            shape,
             activation,
             accessibility,
             ..
         } => {
-            let label = fallback_text.as_deref().unwrap_or("Image");
+            let content = image_content(data.as_deref(), fallback_text.as_deref());
             activation.as_ref().map_or_else(
                 || {
-                    let image = Label::builder()
-                        .label(label)
-                        .css_classes(["avatar"])
-                        .build();
-                    apply_accessibility(&image, accessibility);
-                    image.upcast()
+                    let widget = image_widget(&content, *shape);
+                    apply_accessibility(&widget, accessibility);
+                    widget
                 },
                 |action| {
                     let button = action_button(action, surface_id, on_event);
-                    button.set_label(label);
+                    match &content {
+                        ImageContent::Picture(_) => {
+                            button.set_child(Some(&image_widget(&content, *shape)));
+                        }
+                        ImageContent::Initials(initials) => button.set_label(initials),
+                        ImageContent::Nothing => button.set_label(""),
+                    }
                     apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
@@ -243,21 +322,24 @@ fn render_qr_capture(id: &BindingId, surface_id: &SurfaceId, on_event: &OnEvent)
 /// The row's avatar: Core's image bytes, or the initials it prepared for when
 /// there are none.
 fn row_leading(row: &PresentationRow) -> Option<Widget> {
-    if let Some(data) = &row.image_data {
-        let bytes = gtk4::glib::Bytes::from(data.as_slice());
-        if let Ok(texture) = gtk4::gdk::Texture::from_bytes(&bytes) {
-            let image = gtk4::Image::from_paintable(Some(&texture));
-            image.set_pixel_size(32);
-            return Some(image.upcast());
+    match image_content(row.image_data.as_deref(), row.fallback_text.as_deref()) {
+        ImageContent::Picture(bytes) => {
+            let gbytes = gtk4::glib::Bytes::from(bytes);
+            gtk4::gdk::Texture::from_bytes(&gbytes).ok().map(|texture| {
+                let image = gtk4::Image::from_paintable(Some(&texture));
+                image.set_pixel_size(32);
+                image.upcast()
+            })
         }
+        ImageContent::Initials(initials) => Some(
+            Label::builder()
+                .label(initials)
+                .css_classes(["avatar"])
+                .build()
+                .upcast(),
+        ),
+        ImageContent::Nothing => None,
     }
-    row.fallback_text.as_ref().map(|initials| {
-        Label::builder()
-            .label(initials)
-            .css_classes(["avatar"])
-            .build()
-            .upcast()
-    })
 }
 
 fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent) -> Widget {
@@ -314,4 +396,49 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
         row_box.append(&action_button(action, surface_id, on_event));
     }
     row_box.upcast()
+}
+
+// INLINE_TEST_REQUIRED: asserts on the private `image_content` decision,
+// which has no public accessor and cannot be reached through a widget
+// without a display.
+#[cfg(test)]
+mod image_content_tests {
+    use super::{ImageContent, image_content};
+
+    // @internal
+    #[test]
+    fn image_bytes_win_over_the_initials_core_prepared() {
+        assert_eq!(
+            image_content(Some(&[1, 2, 3]), Some("BS")),
+            ImageContent::Picture(&[1, 2, 3])
+        );
+    }
+
+    // @internal
+    #[test]
+    fn initials_stand_in_when_there_are_no_bytes() {
+        assert_eq!(
+            image_content(None, Some("BS")),
+            ImageContent::Initials("BS")
+        );
+    }
+
+    /// Empty is not a picture. Core sends `Some(vec![])` for an avatar that
+    /// was cleared, and treating it as image data drew an empty frame where
+    /// the initials belonged.
+    // @internal
+    #[test]
+    fn empty_bytes_fall_through_to_the_initials() {
+        assert_eq!(
+            image_content(Some(&[]), Some("BS")),
+            ImageContent::Initials("BS")
+        );
+    }
+
+    // @internal
+    #[test]
+    fn nothing_to_show_resolves_to_nothing() {
+        assert_eq!(image_content(None, None), ImageContent::Nothing);
+        assert_eq!(image_content(Some(&[]), Some("")), ImageContent::Nothing);
+    }
 }

@@ -86,6 +86,34 @@ window {{
 entry {{
     border-color: @vauchi_border;
 }}
+
+/* Initials stand in for a missing avatar. Without a ground to sit on they
+   read as a stray letter rather than as a person, so the class carries the
+   whole shape: a fixed square, a fill and a radius. `AdwAvatar` styling
+   does not reach a plain Label, which is why this cannot be borrowed. */
+.avatar {{
+    min-width: 96px;
+    min-height: 96px;
+    border-radius: 48px;
+    background-color: @vauchi_bg_tertiary;
+    color: @vauchi_text_primary;
+    font-size: 1.6em;
+    font-weight: bold;
+}}
+
+/* A row's avatar is the same idea at list scale. */
+row .avatar,
+list .avatar {{
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 16px;
+    font-size: 1em;
+}}
+
+/* Core asks for a natural-shaped image to keep its corners. */
+.avatar.natural {{
+    border-radius: 8px;
+}}
 "#,
         bg_primary = colors.bg_primary,
         bg_secondary = colors.bg_secondary,
@@ -113,6 +141,7 @@ mod tests {
     /// `AdwAvatar`, not to any widget that borrows the name. So the class
     /// was inert and the initials rendered as a bare letter on the window
     /// background, which is the same defect `ios!651` fixed on Apple.
+    // @internal
     #[test]
     fn generated_css_gives_the_avatar_class_a_body() {
         let css = generate_css(&default_theme().colors);
