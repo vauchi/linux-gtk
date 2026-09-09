@@ -108,10 +108,22 @@ fn present_navigation(
         items.append(&button);
     }
 
+    // The destination list is Core's to size, not this shell's, and a
+    // GtkBox of buttons put straight into the window has no way to scroll:
+    // the window simply grows past its 440 px request, and past a short
+    // display, with the overflow unreachable. `propagate_natural_height`
+    // keeps a short list drawn at its own height rather than padded out to
+    // fill the scroller.
+    let scroller = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .propagate_natural_height(true)
+        .child(&items)
+        .build();
     let revealer = gtk4::Revealer::builder()
         .transition_type(gtk4::RevealerTransitionType::SlideRight)
         .transition_duration(animation_duration(220))
-        .child(&items)
+        .child(&scroller)
         .build();
     window.set_child(Some(&revealer));
 
