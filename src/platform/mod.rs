@@ -10,5 +10,6 @@ pub mod hardware;
 pub mod header_bar;
 pub mod init;
 pub mod nfc;
+pub mod notifications;
 pub mod screen_capture_protection;
 pub mod tcp_exchange;

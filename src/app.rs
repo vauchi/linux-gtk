@@ -244,12 +244,7 @@ fn register_event_handler(
             for notif in &notifications {
                 let n = gio::Notification::new(&notif.title);
                 n.set_body(Some(&notif.body));
-                // TODO(HUMBLE): D — frontend maps NotificationCategory::EmergencyAlert to urgent OS priority instead of using core-provided urgency hint (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-                if notif.category
-                    == vauchi_app::notification_types::NotificationCategory::EmergencyAlert
-                {
-                    n.set_priority(gio::NotificationPriority::Urgent);
-                }
+                n.set_priority(platform::notifications::os_priority_for(notif.priority));
                 app.send_notification(Some(&notif.event_key), &n);
             }
         }
@@ -283,9 +278,7 @@ fn register_wakeup_poll(
         for n in notifications {
             let notification = gio::Notification::new(&n.title);
             notification.set_body(Some(&n.body));
-            if n.category == vauchi_app::notification_types::NotificationCategory::EmergencyAlert {
-                notification.set_priority(gio::NotificationPriority::Urgent);
-            }
+            notification.set_priority(platform::notifications::os_priority_for(n.priority));
             app.send_notification(Some(&n.event_key), &notification);
         }
 
