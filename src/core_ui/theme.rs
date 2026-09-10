@@ -271,6 +271,7 @@ mod tests {
     /// read as neither the filled `.suggested-action` (the safe default) nor
     /// `.destructive-action` (irreversible), so the rule outlines in the
     /// warning colour and never fills with it.
+    // @internal
     #[test]
     fn generate_css_styles_serious_action_as_a_warning_outline_with_no_fill() {
         let css = generate_css(&default_theme().colors);
@@ -288,6 +289,7 @@ mod tests {
     /// GTK draws keyboard focus through the `:focus-visible` pseudo-class;
     /// nothing in this stylesheet answered it before, so a keyboard user saw
     /// no indication of which button or row currently had focus.
+    // @internal
     #[test]
     fn generate_css_draws_a_focus_ring_from_the_theme() {
         let css = generate_css(&default_theme().colors);
@@ -309,6 +311,7 @@ mod tests {
     /// The theme's dedicated `focus-ring` role (ADR-038 Amendment 3) wins
     /// when a theme supplies one — falling back to `accent` is only for
     /// themes predating that amendment.
+    // @internal
     #[test]
     fn generate_css_focus_ring_prefers_the_dedicated_theme_role_over_accent() {
         let colors = ThemeColors {
@@ -327,6 +330,7 @@ mod tests {
 
     /// Themes from before ADR-038 Amendment 3 have no `focus-ring` role at
     /// all; the ring must still draw, using `accent` so it stays visible.
+    // @internal
     #[test]
     fn generate_css_focus_ring_falls_back_to_accent_when_theme_has_none() {
         let colors = ThemeColors {
