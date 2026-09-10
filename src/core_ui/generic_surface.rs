@@ -5,12 +5,15 @@
 
 mod collections;
 mod controls;
+mod targets;
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
 use std::rc::Rc;
 
-use vauchi_core::{ActionSpec, Event, PresentationNode, SurfaceId, SurfaceLayout, SurfaceSpec};
+use vauchi_core::{
+    ActionSpec, Event, PresentationNode, PresentationTokens, SurfaceId, SurfaceLayout, SurfaceSpec,
+};
 
 use super::accessibility;
 
@@ -26,6 +29,7 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
+    apply_target_radius(&surface.tokens);
     let scrolled = gtk4::ScrolledWindow::builder()
         .vexpand(true)
         .hscrollbar_policy(gtk4::PolicyType::Never)
@@ -66,7 +70,29 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
         );
     }
     for node in &surface.nodes {
-        inner.append(&render_node(node, &surface.surface_id, on_event));
+        inner.append(&render_node(
+            node,
+            &surface.surface_id,
+            on_event,
+            &surface.tokens,
+        ));
+    }
+}
+
+/// Applies Core's per-surface corner radius as a CSS rule any widget can
+/// opt into via `targets::TARGET_RADIUS_CLASS`. Re-applying on every render
+/// mirrors `theme::apply_theme`: a later provider at the same priority wins
+/// the cascade, so a surface with a different `corner_radius` supersedes
+/// the last one rather than needing to be torn down first.
+fn apply_target_radius(tokens: &PresentationTokens) {
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_data(&targets::target_radius_css(tokens));
+    if let Some(display) = gtk4::gdk::Display::default() {
+        gtk4::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
     }
 }
 
@@ -74,6 +100,7 @@ pub(super) fn render_node(
     node: &PresentationNode,
     surface_id: &SurfaceId,
     on_event: &OnEvent,
+    tokens: &PresentationTokens,
 ) -> Widget {
     match node {
         PresentationNode::Text { .. }
@@ -82,13 +109,13 @@ pub(super) fn render_node(
         | PresentationNode::Choice { .. }
         | PresentationNode::Confirmation { .. }
         | PresentationNode::Slider { .. }
-        | PresentationNode::Progress { .. } => controls::render(node, surface_id, on_event),
+        | PresentationNode::Progress { .. } => controls::render(node, surface_id, on_event, tokens),
         PresentationNode::Group { .. }
         | PresentationNode::List { .. }
         | PresentationNode::Image { .. }
         | PresentationNode::Status { .. }
         | PresentationNode::Qr { .. }
-        | PresentationNode::Divider => collections::render(node, surface_id, on_event),
+        | PresentationNode::Divider => collections::render(node, surface_id, on_event, tokens),
         _ => Label::new(None).upcast(),
     }
 }
@@ -103,16 +130,22 @@ pub(super) fn emit_activation(surface_id: &SurfaceId, action: &ActionSpec, on_ev
     });
 }
 
+/// A button for any Core `ActionSpec`, sized to the surface's touch-target
+/// floor and rounded to its corner radius so no call site has to repeat
+/// either.
 pub(super) fn action_button(
     action: &ActionSpec,
     surface_id: &SurfaceId,
     on_event: &OnEvent,
+    tokens: &PresentationTokens,
 ) -> gtk4::Button {
     let button = gtk4::Button::builder()
         .label(&action.label)
         .sensitive(action.enabled)
         .build();
     button.set_widget_name(action.interaction_id.as_str());
+    button.set_size_request(-1, targets::minimum_target_px(tokens));
+    button.add_css_class(targets::TARGET_RADIUS_CLASS);
     accessibility::apply_label(&button, &action.accessibility_label);
     // `ActionTone` is `#[non_exhaustive]`, and the linked vauchi-core does
     // not yet carry `Serious` (core!feature/action-tone-serious, not merged

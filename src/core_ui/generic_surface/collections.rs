@@ -3,13 +3,14 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Label, Orientation, Widget};
+use libadwaita as adw;
 use vauchi_app::i18n::{self, Locale};
 use vauchi_core::{
     BindingId, InputValue, PresentationImageShape, PresentationNode, PresentationQrPurpose,
-    PresentationRow, SurfaceId,
+    PresentationRow, PresentationTokens, SurfaceId,
 };
 
-use super::{OnEvent, action_button, emit_value, render_node};
+use super::{OnEvent, action_button, emit_value, render_node, targets};
 use crate::core_ui::accessibility::apply as apply_accessibility;
 
 /// What an `Image` node resolves to, decided before any widget exists so the
@@ -37,51 +38,80 @@ pub(crate) fn image_content<'a>(
     }
 }
 
-/// Core's `shape` decides whether the result is round. It was read by
-/// nobody here, so an avatar and a diagram were drawn identically.
+/// Core's `shape` decides whether the result is round. `Circle` maps onto
+/// libadwaita's own avatar widget (`avatar_widget`); `Natural`, and any
+/// shape this build has not learned, keeps its own corners instead —
+/// cropping content is the lossy choice, so an unrecognized shape falls to
+/// the conservative side.
+fn shape_is_circle(shape: PresentationImageShape) -> bool {
+    matches!(shape, PresentationImageShape::Circle)
+}
+
 fn shape_classes(shape: PresentationImageShape) -> Vec<&'static str> {
-    match shape {
-        PresentationImageShape::Circle => vec!["avatar"],
-        PresentationImageShape::Natural => vec!["avatar", "natural"],
-        // `PresentationImageShape` is `#[non_exhaustive]`. A shape this
-        // build has not learned is drawn with its corners rather than
-        // rounded away, because cropping content is the lossy choice.
-        _ => vec!["avatar", "natural"],
+    if shape_is_circle(shape) {
+        vec!["avatar"]
+    } else {
+        vec!["avatar", "natural"]
     }
 }
 
-fn image_widget(content: &ImageContent<'_>, shape: PresentationImageShape) -> Widget {
-    match content {
-        ImageContent::Picture(bytes) => {
-            let gbytes = gtk4::glib::Bytes::from(*bytes);
-            gtk4::gdk::Texture::from_bytes(&gbytes).map_or_else(
-                |_| {
-                    // Undecodable bytes are not an avatar. Falling through to
-                    // an empty label keeps the surface intact rather than
-                    // asserting a picture that cannot be drawn.
-                    Label::builder()
-                        .label("")
-                        .css_classes(shape_classes(shape))
-                        .build()
-                        .upcast()
-                },
-                |texture| {
-                    let picture = gtk4::Picture::for_paintable(&texture);
-                    picture.set_can_shrink(true);
-                    picture.set_css_classes(&shape_classes(shape));
-                    picture.upcast()
-                },
-            )
+/// `Circle` content through libadwaita's own avatar widget: it draws the
+/// picture-or-initials decision and the round crop in one place, which is
+/// the treatment this build cannot get from a plain `Picture`/`Label` pair.
+fn avatar_widget(content: &ImageContent<'_>, target_px: i32) -> Widget {
+    let initials = match content {
+        ImageContent::Initials(text) => Some(*text),
+        _ => None,
+    };
+    let avatar = adw::Avatar::new(target_px, initials, true);
+    if let ImageContent::Picture(bytes) = content {
+        let gbytes = gtk4::glib::Bytes::from(*bytes);
+        if let Ok(texture) = gtk4::gdk::Texture::from_bytes(&gbytes) {
+            avatar.set_custom_image(Some(&texture));
         }
+    }
+    avatar.upcast()
+}
+
+fn picture_widget(bytes: &[u8], shape: PresentationImageShape) -> Widget {
+    let gbytes = gtk4::glib::Bytes::from(bytes);
+    gtk4::gdk::Texture::from_bytes(&gbytes).map_or_else(
+        |_| {
+            // Undecodable bytes are not an avatar. Falling through to
+            // an empty label keeps the surface intact rather than
+            // asserting a picture that cannot be drawn.
+            Label::builder()
+                .label("")
+                .css_classes(shape_classes(shape))
+                .build()
+                .upcast()
+        },
+        |texture| {
+            let picture = gtk4::Picture::for_paintable(&texture);
+            picture.set_can_shrink(true);
+            picture.set_css_classes(&shape_classes(shape));
+            picture.upcast()
+        },
+    )
+}
+
+fn image_widget(
+    content: &ImageContent<'_>,
+    shape: PresentationImageShape,
+    target_px: i32,
+) -> Widget {
+    match content {
+        // Nothing to show shows nothing, whatever the shape: an empty
+        // avatar carrying the node's accessibility label would announce a
+        // picture that is not there.
+        ImageContent::Nothing => GtkBox::new(Orientation::Horizontal, 0).upcast(),
+        _ if shape_is_circle(shape) => avatar_widget(content, target_px),
+        ImageContent::Picture(bytes) => picture_widget(bytes, shape),
         ImageContent::Initials(initials) => Label::builder()
             .label(*initials)
             .css_classes(shape_classes(shape))
             .build()
             .upcast(),
-        // Nothing to show shows nothing: an empty avatar shape carrying the
-        // node's accessibility label would announce a picture that is not
-        // there.
-        ImageContent::Nothing => GtkBox::new(Orientation::Horizontal, 0).upcast(),
     }
 }
 
@@ -92,6 +122,7 @@ pub(super) fn render(
     node: &PresentationNode,
     surface_id: &SurfaceId,
     on_event: &OnEvent,
+    tokens: &PresentationTokens,
 ) -> Widget {
     match node {
         PresentationNode::Group {
@@ -119,7 +150,7 @@ pub(super) fn render(
                 );
             }
             for child in children {
-                group.append(&render_node(child, surface_id, on_event));
+                group.append(&render_node(child, surface_id, on_event, tokens));
             }
             apply_accessibility(&group, accessibility);
             group.upcast()
@@ -150,7 +181,7 @@ pub(super) fn render(
                 );
             }
             for row in rows {
-                group.append(&render_row(row, surface_id, on_event));
+                group.append(&render_row(row, surface_id, on_event, tokens));
             }
             group.upcast()
         }
@@ -163,21 +194,16 @@ pub(super) fn render(
             ..
         } => {
             let content = image_content(data.as_deref(), fallback_text.as_deref());
+            let target_px = targets::minimum_target_px(tokens);
             activation.as_ref().map_or_else(
                 || {
-                    let widget = image_widget(&content, *shape);
+                    let widget = image_widget(&content, *shape, target_px);
                     apply_accessibility(&widget, accessibility);
                     widget
                 },
                 |action| {
-                    let button = action_button(action, surface_id, on_event);
-                    match &content {
-                        ImageContent::Picture(_) => {
-                            button.set_child(Some(&image_widget(&content, *shape)));
-                        }
-                        ImageContent::Initials(initials) => button.set_label(initials),
-                        ImageContent::Nothing => button.set_label(""),
-                    }
+                    let button = action_button(action, surface_id, on_event, tokens);
+                    button.set_child(Some(&image_widget(&content, *shape, target_px)));
                     apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
@@ -207,7 +233,7 @@ pub(super) fn render(
                     status.upcast()
                 },
                 |action| {
-                    let button = action_button(action, surface_id, on_event);
+                    let button = action_button(action, surface_id, on_event, tokens);
                     button.set_label(&text);
                     apply_accessibility(&button, accessibility);
                     button.upcast()
@@ -320,7 +346,8 @@ fn render_qr_capture(id: &BindingId, surface_id: &SurfaceId, on_event: &OnEvent)
 }
 
 /// The row's avatar: Core's image bytes, or the initials it prepared for when
-/// there are none.
+/// there are none. `PresentationRow` carries no `shape` — a contact row is
+/// always a person, so it is always round.
 fn row_leading(row: &PresentationRow) -> Option<Widget> {
     match image_content(row.image_data.as_deref(), row.fallback_text.as_deref()) {
         ImageContent::Picture(bytes) => {
@@ -342,7 +369,12 @@ fn row_leading(row: &PresentationRow) -> Option<Widget> {
     }
 }
 
-fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent) -> Widget {
+fn render_row(
+    row: &PresentationRow,
+    surface_id: &SurfaceId,
+    on_event: &OnEvent,
+    tokens: &PresentationTokens,
+) -> Widget {
     let content = GtkBox::new(Orientation::Vertical, 2);
     content.append(
         &Label::builder()
@@ -369,7 +401,7 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
         );
     }
     for control in &row.controls {
-        content.append(&render_node(control, surface_id, on_event));
+        content.append(&render_node(control, surface_id, on_event, tokens));
     }
     // Avatar and text form one accessible unit: the row's name has to cover
     // what a reader will land on, not just the text beside the picture.
@@ -381,8 +413,11 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
     inner.append(&content);
 
     let row_box = GtkBox::new(Orientation::Horizontal, 8);
+    row_box.set_size_request(-1, targets::minimum_target_px(tokens));
+    row_box.add_css_class(targets::TARGET_RADIUS_CLASS);
+    row_box.add_css_class("vauchi-row");
     if let Some(action) = &row.activation {
-        let button = action_button(action, surface_id, on_event);
+        let button = action_button(action, surface_id, on_event, tokens);
         button.set_child(Some(&inner));
         button.set_hexpand(true);
         apply_accessibility(&button, &row.accessibility);
@@ -393,17 +428,18 @@ fn render_row(row: &PresentationRow, surface_id: &SurfaceId, on_event: &OnEvent)
         row_box.append(&inner);
     }
     for action in &row.secondary_actions {
-        row_box.append(&action_button(action, surface_id, on_event));
+        row_box.append(&action_button(action, surface_id, on_event, tokens));
     }
     row_box.upcast()
 }
 
-// INLINE_TEST_REQUIRED: asserts on the private `image_content` decision,
-// which has no public accessor and cannot be reached through a widget
-// without a display.
+// INLINE_TEST_REQUIRED: asserts on the private `image_content`/`shape_is_circle`
+// decisions, which have no public accessor and cannot be reached through a
+// widget without a display.
 #[cfg(test)]
 mod image_content_tests {
-    use super::{ImageContent, image_content};
+    use super::{ImageContent, image_content, shape_is_circle};
+    use vauchi_core::PresentationImageShape;
 
     // @internal
     #[test]
@@ -440,5 +476,15 @@ mod image_content_tests {
     fn nothing_to_show_resolves_to_nothing() {
         assert_eq!(image_content(None, None), ImageContent::Nothing);
         assert_eq!(image_content(Some(&[]), Some("")), ImageContent::Nothing);
+    }
+
+    /// `Circle` is the only shape libadwaita's avatar widget draws; every
+    /// other shape, including one this build has not learned, keeps its own
+    /// corners instead.
+    // @internal
+    #[test]
+    fn only_circle_resolves_to_the_avatar_widget() {
+        assert!(shape_is_circle(PresentationImageShape::Circle));
+        assert!(!shape_is_circle(PresentationImageShape::Natural));
     }
 }

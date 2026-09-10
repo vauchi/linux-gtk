@@ -3,15 +3,16 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
-use vauchi_core::{InputValue, PresentationNode, SurfaceId};
+use vauchi_core::{InputValue, PresentationNode, PresentationTokens, SurfaceId};
 
-use super::{OnEvent, action_button, emit_binding_gesture, emit_value};
+use super::{OnEvent, action_button, emit_binding_gesture, emit_value, targets};
 use crate::core_ui::accessibility::{apply as apply_accessibility, mark_invalid};
 
 pub(super) fn render(
     node: &PresentationNode,
     surface_id: &SurfaceId,
     on_event: &OnEvent,
+    tokens: &PresentationTokens,
 ) -> Widget {
     match node {
         PresentationNode::Text {
@@ -148,6 +149,8 @@ pub(super) fn render(
                 .sensitive(*enabled)
                 .build();
             toggle.set_widget_name(binding_id.as_str());
+            toggle.set_size_request(-1, targets::minimum_target_px(tokens));
+            toggle.add_css_class(targets::TARGET_RADIUS_CLASS);
             apply_accessibility(&toggle, accessibility);
             let id = binding_id.clone();
             let surface = surface_id.clone();
@@ -215,8 +218,8 @@ pub(super) fn render(
             apply_accessibility(&group, accessibility);
             group.append(&Label::builder().label(warning).wrap(true).build());
             let buttons = GtkBox::new(Orientation::Horizontal, 8);
-            buttons.append(&action_button(cancel, surface_id, on_event));
-            buttons.append(&action_button(confirm, surface_id, on_event));
+            buttons.append(&action_button(cancel, surface_id, on_event, tokens));
+            buttons.append(&action_button(confirm, surface_id, on_event, tokens));
             group.append(&buttons);
             group.upcast()
         }
