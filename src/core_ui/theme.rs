@@ -150,6 +150,24 @@ list .avatar {{
 .avatar.natural {{
     border-radius: 8px;
 }}
+
+/* D4: the persistent navigation sidebar highlights Core's selected
+   destination (`NavigationItem::selected`) so it reads as "here" rather
+   than as one more row identical to the rest. */
+.nav-sidebar-row.selected {{
+    background-color: @vauchi_accent;
+    color: @vauchi_bg_primary;
+}}
+
+.nav-sidebar-badge {{
+    background-color: @vauchi_accent;
+    color: @vauchi_bg_primary;
+    border-radius: 999px;
+    min-width: 1.4em;
+    padding: 0 0.4em;
+    font-size: 0.85em;
+    font-weight: 600;
+}}
 "#,
         bg_primary = colors.bg_primary,
         bg_secondary = colors.bg_secondary,

@@ -13,7 +13,7 @@ use vauchi_app::ui::AppEngine;
 use vauchi_core::{Command, InteractionId};
 
 use super::widgets::{COMMAND_STATE, context_bar_button, dispatch_event, render_bar};
-use super::{environment, overlays};
+use super::{environment, overlays, sidebar};
 use crate::core_ui::generic_surface::{self, OnEvent};
 
 pub(crate) fn handle_commands(
@@ -43,6 +43,7 @@ pub(crate) fn handle_commands(
                 presentation_changed = true;
             }
             Command::SetContextBar { .. } => presentation_changed = true,
+            Command::SetNavigation { .. } => presentation_changed = true,
             Command::ShowToast { toast } => {
                 toast_overlay.add_toast(adw::Toast::new(&toast.message));
             }
@@ -104,7 +105,7 @@ fn render_presentation(
     toast_overlay: &adw::ToastOverlay,
 ) {
     let focus_name = current_focus_name(container);
-    let (surfaces, context_bar) = COMMAND_STATE.with(|state| {
+    let (surfaces, context_bar, navigation) = COMMAND_STATE.with(|state| {
         let state = state.borrow();
         let surfaces = state
             .visible_surfaces()
@@ -114,8 +115,10 @@ fn render_presentation(
         let context_bar = state
             .context_bar()
             .map(|(surface_id, bar)| (surface_id.clone(), bar.clone()));
-        (surfaces, context_bar)
+        let navigation = state.navigation().map(|(_, navigation)| navigation.clone());
+        (surfaces, context_bar, navigation)
     });
+    sidebar::update(container, navigation.as_ref());
     let container_for_event = container.clone();
     let app_engine_for_event = app_engine.clone();
     let toast_for_event = toast_overlay.clone();
@@ -175,7 +178,7 @@ fn restore_focus(container: &GtkBox, widget_name: Option<&str>) {
     }
 }
 
-fn find_widget_by_name(root: &gtk4::Widget, widget_name: &str) -> Option<gtk4::Widget> {
+pub(super) fn find_widget_by_name(root: &gtk4::Widget, widget_name: &str) -> Option<gtk4::Widget> {
     if root.widget_name() == widget_name {
         return Some(root.clone());
     }

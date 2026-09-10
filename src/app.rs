@@ -17,7 +17,7 @@ use vauchi_app::ui::AppEngine;
 use vauchi_core::{Event, StandardShortcut, api::VauchiEvent};
 
 use crate::core_ui::contextual_surface::{
-    dispatch_platform_event, handle_commands, render_current_surface,
+    build_split_view, dispatch_platform_event, handle_commands, render_current_surface,
 };
 use crate::locale::detect_locale;
 use crate::platform;
@@ -93,9 +93,6 @@ fn build_ui(app: &adw::Application) {
     let header = platform::header_bar::build(app);
     root.append(&header);
 
-    let body = GtkBox::new(Orientation::Horizontal, 0);
-    body.set_vexpand(true);
-
     // Content area wrapped in ToastOverlay for non-blocking toasts
     let tokens = DesignTokens::default();
     let content = GtkBox::new(Orientation::Vertical, 0);
@@ -109,9 +106,13 @@ fn build_ui(app: &adw::Application) {
     toast_overlay.set_child(Some(&content));
     toast_overlay.set_hexpand(true);
 
-    body.append(&toast_overlay);
+    // F6/D4: a persistent sidebar for the destinations Core publishes via
+    // `SetNavigation`, alongside the toast-wrapped content pane. The
+    // navigation overlay's modal (`overlays::present`) keeps working as the
+    // fallback once this split view collapses to a single column.
+    let split_view = build_split_view(&content, &app_engine, &toast_overlay);
 
-    root.append(&body);
+    root.append(&split_view);
 
     render_current_surface(&content, &app_engine, &toast_overlay);
 
