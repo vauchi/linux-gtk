@@ -39,7 +39,7 @@ pub fn apply_default_theme() {
 ///
 /// Uses CSS custom properties (`--vauchi-*`) so components can
 /// reference them, plus direct widget selectors for immediate effect.
-fn generate_css(colors: &ThemeColors, _fonts: &FontFamilyTokens) -> String {
+fn generate_css(colors: &ThemeColors, fonts: &FontFamilyTokens) -> String {
     format!(
         r#"
 /* Vauchi core theme — auto-generated from vauchi-app::theme */
@@ -59,6 +59,7 @@ fn generate_css(colors: &ThemeColors, _fonts: &FontFamilyTokens) -> String {
 window {{
     background-color: @vauchi_bg_primary;
     color: @vauchi_text_primary;
+    font-family: "{body_font}";
 }}
 
 .suggested-action {{
@@ -110,6 +111,18 @@ entry {{
     border-color: @vauchi_border;
 }}
 
+/* Core's PresentationTextStyle::Heading maps to GTK's standard "title-2"
+   style class (generic_surface/controls.rs); ::Monospace maps to GTK's
+   built-in "monospace" class. Both get a brand typeface here. */
+.title-2 {{
+    font-family: "{display_font}";
+    font-weight: 700;
+}}
+
+.monospace {{
+    font-family: "{mono_font}";
+}}
+
 /* Initials stand in for a missing avatar. Without a ground to sit on they
    read as a stray letter rather than as a person, so the class carries the
    whole shape: a fixed square, a fill and a radius. `AdwAvatar` styling
@@ -150,6 +163,9 @@ list .avatar {{
         warning = colors.warning,
         border = colors.border,
         focus_ring = colors.focus_ring.as_deref().unwrap_or(&colors.accent),
+        body_font = fonts.body,
+        display_font = fonts.display,
+        mono_font = fonts.mono,
     )
 }
 

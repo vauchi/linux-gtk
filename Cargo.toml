@@ -34,6 +34,9 @@ libadwaita = { version = "0.7", features = ["v1_2"] }
 qrcode = { version = "0.14", default-features = false }
 # Decodes golden ScreenModel fixtures in the `render-fixture` catalog harness.
 serde_json = "1"
+# Registers data/fonts/ with this process's Fontconfig (FcConfigAppFontAddDir)
+# so the brand type ramp renders without installing the fonts system-wide.
+yeslogic-fontconfig-sys = "6"
 
 # Audio proximity (ultrasonic via CPAL) — enabled by default
 # Uses CpalAudioBackend from vauchi-core

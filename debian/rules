@@ -17,6 +17,9 @@ override_dh_auto_install:
 		debian/vauchi-gtk/usr/share/applications/com.vauchi.desktop.desktop
 	install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
 		debian/vauchi-gtk/usr/share/metainfo/com.vauchi.desktop.metainfo.xml
+	install -d debian/vauchi-gtk/usr/share/fonts/truetype/vauchi
+	install -m 644 data/fonts/*.ttf \
+		debian/vauchi-gtk/usr/share/fonts/truetype/vauchi/
 
 override_dh_auto_test:
 	# Tests require a running D-Bus session and display; skip in build.

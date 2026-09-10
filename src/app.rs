@@ -31,6 +31,7 @@ pub fn run() {
     if let Some(resource_dir) = std::env::var_os("VAUCHI_LOCALES_DIR") {
         let _ = i18n::init(std::path::Path::new(&resource_dir));
     }
+    crate::core_ui::fonts::register_app_fonts();
 
     // Consume --reset-for-testing before GTK sees it (GTK rejects unknown flags).
     let args: Vec<String> = std::env::args()
