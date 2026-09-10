@@ -78,6 +78,7 @@ unsafe fn add_app_font_dir(dir: &Path) -> bool {
 mod tests {
     use super::*;
 
+    // @internal
     #[test]
     fn resolve_font_dir_finds_data_fonts_in_a_dev_checkout() {
         let dir = resolve_font_dir().expect("dev checkout ships data/fonts");
@@ -86,6 +87,7 @@ mod tests {
         assert!(dir.is_dir(), "resolved font dir must exist: {dir:?}");
     }
 
+    // @internal
     #[test]
     fn find_data_fonts_dir_walks_up_from_the_executable_to_the_checkout_root() {
         let checkout = tempfile::tempdir().expect("tempdir");

@@ -408,6 +408,7 @@ mod tests {
     /// GTK's built-in `monospace` class — the CSS must give both a brand
     /// typeface, and the base `window` rule carries the body family for
     /// everything that inherits from it.
+    // @internal
     #[test]
     fn generate_css_sets_font_families_from_design_tokens() {
         let fonts = default_theme().tokens.font_family;
