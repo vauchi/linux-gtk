@@ -9,14 +9,14 @@
 
 use gtk4::CssProvider;
 use gtk4::gdk::Display;
-use vauchi_app::theme::{Theme, ThemeColors};
+use vauchi_app::theme::{FontFamilyTokens, Theme, ThemeColors};
 
 /// Apply a `Theme` to the default GTK4 display via a `CssProvider`.
 ///
 /// Replaces any previously applied vauchi theme CSS. Safe to call
 /// multiple times for runtime theme switching.
 pub fn apply_theme(theme: &Theme) {
-    let css = generate_css(&theme.colors);
+    let css = generate_css(&theme.colors, &theme.tokens.font_family);
     let provider = CssProvider::new();
     provider.load_from_data(&css);
 
@@ -35,11 +35,11 @@ pub fn apply_default_theme() {
     apply_theme(&theme);
 }
 
-/// Generate a GTK4 CSS string from core `ThemeColors`.
+/// Generate a GTK4 CSS string from core `ThemeColors` and `FontFamilyTokens`.
 ///
 /// Uses CSS custom properties (`--vauchi-*`) so components can
 /// reference them, plus direct widget selectors for immediate effect.
-fn generate_css(colors: &ThemeColors) -> String {
+fn generate_css(colors: &ThemeColors, _fonts: &FontFamilyTokens) -> String {
     format!(
         r#"
 /* Vauchi core theme — auto-generated from vauchi-app::theme */
@@ -168,7 +168,7 @@ mod tests {
     // @internal
     #[test]
     fn generated_css_gives_the_avatar_class_a_body() {
-        let css = generate_css(&default_theme().colors);
+        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains(".avatar"),
@@ -198,7 +198,7 @@ mod tests {
             ..default_theme().colors
         };
 
-        let css = generate_css(&colors);
+        let css = generate_css(&colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains("#1e1e2e"),
@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn generate_css_has_define_color_directives() {
         let theme = default_theme();
-        let css = generate_css(&theme.colors);
+        let css = generate_css(&theme.colors, &theme.tokens.font_family);
 
         assert!(
             css.contains("@define-color vauchi_bg_primary"),
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn generate_css_has_widget_selectors() {
         let theme = default_theme();
-        let css = generate_css(&theme.colors);
+        let css = generate_css(&theme.colors, &theme.tokens.font_family);
 
         assert!(css.contains("window {"), "CSS should style the window");
         assert!(
@@ -378,12 +378,40 @@ mod tests {
             ..default_theme().colors
         };
 
-        let dark_css = generate_css(&dark);
-        let light_css = generate_css(&light);
+        let dark_css = generate_css(&dark, &default_theme().tokens.font_family);
+        let light_css = generate_css(&light, &default_theme().tokens.font_family);
 
         assert_ne!(
             dark_css, light_css,
             "Different themes should produce different CSS"
+        );
+    }
+
+    /// `PresentationTextStyle::Heading` maps to the `title-2` GTK style
+    /// class (`generic_surface/controls.rs`) and `::Monospace` maps to
+    /// GTK's built-in `monospace` class — the CSS must give both a brand
+    /// typeface, and the base `window` rule carries the body family for
+    /// everything that inherits from it.
+    #[test]
+    fn generate_css_sets_font_families_from_design_tokens() {
+        let fonts = default_theme().tokens.font_family;
+        let css = generate_css(&default_theme().colors, &fonts);
+
+        assert!(
+            css.contains(r#"font-family: "Hanken Grotesk""#),
+            "window rule should set the body family for base widgets"
+        );
+        assert!(
+            css.contains(r#"font-family: "Bricolage Grotesque""#),
+            "`.title-2` rule should set the display family for headings"
+        );
+        assert!(
+            css.contains("font-weight: 700"),
+            "`.title-2` rule should use the display weight for headings"
+        );
+        assert!(
+            css.contains(r#"font-family: "JetBrains Mono""#),
+            "`.monospace` rule should set the mono family"
         );
     }
 }
