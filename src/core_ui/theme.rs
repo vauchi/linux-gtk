@@ -282,6 +282,23 @@ mod tests {
         );
     }
 
+    /// D4: the persistent navigation sidebar (`contextual_surface::sidebar`)
+    /// marks Core's selected `NavigationItem` with a `.selected` class on
+    /// its row; nothing painted that class, so every destination looked
+    /// identical regardless of which one Core says is current.
+    // @internal
+    #[test]
+    fn generate_css_highlights_the_selected_sidebar_row() {
+        let theme = default_theme();
+        let css = generate_css(&theme.colors, &theme.tokens.font_family);
+
+        assert!(
+            css.contains(".nav-sidebar-row.selected"),
+            "no rule for the selected sidebar row: the current destination \
+             is indistinguishable from the rest of the list"
+        );
+    }
+
     /// `ActionTone::Serious` names a consequential-but-reversible action
     /// (verify a fingerprint, schedule a deletion, start recovery). It must
     /// read as neither the filled `.suggested-action` (the safe default) nor
