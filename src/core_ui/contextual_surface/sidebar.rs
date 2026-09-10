@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn model_lists_rows_in_core_order() {
         let navigation = NavigationSpec {
-            items: vec![item("home", false, 0), item("contacts", true, 3)],
+            items: vec![item("first", false, 0), item("second", true, 3)],
         };
 
         let model = SidebarModel::from_navigation(&navigation);
@@ -268,7 +268,7 @@ mod tests {
                 .iter()
                 .map(|item| item.interaction_id.as_str())
                 .collect::<Vec<_>>(),
-            vec!["home", "contacts"],
+            vec!["first", "second"],
             "rows must render in the order Core sent them"
         );
     }
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn model_finds_the_selected_index() {
         let navigation = NavigationSpec {
-            items: vec![item("home", false, 0), item("contacts", true, 0)],
+            items: vec![item("first", false, 0), item("second", true, 0)],
         };
 
         let model = SidebarModel::from_navigation(&navigation);
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn model_has_no_selected_index_when_core_selects_none() {
         let navigation = NavigationSpec {
-            items: vec![item("home", false, 0), item("contacts", false, 0)],
+            items: vec![item("first", false, 0), item("second", false, 0)],
         };
 
         let model = SidebarModel::from_navigation(&navigation);
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn model_is_not_hidden_with_at_least_one_item() {
         let model = SidebarModel::from_navigation(&NavigationSpec {
-            items: vec![item("home", true, 0)],
+            items: vec![item("first", true, 0)],
         });
 
         assert!(!model.is_hidden());
