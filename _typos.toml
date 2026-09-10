@@ -8,3 +8,5 @@ PN = "PN"
 # Core's navigation icon tokens are named after the SF Symbols core set,
 # where the map-pin symbol is spelled "mappin.and.ellipse".
 mappin = "mappin"
+# OpenType variable-font axis tag (width) in the Bricolage Grotesque family
+wdth = "wdth"
