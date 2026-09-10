@@ -2865,8 +2865,7 @@ dependencies = [
 [[package]]
 name = "rqrr"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d084c50c5cfa397a081850da329566c8667b0b6c4e81da16abff1fef27de93b"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.66.0#65757d24998615129855cca607a0f00d066efeda"
 dependencies = [
  "g2p",
  "image",

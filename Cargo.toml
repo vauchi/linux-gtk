@@ -83,3 +83,14 @@ split-debuginfo = "unpacked"
 [profile.test]
 debug = "line-tables-only"
 split-debuginfo = "off"
+
+# Core clamps rqrr's near-degenerate perspective math in its vendored fork
+# (core/vendor/rqrr), but a [patch] applies only inside the workspace that
+# declares it, so this crate resolved upstream rqrr from crates.io — the
+# unclamped abort path — while `panic = "abort"` turned it into a process
+# kill from the camera preview. Point at the same tag as the vauchi-core
+# pin above; bump both together.
+# tests/rqrr_patch_reaches_this_shell.rs fails the moment this is lost.
+# Record: _private/docs/problems/2026-09-10-linux-gtk-unpatched-rqrr-abort-path/
+[patch.crates-io]
+rqrr = { git = "https://gitlab.com/vauchi/core.git", tag = "v0.66.0" }
