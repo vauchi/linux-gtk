@@ -3,8 +3,8 @@
 
 use vauchi_core::{
     ActionSpec, ActionTone, Command, ContextBar, Event, InteractionId, MotionPreference,
-    OverlayKind, OverlaySpec, PaneLayout, PresentationProfile, PresentationTokens,
-    StandardShortcut, SurfaceId, SurfaceLayout, SurfaceSpec, WindowClass,
+    NavigationItem, NavigationSpec, OverlayKind, OverlaySpec, PaneLayout, PresentationProfile,
+    PresentationTokens, StandardShortcut, SurfaceId, SurfaceLayout, SurfaceSpec, WindowClass,
 };
 use vauchi_gtk::core_ui::contextual_surface::{
     GtkContextRole, GtkOverlayTransition, GtkPresentationState, context_controls,
@@ -24,6 +24,17 @@ fn action(id: &str, shortcut: Option<StandardShortcut>) -> ActionSpec {
         enabled: true,
         tone: ActionTone::Standard,
         shortcut,
+    }
+}
+
+fn nav_item(id: &str, selected: bool, badge_count: u32) -> NavigationItem {
+    NavigationItem {
+        interaction_id: InteractionId::new(id).unwrap(),
+        label: id.to_owned(),
+        accessibility_label: id.to_owned(),
+        icon_token: None,
+        selected,
+        badge_count,
     }
 }
 
@@ -510,4 +521,53 @@ fn generic_file_and_notification_effects_have_native_adapters() {
     }
     assert!(picker.contains("Event::FilePickedFromUser"));
     assert!(!header.contains("app.import-contacts"));
+}
+
+// @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
+// @internal
+#[test]
+fn applied_set_navigation_command_is_stored() {
+    let mut state = GtkPresentationState::default();
+    state.apply(Command::ReplaceSurface {
+        surface: surface_spec("contacts", 3),
+    });
+    let navigation = NavigationSpec {
+        items: vec![nav_item("home", true, 0), nav_item("contacts", false, 2)],
+    };
+
+    let accepted = state.apply(Command::SetNavigation {
+        surface_id: surface("contacts"),
+        revision: 3,
+        navigation: navigation.clone(),
+    });
+
+    assert!(accepted, "a current-revision SetNavigation must be handled");
+    assert_eq!(
+        state.navigation(),
+        Some((&surface("contacts"), &navigation))
+    );
+}
+
+// @internal
+#[test]
+fn set_navigation_with_empty_items_is_stored_as_empty() {
+    let mut state = GtkPresentationState::default();
+    state.apply(Command::ReplaceSurface {
+        surface: surface_spec("locked", 1),
+    });
+
+    state.apply(Command::SetNavigation {
+        surface_id: surface("locked"),
+        revision: 1,
+        navigation: NavigationSpec { items: Vec::new() },
+    });
+
+    let (surface_id, stored) = state
+        .navigation()
+        .expect("an applied SetNavigation must leave a stored spec, even an empty one");
+    assert_eq!(surface_id, &surface("locked"));
+    assert!(
+        stored.items.is_empty(),
+        "empty navigation.items must round-trip as empty, not be dropped"
+    );
 }
