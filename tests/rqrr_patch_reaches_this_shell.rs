@@ -17,12 +17,17 @@ fn rqrr_source() -> Option<String> {
         let line = line.trim();
         if line == "[[package]]" {
             in_rqrr = false;
-        } else if line == "name = \"rqrr\"" {
+            continue;
+        }
+        if line == "name = \"rqrr\"" {
             in_rqrr = true;
-        } else if in_rqrr {
-            if let Some(rest) = line.strip_prefix("source = ") {
-                return Some(rest.trim_matches('"').to_string());
-            }
+            continue;
+        }
+        if !in_rqrr {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("source = ") {
+            return Some(rest.trim_matches('"').to_string());
         }
     }
     None
