@@ -226,7 +226,9 @@ pub(crate) fn handle_exchange_commands(
             }
 
             // ── NFC ──────────────────────────────────────────────────
-            Command::NfcActivate { payload } => {
+            // `apdus` reach the NFC platform path with the RG-11 follow-up
+            // (problems/2026-07-06-desktop-tui-web-domain-shell-violations).
+            Command::NfcActivate { payload, .. } => {
                 if hardware::has_nfc() {
                     #[cfg(feature = "nfc")]
                     {
