@@ -24,25 +24,27 @@ from helpers import dump_tree, find_all, find_one, wait_until  # noqa: E402
 
 # "More" names the control that *opens* the overlay, and the overlay's own
 # title — Core passes `nav.more` as the navigation label. It is not a place
-# you can go: the More overflow tab was retired and every shell now renders
-# one flat destination list (`AppEngine::available_screens`).
+# you can go: the More overflow tab was retired.
 NAVIGATION_LABEL = "More"
+# What the navigation offers is `AppEngine::primary_destinations`, not
+# `available_screens`: since core v0.65.0 the overlay lists five destinations
+# (the daily pair around the primary action, then the two the user
+# administers) and every demoted screen keeps a Settings row as its route.
+# The fourteen-entry list this used to hold went stale the day linux-gtk's
+# pin moved past v0.64.0 (test:a11y red on main from 2026-09-09 19:59).
 EXPECTED_DESTINATIONS = [
-    "My Card",
     "Contacts",
+    "My Card",
     "Exchange",
-    "Groups",
-    "Settings",
-    "Recovery",
     "Devices",
-    "Backup",
-    "Privacy",
-    "Support",
-    "Help",
-    "Activity",
-    "Tags",
-    "Places",
+    "Settings",
 ]
+# Demoted screens reached from Settings, keyed by the screen label the tests
+# use, valued by the Settings row that Core routes to it
+# (`intercept/settings.rs`: "help_center" → AppScreen::Help).
+SETTINGS_ROUTES = {
+    "Help": "Help Center",
+}
 
 
 def _warn(message):
@@ -207,7 +209,13 @@ def _wait_for_stable_fingerprint(
 
 
 def navigate_to(app, screen_label):
-    """Choose a Core-provided destination and confirm a settled transition."""
+    """Choose a Core-provided destination and confirm a settled transition.
+
+    Screens the navigation no longer offers are reached through their
+    Settings row (`SETTINGS_ROUTES`), so callers keep naming the screen.
+    """
+    if screen_label in SETTINGS_ROUTES:
+        return _navigate_via_settings(app, SETTINGS_ROUTES[screen_label])
     overlay = open_navigation(app)
     if overlay is None:
         _warn(f"navigation overlay did not open for '{screen_label}'")
@@ -245,4 +253,38 @@ def navigate_to(app, screen_label):
         return True
     except Exception as exc:  # noqa: BLE001
         _warn(f"navigation to '{screen_label}' failed: {exc}")
+        return False
+
+
+def _navigate_via_settings(app, row_label):
+    """Open Settings, then activate the row Core routes to the demoted screen."""
+    if not navigate_to(app, "Settings"):
+        return False
+    try:
+        row = wait_until(
+            lambda: find_one(app, role="button", name=row_label, max_depth=15),
+            timeout=3.0,
+            message=f"Settings row '{row_label}' not found",
+        )
+    except AssertionError as exc:
+        _warn(str(exc))
+        return False
+    try:
+        action = row.get_action_iface()
+        if not (action and action.get_n_actions() > 0):
+            _warn(f"Settings row '{row_label}' exposes no AT-SPI action")
+            return False
+        before = content_fingerprint(app)
+        if not action.do_action(0):
+            _warn(f"do_action rejected for Settings row '{row_label}'")
+            return False
+        final = _wait_for_stable_fingerprint(app)
+        if final == before:
+            _warn(
+                f"activating Settings row '{row_label}' left the content tree unchanged"
+            )
+            return False
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _warn(f"navigation via Settings row '{row_label}' failed: {exc}")
         return False

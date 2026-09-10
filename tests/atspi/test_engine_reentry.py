@@ -82,8 +82,10 @@ class TestHelpSearchInput:
 
     def test_search_entry_survives_repeated_keystrokes(self, gtk_app_seeded_isolated):
         app, proc = gtk_app_seeded_isolated
-        assert navigate_to(app, "Help"), "Help not reachable via navigation overlay"
-        _assert_alive(proc, "navigating to Help via the navigation overlay")
+        # Help is a demoted destination: the navigation offers five screens and
+        # routes the rest through Settings rows (core `primary_destinations`).
+        assert navigate_to(app, "Help"), "Help not reachable via Settings > Help Center"
+        _assert_alive(proc, "navigating to Help via Settings > Help Center")
 
         # Re-acquire the entry per character: the re-render replaces it, and a
         # handle kept across the cycle would be defunct rather than merely stale.
