@@ -320,24 +320,6 @@ pub(crate) fn handle_exchange_commands(
                     toast_overlay,
                     payload.clone(),
                     *is_initiator,
-                    false,
-                );
-            }
-            // TODO(HUMBLE): T — frontend distinguishes DirectSendCard from DirectSend via card_leg; core should emit a single opaque transport command (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-            // Second wired leg: swap the AEAD-encrypted cards over a fresh TCP
-            // connection (the QR-payload leg closed its socket). Core decrypts
-            // the peer's card and completes the exchange.
-            Command::DirectSendCard {
-                ciphertext,
-                is_initiator,
-            } => {
-                execute_direct_send(
-                    container,
-                    app_engine,
-                    toast_overlay,
-                    ciphertext.clone(),
-                    *is_initiator,
-                    true,
                 );
             }
 
@@ -458,17 +440,12 @@ fn dispatch_unavailable(
 /// TCP is blocking — spawning a thread prevents stalling the GTK main loop.
 /// Results are polled via `glib::timeout_add_local` and dispatched back
 /// to the engine as `Event`.
-// TODO(HUMBLE): T — card_leg parameter forces frontend to choose DirectCardReceived vs DirectPayloadReceived event; core should decide event type (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
 fn execute_direct_send(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     payload: Vec<u8>,
     is_initiator: bool,
-    // `true` for the second (card) leg — report `DirectCardReceived` instead of
-    // `DirectPayloadReceived`. The TCP primitive is identical; only the
-    // engine-facing event differs.
-    card_leg: bool,
 ) {
     use std::sync::mpsc;
 
@@ -491,12 +468,12 @@ fn execute_direct_send(
     gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
         match rx.try_recv() {
             Ok(Ok(data)) => {
-                let event = if card_leg {
-                    Event::DirectCardReceived { ciphertext: data }
-                } else {
-                    Event::DirectPayloadReceived { data }
-                };
-                dispatch_platform_event(&container, &app_engine, &toast_overlay, event);
+                dispatch_platform_event(
+                    &container,
+                    &app_engine,
+                    &toast_overlay,
+                    Event::DirectPayloadReceived { data },
+                );
                 gtk4::glib::ControlFlow::Break
             }
             Ok(Err(err)) => {
