@@ -242,6 +242,83 @@ mod tests {
         );
     }
 
+    /// `ActionTone::Serious` names a consequential-but-reversible action
+    /// (verify a fingerprint, schedule a deletion, start recovery). It must
+    /// read as neither the filled `.suggested-action` (the safe default) nor
+    /// `.destructive-action` (irreversible), so the rule outlines in the
+    /// warning colour and never fills with it.
+    #[test]
+    fn generate_css_styles_serious_action_as_a_warning_outline_with_no_fill() {
+        let css = generate_css(&default_theme().colors);
+
+        assert!(
+            css.contains(".serious-action {"),
+            "CSS should style serious actions"
+        );
+        assert!(
+            !css.contains("background-color: @vauchi_warning"),
+            "`.serious-action` must outline, not fill, or it reads as destructive"
+        );
+    }
+
+    /// GTK draws keyboard focus through the `:focus-visible` pseudo-class;
+    /// nothing in this stylesheet answered it before, so a keyboard user saw
+    /// no indication of which button or row currently had focus.
+    #[test]
+    fn generate_css_draws_a_focus_ring_from_the_theme() {
+        let css = generate_css(&default_theme().colors);
+
+        assert!(
+            css.contains(":focus-visible"),
+            "CSS should draw a ring on keyboard focus"
+        );
+        assert!(
+            css.contains("outline: 3px solid"),
+            "focus ring should be a 3px outline"
+        );
+        assert!(
+            css.contains("outline-offset: 2px"),
+            "focus ring should sit clear of the widget edge"
+        );
+    }
+
+    /// The theme's dedicated `focus-ring` role (ADR-038 Amendment 3) wins
+    /// when a theme supplies one — falling back to `accent` is only for
+    /// themes predating that amendment.
+    #[test]
+    fn generate_css_focus_ring_prefers_the_dedicated_theme_role_over_accent() {
+        let colors = ThemeColors {
+            accent: "#0000ff".to_string(),
+            focus_ring: Some("#ff00ff".to_string()),
+            ..default_theme().colors
+        };
+
+        let css = generate_css(&colors);
+
+        assert!(
+            css.contains("outline: 3px solid #ff00ff"),
+            "focus ring should use the theme's dedicated focus-ring colour"
+        );
+    }
+
+    /// Themes from before ADR-038 Amendment 3 have no `focus-ring` role at
+    /// all; the ring must still draw, using `accent` so it stays visible.
+    #[test]
+    fn generate_css_focus_ring_falls_back_to_accent_when_theme_has_none() {
+        let colors = ThemeColors {
+            accent: "#0000ff".to_string(),
+            focus_ring: None,
+            ..default_theme().colors
+        };
+
+        let css = generate_css(&colors);
+
+        assert!(
+            css.contains("outline: 3px solid #0000ff"),
+            "focus ring should fall back to accent when the theme has no focus-ring role"
+        );
+    }
+
     #[test]
     fn generate_css_different_themes_produce_different_output() {
         let dark = ThemeColors {
