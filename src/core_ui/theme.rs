@@ -290,7 +290,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_styles_serious_action_as_a_warning_outline_with_no_fill() {
-        let css = generate_css(&default_theme().colors);
+        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains(".serious-action {"),
@@ -308,7 +308,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_draws_a_focus_ring_from_the_theme() {
-        let css = generate_css(&default_theme().colors);
+        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains(":focus-visible"),
@@ -336,7 +336,7 @@ mod tests {
             ..default_theme().colors
         };
 
-        let css = generate_css(&colors);
+        let css = generate_css(&colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains("@define-color vauchi_focus_ring #ff00ff;"),
@@ -355,7 +355,7 @@ mod tests {
             ..default_theme().colors
         };
 
-        let css = generate_css(&colors);
+        let css = generate_css(&colors, &default_theme().tokens.font_family);
 
         assert!(
             css.contains("@define-color vauchi_focus_ring #0000ff;"),
