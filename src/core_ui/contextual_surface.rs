@@ -6,18 +6,21 @@
 mod commands;
 mod environment;
 mod overlays;
+mod sidebar;
 mod widgets;
 
 pub(crate) use commands::handle_commands;
 pub(crate) use environment::install_environment_reporting;
+pub(crate) use sidebar::build_split_view;
 pub(crate) use widgets::{
     dispatch_platform_event, dispatch_shortcut, render_current_surface, request_back,
 };
 
 use std::collections::HashMap;
 use vauchi_core::{
-    ActionSpec, Command, ContextBar, Event, InteractionId, MotionPreference, OverlayKind,
-    OverlaySpec, PaneLayout, PresentationProfile, StandardShortcut, SurfaceId, SurfaceSpec,
+    ActionSpec, Command, ContextBar, Event, InteractionId, MotionPreference, NavigationSpec,
+    OverlayKind, OverlaySpec, PaneLayout, PresentationProfile, StandardShortcut, SurfaceId,
+    SurfaceSpec,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,6 +92,7 @@ pub struct GtkPresentationState {
     context_bars: HashMap<SurfaceId, (u64, ContextBar)>,
     profile: Option<PresentationProfile>,
     overlays: HashMap<SurfaceId, (u64, OverlaySpec)>,
+    navigation: HashMap<SurfaceId, (u64, NavigationSpec)>,
     last_surface: Option<SurfaceId>,
 }
 
@@ -105,6 +109,7 @@ impl GtkPresentationState {
                     self.surfaces.insert(surface_id.clone(), surface);
                     self.context_bars.remove(&surface_id);
                     self.overlays.remove(&surface_id);
+                    self.navigation.remove(&surface_id);
                     self.last_surface = Some(surface_id);
                 }
                 replace
@@ -115,6 +120,14 @@ impl GtkPresentationState {
                 bar,
             } if self.is_current_revision(&surface_id, revision) => {
                 self.context_bars.insert(surface_id, (revision, *bar));
+                true
+            }
+            Command::SetNavigation {
+                surface_id,
+                revision,
+                navigation,
+            } if self.is_current_revision(&surface_id, revision) => {
+                self.navigation.insert(surface_id, (revision, navigation));
                 true
             }
             Command::SetPresentationProfile { profile } => {
@@ -145,7 +158,8 @@ impl GtkPresentationState {
             }
             Command::SetContextBar { .. }
             | Command::PresentOverlay { .. }
-            | Command::DismissOverlay { .. } => false,
+            | Command::DismissOverlay { .. }
+            | Command::SetNavigation { .. } => false,
             _ => true,
         }
     }
@@ -155,6 +169,13 @@ impl GtkPresentationState {
         self.context_bars
             .get_key_value(surface_id)
             .map(|(surface, (_, bar))| (surface, bar))
+    }
+
+    pub fn navigation(&self) -> Option<(&SurfaceId, &NavigationSpec)> {
+        let surface_id = self.active_surface_id()?;
+        self.navigation
+            .get_key_value(surface_id)
+            .map(|(surface, (_, navigation))| (surface, navigation))
     }
 
     pub fn surface(&self) -> Option<&SurfaceSpec> {
