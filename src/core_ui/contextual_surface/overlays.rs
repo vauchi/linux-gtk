@@ -265,8 +265,13 @@ fn overlay_button(action: &vauchi_core::ActionSpec, kind: OverlayKind) -> Button
     }
     button.set_widget_name(action.interaction_id.as_str());
     crate::core_ui::accessibility::apply_label(&button, &action.accessibility_label);
-    if action.tone == vauchi_core::ActionTone::Destructive {
-        button.add_css_class("destructive-action");
+    // See `generic_surface::action_button`: `Serious` is not yet visible to
+    // this build's linked vauchi-core, and `ActionTone` is
+    // `#[non_exhaustive]`, so the wildcard arm is required either way.
+    match action.tone {
+        vauchi_core::ActionTone::Destructive => button.add_css_class("destructive-action"),
+        vauchi_core::ActionTone::Standard => {}
+        _ => {}
     }
     button
 }

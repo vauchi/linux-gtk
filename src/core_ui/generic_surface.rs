@@ -114,8 +114,15 @@ pub(super) fn action_button(
         .build();
     button.set_widget_name(action.interaction_id.as_str());
     accessibility::apply_label(&button, &action.accessibility_label);
-    if action.tone == vauchi_core::ActionTone::Destructive {
-        button.add_css_class("destructive-action");
+    // `ActionTone` is `#[non_exhaustive]`, and the linked vauchi-core does
+    // not yet carry `Serious` (core!feature/action-tone-serious, not merged
+    // here) — the wildcard arm keeps this compiling against both today's
+    // pin and a future one that adds it, without a name this build cannot
+    // resolve.
+    match action.tone {
+        vauchi_core::ActionTone::Destructive => button.add_css_class("destructive-action"),
+        vauchi_core::ActionTone::Standard => {}
+        _ => {}
     }
     let action = action.clone();
     let surface_id = surface_id.clone();

@@ -54,6 +54,7 @@ fn generate_css(colors: &ThemeColors) -> String {
 @define-color vauchi_error {error};
 @define-color vauchi_warning {warning};
 @define-color vauchi_border {border};
+@define-color vauchi_focus_ring {focus_ring};
 
 window {{
     background-color: @vauchi_bg_primary;
@@ -68,6 +69,28 @@ window {{
 .destructive-action {{
     background-color: @vauchi_error;
     color: @vauchi_bg_primary;
+}}
+
+/* `ActionTone::Serious` (verify a fingerprint, schedule a deletion, start
+   recovery) is consequential but reversible or protective: an outline, not
+   a fill, so it reads as neither the safe default nor "this destroys
+   something". */
+.serious-action {{
+    background-color: transparent;
+    color: @vauchi_warning;
+    border: 2px solid @vauchi_warning;
+}}
+
+/* GTK's own `:focus-visible` pseudo-class carries keyboard focus; nothing
+   here answered it before, so a keyboard user had no way to see which
+   control had focus. `checkbutton` covers Toggle nodes; `.vauchi-row`
+   covers the row containers built in `generic_surface/collections.rs`,
+   which are plain boxes with no built-in focus styling of their own. */
+button:focus-visible,
+checkbutton:focus-visible,
+.vauchi-row:focus-visible {{
+    outline: 3px solid @vauchi_focus_ring;
+    outline-offset: 2px;
 }}
 
 .dim-label {{
@@ -126,6 +149,7 @@ list .avatar {{
         error = colors.error,
         warning = colors.warning,
         border = colors.border,
+        focus_ring = colors.focus_ring.as_deref().unwrap_or(&colors.accent),
     )
 }
 
@@ -296,7 +320,7 @@ mod tests {
         let css = generate_css(&colors);
 
         assert!(
-            css.contains("outline: 3px solid #ff00ff"),
+            css.contains("@define-color vauchi_focus_ring #ff00ff;"),
             "focus ring should use the theme's dedicated focus-ring colour"
         );
     }
@@ -314,7 +338,7 @@ mod tests {
         let css = generate_css(&colors);
 
         assert!(
-            css.contains("outline: 3px solid #0000ff"),
+            css.contains("@define-color vauchi_focus_ring #0000ff;"),
             "focus ring should fall back to accent when the theme has no focus-ring role"
         );
     }
