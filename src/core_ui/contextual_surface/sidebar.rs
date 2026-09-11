@@ -59,7 +59,7 @@ impl SidebarModel {
 /// write into — the same one every other dispatch call site uses — so a
 /// row activation reaches Core through the identical path a context-bar
 /// button does.
-pub(crate) fn build_split_view(
+pub fn build_split_view(
     command_target: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,

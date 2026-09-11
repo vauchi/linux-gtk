@@ -11,12 +11,33 @@ mod widgets;
 
 pub(crate) use commands::handle_commands;
 pub(crate) use environment::install_environment_reporting;
-pub(crate) use sidebar::build_split_view;
+pub use sidebar::build_split_view;
 pub(crate) use widgets::{
     dispatch_platform_event, dispatch_shortcut, render_current_surface, request_back,
 };
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
+
+use libadwaita as adw;
+use vauchi_app::ui::AppEngine;
+
+/// Replay one Core batch from a cold presentation state, exactly as the
+/// app applies it (`handle_commands`: surfaces, context bar, sidebar).
+///
+/// Harness entry for `render-catalog`: every catalog screen is captured
+/// from the same blank slate, so revisions of an earlier screen never
+/// veto a later one and nothing leaks between captures.
+pub fn replay_command_batch(
+    container: &gtk4::Box,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+    commands: Vec<Command>,
+) {
+    widgets::COMMAND_STATE.with(|state| *state.borrow_mut() = GtkPresentationState::default());
+    handle_commands(container, app_engine, toast_overlay, commands, None);
+}
 use vauchi_core::{
     ActionSpec, Command, ContextBar, Event, InteractionId, MotionPreference, NavigationSpec,
     OverlayKind, OverlaySpec, PaneLayout, PresentationProfile, StandardShortcut, SurfaceId,
