@@ -20,7 +20,13 @@ import gi
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
-from helpers import dump_tree, find_all, find_one, wait_until  # noqa: E402
+from helpers import (  # noqa: E402
+    DEFAULT_MAX_DEPTH,
+    dump_tree,
+    find_all,
+    find_one,
+    wait_until,
+)
 
 # "More" names the control that *opens* the overlay, and the overlay's own
 # title — Core passes `nav.more` as the navigation label. It is not a place
@@ -53,7 +59,7 @@ def _warn(message):
 
 def content_fingerprint(app) -> str:
     """Snapshot the app's accessible tree as a change-detection key."""
-    return dump_tree(app, max_depth=15)
+    return dump_tree(app, max_depth=DEFAULT_MAX_DEPTH)
 
 
 def _state_set(node):
@@ -262,7 +268,7 @@ def _navigate_via_settings(app, row_label):
         return False
     try:
         row = wait_until(
-            lambda: find_one(app, role="button", name=row_label, max_depth=15),
+            lambda: find_one(app, role="button", name=row_label, max_depth=DEFAULT_MAX_DEPTH),
             timeout=3.0,
             message=f"Settings row '{row_label}' not found",
         )

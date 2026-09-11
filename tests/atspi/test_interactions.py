@@ -14,6 +14,7 @@ Note on AT-SPI roles: GTK4/libadwaita buttons expose as "button"
 import pytest
 
 from helpers import (
+    DEFAULT_MAX_DEPTH,
     dump_tree,
     find_all,
     find_one,
@@ -53,17 +54,17 @@ class TestExchangeQR:
         # navigate_to already waits for labels; extra wait in case
         # Exchange screen rebuilds its QR widget after initial render.
         wait_until(
-            lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
+            lambda: len(find_all(gtk_app, role="label", max_depth=DEFAULT_MAX_DEPTH)) > 0,
             timeout=5.0,
             message="Exchange screen should have labels after navigation",
         )
 
         # QR DrawingArea has AccessibleRole::Img + label
-        images = find_all(gtk_app, role="image", max_depth=15)
+        images = find_all(gtk_app, role="image", max_depth=DEFAULT_MAX_DEPTH)
         qr_label = find_one(gtk_app, name="QR code for contact exchange")
 
         # Also check for exchange-related labels
-        labels = find_all(gtk_app, role="label", max_depth=15)
+        labels = find_all(gtk_app, role="label", max_depth=DEFAULT_MAX_DEPTH)
         exchange_labels = [
             l for l in labels
             if l.get_name() and ("qr" in l.get_name().lower() or "exchange" in l.get_name().lower())
@@ -86,12 +87,12 @@ class TestCardPreviewTabs:
         """My Card should expose native, named presentation actions."""
         navigate_to(gtk_app, "My Card")
         wait_until(
-            lambda: len(find_all(gtk_app, role="label", max_depth=15)) > 0,
+            lambda: len(find_all(gtk_app, role="label", max_depth=DEFAULT_MAX_DEPTH)) > 0,
             timeout=5.0,
             message="My Info screen should have labels after navigation",
         )
 
-        buttons = find_all(gtk_app, role="button", max_depth=15)
+        buttons = find_all(gtk_app, role="button", max_depth=DEFAULT_MAX_DEPTH)
         named = [button for button in buttons if button.get_name()]
         assert named, (
             f"No named native actions found on My Card.\n"
@@ -124,13 +125,13 @@ class TestInlineConfirm:
         if not navigate_to(gtk_app, "Emergency Shred"):
             pytest.skip("Emergency Shred not reachable via AT-SPI sidebar")
         wait_until(
-            lambda: len(find_all(gtk_app, role="button", max_depth=15)) > 0,
+            lambda: len(find_all(gtk_app, role="button", max_depth=DEFAULT_MAX_DEPTH)) > 0,
             timeout=5.0,
             message="Emergency Shred screen should have buttons after navigation",
         )
 
         # GTK4 buttons use "button" role (not "push button")
-        buttons = find_all(gtk_app, role="button", max_depth=15)
+        buttons = find_all(gtk_app, role="button", max_depth=DEFAULT_MAX_DEPTH)
         button_names = [b.get_name() for b in buttons if b.get_name()]
 
         # Filter out window control buttons
@@ -162,7 +163,7 @@ class TestQRScan:
             message="Exchange screen should have content after navigation",
         )
 
-        entries = find_all(gtk_app, role="text", max_depth=15)
+        entries = find_all(gtk_app, role="text", max_depth=DEFAULT_MAX_DEPTH)
         labels = find_all(gtk_app, role="label", max_depth=10)
         assert len(entries) > 0 or len(labels) > 0, (
             "Exchange screen has no text entries or labels"
@@ -179,7 +180,7 @@ class TestOnboardingComplete:
     def test_fresh_app_has_identity_buttons(self, gtk_app_fresh):
         """Fresh app should show onboarding with identity creation buttons."""
         # GTK4 buttons use "button" role
-        buttons = find_all(gtk_app_fresh, role="button", max_depth=15)
+        buttons = find_all(gtk_app_fresh, role="button", max_depth=DEFAULT_MAX_DEPTH)
         button_names = [b.get_name() for b in buttons if b.get_name()]
 
         # Should have "Create new identity" and/or "I already have an identity"
@@ -195,7 +196,7 @@ class TestOnboardingComplete:
 
     def test_fresh_app_shows_welcome(self, gtk_app_fresh):
         """Fresh app should show welcome text on onboarding."""
-        labels = find_all(gtk_app_fresh, role="label", max_depth=15)
+        labels = find_all(gtk_app_fresh, role="label", max_depth=DEFAULT_MAX_DEPTH)
         label_texts = [l.get_name() for l in labels if l.get_name()]
 
         welcome = [t for t in label_texts if "welcome" in t.lower() or "vauchi" in t.lower()]

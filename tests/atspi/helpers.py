@@ -43,11 +43,18 @@ def find_app(
     return None
 
 
+# The persistent sidebar wraps the content pane in an `AdwOverlaySplitView`,
+# which adds levels above every surface widget; a context-bar popover sits
+# under its launcher button on top of that, so its items landed past the old
+# cap of 15 and "Add Entry" read as absent while it was on screen.
+DEFAULT_MAX_DEPTH = 20
+
+
 def find_all(
     root: Atspi.Accessible,
     role: str | None = None,
     name: str | None = None,
-    max_depth: int = 15,
+    max_depth: int = DEFAULT_MAX_DEPTH,
 ) -> list[Atspi.Accessible]:
     """Recursively find widgets by AT-SPI role name and/or accessible name."""
     results = []
@@ -93,7 +100,7 @@ def find_one(
     root: Atspi.Accessible,
     role: str | None = None,
     name: str | None = None,
-    max_depth: int = 15,
+    max_depth: int = DEFAULT_MAX_DEPTH,
 ) -> Atspi.Accessible | None:
     """Find a single widget by role and/or name. Returns None if not found."""
     matches = find_all(root, role, name, max_depth)
