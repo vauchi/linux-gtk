@@ -103,3 +103,172 @@ fn render_fixture_writes_valid_png() {
         bytes.len()
     );
 }
+
+/// One catalog entry, as `render-catalog` reads it: a Core command batch
+/// keyed by the screen's stable `code_id`.
+fn catalog_entry(code_id: &str, title: &str, nodes: Vec<PresentationNode>) -> serde_json::Value {
+    use vauchi_core::{Command, NavigationItem, NavigationSpec};
+
+    let surface = SurfaceSpec {
+        surface_id: SurfaceId::new(code_id).expect("surface id"),
+        revision: 1,
+        title: title.into(),
+        subtitle: None,
+        accessibility_label: title.into(),
+        layout: SurfaceLayout::Scroll,
+        tokens: PresentationTokens {
+            spacing_small: 8,
+            spacing_medium: 16,
+            spacing_large: 24,
+            corner_radius: 12,
+            minimum_target_size: 44,
+        },
+        nodes,
+    };
+    let navigation = NavigationSpec {
+        items: vec![NavigationItem {
+            interaction_id: vauchi_core::InteractionId::new(format!("nav.{code_id}"))
+                .expect("interaction id"),
+            label: title.into(),
+            accessibility_label: title.into(),
+            icon_token: None,
+            selected: true,
+            badge_count: 0,
+        }],
+    };
+    let commands = vec![
+        Command::ReplaceSurface { surface },
+        Command::SetNavigation {
+            surface_id: SurfaceId::new(code_id).expect("surface id"),
+            revision: 1,
+            navigation,
+        },
+    ];
+    serde_json::json!({
+        "code_id": code_id,
+        "title": title,
+        "locale": "en",
+        "commands": commands,
+    })
+}
+
+fn run_render_catalog(catalog: &std::path::Path, out_dir: &std::path::Path) {
+    let bin = env!("CARGO_BIN_EXE_render_catalog");
+    let (width, height) = (900, 1400);
+    let status = Command::new("xvfb-run")
+        .args([
+            "-a",
+            "-s",
+            &format!("-screen 0 {}x{}x24", width + 80, height + 80),
+            bin,
+            catalog.to_str().unwrap(),
+            out_dir.to_str().unwrap(),
+            &width.to_string(),
+            &height.to_string(),
+        ])
+        .env("GDK_BACKEND", "x11")
+        .status()
+        .expect("spawn render-catalog under xvfb-run");
+    assert!(status.success(), "render-catalog exited with {status}");
+}
+
+fn read_png(path: &std::path::Path) -> Vec<u8> {
+    let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    assert!(
+        bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
+        "{} is not a PNG (magic {:02x?})",
+        path.display(),
+        &bytes[..bytes.len().min(8)]
+    );
+    assert!(
+        bytes.len() > 2_000,
+        "{} suspiciously small ({} bytes) — likely a blank/unpainted frame",
+        path.display(),
+        bytes.len()
+    );
+    bytes
+}
+
+// @internal
+#[test]
+fn render_catalog_writes_one_png_per_screen_and_variant() {
+    if !have("xvfb-run") {
+        eprintln!("skip: xvfb-run not available — cannot render headlessly");
+        return;
+    }
+
+    let dir = tempfile::tempdir().expect("create isolated render output directory");
+    let catalog = dir.path().join("screen_catalog.json");
+    let out_dir = dir.path().join("screen-catalog");
+    let screens = serde_json::json!({
+        "schema_version": 1,
+        "screens": [
+            catalog_entry(
+                "contacts",
+                "Contacts",
+                vec![PresentationNode::Text {
+                    id: None,
+                    content: "No contacts yet".into(),
+                    style: PresentationTextStyle::Heading,
+                    accessibility: AccessibilitySpec::label("No contacts yet"),
+                }],
+            ),
+            catalog_entry(
+                "settings",
+                "Settings",
+                vec![PresentationNode::Progress {
+                    label: Some("Storage used".into()),
+                    value: Some(0.4),
+                    accessibility: AccessibilitySpec::label("Storage used"),
+                }],
+            ),
+        ],
+    });
+    std::fs::write(&catalog, serde_json::to_vec_pretty(&screens).unwrap()).unwrap();
+
+    run_render_catalog(&catalog, &out_dir);
+
+    let contacts = read_png(&out_dir.join("contacts.png"));
+    let settings = read_png(&out_dir.join("settings.png"));
+    assert_ne!(
+        contacts, settings,
+        "two different screens rendered identical bytes — the batch was not replayed"
+    );
+    let contacts_light = read_png(&out_dir.join("contacts.light.png"));
+    assert_ne!(
+        contacts, contacts_light,
+        "light variant is byte-identical to the default theme"
+    );
+    let contacts_large = read_png(&out_dir.join("contacts.large.png"));
+    assert_ne!(
+        contacts, contacts_large,
+        "large-text variant is byte-identical to the default text scale"
+    );
+}
+
+// @internal
+#[test]
+fn render_catalog_falls_back_to_presentation_contract_batches() {
+    if !have("xvfb-run") {
+        eprintln!("skip: xvfb-run not available — cannot render headlessly");
+        return;
+    }
+
+    let dir = tempfile::tempdir().expect("create isolated render output directory");
+    let contract = dir.path().join("presentation_contract_v1.json");
+    let out_dir = dir.path().join("screen-catalog");
+    std::fs::write(
+        &contract,
+        vauchi_app::ui::presentation_contract_fixture_json(),
+    )
+    .unwrap();
+
+    run_render_catalog(&contract, &out_dir);
+
+    let initial = read_png(&out_dir.join("initial.png"));
+    let step_1 = read_png(&out_dir.join("step_1.png"));
+    assert_ne!(
+        initial, step_1,
+        "the contract's initial batch and its first step rendered identical bytes"
+    );
+}
