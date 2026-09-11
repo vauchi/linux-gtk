@@ -26,7 +26,7 @@ use libadwaita as adw;
 use libadwaita::prelude::*;
 
 use vauchi_core::SurfaceSpec;
-use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, widget_to_png};
+use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, MAX_FRAMES_BEFORE_CAPTURE, widget_to_png};
 use vauchi_gtk::core_ui::generic_surface::{OnEvent, render};
 
 fn main() {
@@ -42,8 +42,12 @@ fn main() {
     let surface: SurfaceSpec =
         serde_json::from_str(&json).unwrap_or_else(|e| panic!("decode {fixture_path}: {e}"));
 
+    // NON_UNIQUE: parallel test runs share one session bus; a unique
+    // GApplication would hand `activate` to the first instance and exit 0
+    // without rendering anything.
     let app = adw::Application::builder()
         .application_id("app.vauchi.fixture-capture")
+        .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
         .build();
 
     app.connect_activate(move |app| {
@@ -75,7 +79,13 @@ fn main() {
                 return glib::ControlFlow::Continue;
             }
 
-            widget_to_png(widget, std::path::Path::new(&out_path));
+            if !widget_to_png(widget, std::path::Path::new(&out_path)) {
+                assert!(
+                    frames.get() < MAX_FRAMES_BEFORE_CAPTURE,
+                    "{out_path}: no render node after {MAX_FRAMES_BEFORE_CAPTURE} frames"
+                );
+                return glib::ControlFlow::Continue;
+            }
             app.quit();
             glib::ControlFlow::Break
         });

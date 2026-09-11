@@ -31,7 +31,7 @@ use libadwaita as adw;
 use vauchi_app::theme::{Theme, ThemeMode, bundled_themes, default_theme};
 use vauchi_app::ui::AppEngine;
 use vauchi_core::api::Vauchi;
-use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, widget_to_png};
+use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, MAX_FRAMES_BEFORE_CAPTURE, widget_to_png};
 use vauchi_gtk::core_ui::contextual_surface::{build_split_view, replay_command_batch};
 use vauchi_gtk::core_ui::theme::apply_theme;
 use vauchi_gtk::screen_catalog::{CatalogScreen, load_screens};
@@ -116,8 +116,12 @@ fn main() {
     );
     let jobs = plan_jobs(loaded.screens, &out_dir);
 
+    // NON_UNIQUE: parallel test runs share one session bus; a unique
+    // GApplication would hand `activate` to the first instance and exit 0
+    // without rendering anything.
     let app = adw::Application::builder()
         .application_id("app.vauchi.catalog-capture")
+        .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_activate(move |app| {
         let catalog_window = build_app_window(app, width, height);
@@ -217,7 +221,14 @@ fn drive_jobs(app: &adw::Application, window: &CatalogWindow, mut jobs: VecDeque
         if frames.get() < FRAMES_BEFORE_CAPTURE {
             return glib::ControlFlow::Continue;
         }
-        widget_to_png(widget, &current.borrow().out_path);
+        if !widget_to_png(widget, &current.borrow().out_path) {
+            assert!(
+                frames.get() < MAX_FRAMES_BEFORE_CAPTURE,
+                "{}: no render node after {MAX_FRAMES_BEFORE_CAPTURE} frames",
+                current.borrow().out_path.display()
+            );
+            return glib::ControlFlow::Continue;
+        }
 
         let Some(next) = queue.borrow_mut().pop_front() else {
             app.quit();

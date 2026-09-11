@@ -14,11 +14,19 @@ use gtk4::prelude::*;
 /// realize + allocate + first paint have run.
 pub const FRAMES_BEFORE_CAPTURE: u32 = 4;
 
+/// A widget that still has no render node after this many frames is not
+/// "not painted yet" but broken; the harness gives up loudly.
+pub const MAX_FRAMES_BEFORE_CAPTURE: u32 = 120;
+
 /// Render `widget` through the window's GSK renderer and write it as PNG.
 ///
-/// Panics on any failure: the harness binaries have nothing sensible to do
+/// Returns `false` when the widget has produced no render node yet (a
+/// re-layout — e.g. a text-scale change — can push the first paint past
+/// `FRAMES_BEFORE_CAPTURE`); the caller retries on a later frame. Every
+/// other failure panics: the harness binaries have nothing sensible to do
 /// with a half-captured screen, and a loud exit is what CI should see.
-pub fn widget_to_png(widget: &impl IsA<gtk4::Widget>, out_path: &Path) {
+#[must_use = "a false return means the widget is not painted yet — retry on a later frame"]
+pub fn widget_to_png(widget: &impl IsA<gtk4::Widget>, out_path: &Path) -> bool {
     let w = widget.width().max(1);
     let h = widget.height().max(1);
     let shown = out_path.display();
@@ -28,7 +36,8 @@ pub fn widget_to_png(widget: &impl IsA<gtk4::Widget>, out_path: &Path) {
     paintable.snapshot(&snapshot, w as f64, h as f64);
 
     let Some(node) = snapshot.to_node() else {
-        panic!("{shown}: snapshot produced no render node");
+        eprintln!("[capture] {shown}: no render node yet, waiting for another frame");
+        return false;
     };
     let renderer = widget
         .native()
@@ -40,4 +49,5 @@ pub fn widget_to_png(widget: &impl IsA<gtk4::Widget>, out_path: &Path) {
     let png = texture.save_to_png_bytes();
     std::fs::write(out_path, png.as_ref()).unwrap_or_else(|e| panic!("write {shown}: {e}"));
     eprintln!("[capture] wrote {shown} ({w}x{h})");
+    true
 }
