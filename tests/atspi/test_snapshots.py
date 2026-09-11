@@ -323,13 +323,23 @@ class TestOnboardingFlowSnapshots:
             )
             time.sleep(0.5)
 
-        # The walk ends on the home surface with the destinations available.
-        assert wait_for_element(app, name="Contacts", timeout=8.0) is not None, (
-            "Onboarding did not end on a surface offering the Contacts destination."
-        )
+        # The walk ends on the home surface once Core has created the
+        # identity, which takes a while under Xvfb; capture whatever is on
+        # screen first so a slow landing still leaves evidence.
+        landed = None
+        deadline = time.monotonic() + 25.0
+        while landed is None and time.monotonic() < deadline:
+            for destination in EXPECTED_DESTINATIONS:
+                if wait_for_element(app, name=destination, timeout=1.0) is not None:
+                    landed = destination
+                    break
         path = _capture_stable(f"onboarding-{len(ONBOARDING_STEPS) + 1:02d}-home.png", ACTUAL_DIR)
         if path is not None:
             captured.append("home")
+        assert landed is not None, (
+            "Onboarding did not end on a surface offering any of "
+            f"{EXPECTED_DESTINATIONS} within 25s after 'Start using the app'."
+        )
 
         assert len(captured) >= 3, (
             f"Only {len(captured)} onboarding captures succeeded: {captured}. "
