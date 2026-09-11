@@ -3719,7 +3719,7 @@ dependencies = [
 [[package]]
 name = "vauchi-app"
 version = "0.67.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0#66d7dea3adda029d408a50ebcffb40e7efed9442"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0-dev.2#5bfe666622695d59088ad6a706d224c24ce452e1"
 dependencies = [
  "base64",
  "hex",
@@ -3736,7 +3736,7 @@ dependencies = [
 [[package]]
 name = "vauchi-core"
 version = "0.67.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0#66d7dea3adda029d408a50ebcffb40e7efed9442"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0-dev.2#5bfe666622695d59088ad6a706d224c24ce452e1"
 dependencies = [
  "argon2",
  "base64",
@@ -3800,7 +3800,7 @@ dependencies = [
 [[package]]
 name = "vauchi-protocol"
 version = "0.67.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0#66d7dea3adda029d408a50ebcffb40e7efed9442"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.67.0-dev.2#5bfe666622695d59088ad6a706d224c24ce452e1"
 dependencies = [
  "serde",
  "serde_json",
@@ -3985,7 +3985,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
