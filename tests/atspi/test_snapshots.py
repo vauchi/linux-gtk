@@ -27,6 +27,7 @@ import time
 
 import pytest
 
+from helpers import click_button, set_text, wait_for_element
 from navigation import (
     EXPECTED_DESTINATIONS,
     navigate_to,
@@ -278,6 +279,61 @@ class TestScreenSnapshots:
             f"{len(distinct)} unique capture(s) across {len(captured)} "
             f"navigated screen(s) {captured}. AT-SPI do_action(0) may be a "
             "no-op again (see 2026-05-16-linux-gtk-atspi-sidebar-navigate)."
+        )
+
+
+# The onboarding flow as Core presents it on a fresh identity, in order: the
+# accessible element that marks each step, and the primary action that
+# leaves it. Step names become file names under snapshots/actual/, so the
+# flow reads in sequence next to the destination captures.
+ONBOARDING_STEPS = [
+    ("welcome", "button", "Create new identity", "Create new identity"),
+    ("display-name", "text", "Display name input", "Continue"),
+    ("groups", "label", "Choose your groups", "Continue"),
+    ("contact-info", "label", "Add contact info", "Continue"),
+    ("what-next", "label", "What would you like to do?", "Start using the app"),
+]
+
+
+class TestOnboardingFlowSnapshots:
+    """Capture every onboarding step on an app that has no identity yet.
+
+    These are flow captures, not baselines: the display name is typed by
+    the test and the final home surface carries identity-derived pixels,
+    so they are uploaded for review but never pixel-compared.
+    """
+
+    def test_snapshot_onboarding_flow(self, gtk_app_onboarding):
+        app = gtk_app_onboarding
+        os.makedirs(ACTUAL_DIR, exist_ok=True)
+        captured: list[str] = []
+        for index, (name, role, marker, action) in enumerate(ONBOARDING_STEPS, start=1):
+            landmark = wait_for_element(app, role=role, name=marker, timeout=5.0)
+            assert landmark is not None, (
+                f"Onboarding step '{name}' never showed '{marker}' "
+                f"({role}) after {captured}."
+            )
+            if name == "display-name":
+                assert set_text(app, "Display name input", "Snapshot Walker")
+            path = _capture_stable(f"onboarding-{index:02d}-{name}.png", ACTUAL_DIR)
+            if path is not None:
+                captured.append(name)
+            assert click_button(app, action), (
+                f"Onboarding step '{name}' has no '{action}' button to leave it."
+            )
+            time.sleep(0.5)
+
+        # The walk ends on the home surface with the destinations available.
+        assert wait_for_element(app, name="Contacts", timeout=8.0) is not None, (
+            "Onboarding did not end on a surface offering the Contacts destination."
+        )
+        path = _capture_stable(f"onboarding-{len(ONBOARDING_STEPS) + 1:02d}-home.png", ACTUAL_DIR)
+        if path is not None:
+            captured.append("home")
+
+        assert len(captured) >= 3, (
+            f"Only {len(captured)} onboarding captures succeeded: {captured}. "
+            "Check the screenshot tool and the Xvfb display."
         )
 
 
