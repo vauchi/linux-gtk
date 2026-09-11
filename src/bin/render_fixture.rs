@@ -21,17 +21,13 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Orientation, glib, graphene};
+use gtk4::{Box as GtkBox, Orientation, glib};
 use libadwaita as adw;
 use libadwaita::prelude::*;
 
 use vauchi_core::SurfaceSpec;
+use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, widget_to_png};
 use vauchi_gtk::core_ui::generic_surface::{OnEvent, render};
-
-// Capture only after the window has produced a few frames — a WidgetPaintable
-// of a just-presented window mirrors a blank surface until realize + allocate
-// + first paint have run.
-const FRAMES_BEFORE_CAPTURE: u32 = 4;
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -79,7 +75,7 @@ fn main() {
                 return glib::ControlFlow::Continue;
             }
 
-            capture_widget_to_png(widget, &out_path);
+            widget_to_png(widget, std::path::Path::new(&out_path));
             app.quit();
             glib::ControlFlow::Break
         });
@@ -87,29 +83,6 @@ fn main() {
 
     let no_args: [String; 0] = [];
     app.run_with_args(&no_args);
-}
-
-fn capture_widget_to_png(widget: &impl IsA<gtk4::Widget>, out_path: &str) {
-    let w = widget.width().max(1);
-    let h = widget.height().max(1);
-
-    let paintable = gtk4::WidgetPaintable::new(Some(widget));
-    let snapshot = gtk4::Snapshot::new();
-    paintable.snapshot(&snapshot, w as f64, h as f64);
-
-    let Some(node) = snapshot.to_node() else {
-        panic!("{out_path}: snapshot produced no render node");
-    };
-    let renderer = widget
-        .native()
-        .and_then(|n| n.renderer())
-        .unwrap_or_else(|| panic!("{out_path}: window has no GSK renderer (not realized?)"));
-
-    let viewport = graphene::Rect::new(0.0, 0.0, w as f32, h as f32);
-    let texture = renderer.render_texture(&node, Some(&viewport));
-    let png = texture.save_to_png_bytes();
-    std::fs::write(out_path, png.as_ref()).unwrap_or_else(|e| panic!("write {out_path}: {e}"));
-    eprintln!("[render-fixture] wrote {out_path} ({w}x{h})");
 }
 
 fn usage() -> ! {

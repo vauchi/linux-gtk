@@ -5,6 +5,7 @@
 //! the offscreen capture harness share the same native widget implementation.
 
 pub mod app;
+pub mod capture;
 pub mod core_ui;
 pub mod locale;
 pub mod platform;
