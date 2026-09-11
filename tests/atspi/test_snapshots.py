@@ -27,7 +27,7 @@ import time
 
 import pytest
 
-from helpers import click_button, set_text, wait_for_element
+from helpers import click_button, dump_tree, set_text, wait_for_element
 from navigation import (
     EXPECTED_DESTINATIONS,
     navigate_to,
@@ -332,7 +332,8 @@ class TestOnboardingFlowSnapshots:
             captured.append("home")
         assert landed, (
             "Onboarding did not end on a surface whose navigation offers "
-            f"{EXPECTED_DESTINATIONS} within 25s after 'Start using the app'."
+            f"{EXPECTED_DESTINATIONS} within 25s after 'Start using the app'.\n"
+            f"Hierarchy after landing:\n{dump_tree(app, max_depth=20)}"
         )
 
         assert len(captured) >= 3, (
