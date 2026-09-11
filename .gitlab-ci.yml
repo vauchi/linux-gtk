@@ -125,6 +125,7 @@ build:app:
       - target/release/gvauchi
       - target/release/seed-identity
       - target/release/render_fixture
+      - target/release/render_catalog
     expire_in: 1 week
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -258,6 +259,79 @@ test:snapshots:
         paths:
           - "src/**"
           - "tests/atspi/**"
+          - ".gitlab-ci.yml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Screen catalog render — replays every Core screen batch through the
+# production command path (`handle_commands`, ADR-066) inside the real
+# window chrome and publishes one PNG per screen and variant (default,
+# light theme, large text) under build/screen-catalog/. No navigation is
+# driven, so unlike test:snapshots it cannot flake on AT-SPI timing.
+#
+# The catalog comes from Core main through the raw-file API; while
+# `vauchi-app/fixtures/screen_catalog_v1.json` is not merged there yet,
+# the presentation contract's batches (same Command shape) are rendered
+# instead, and the trace says which source was used. `allow_failure`
+# until the real catalog lands and the job has proven stable on allyson.
+test:screen-catalog:
+  allow_failure: true
+  stage: test
+  needs:
+    - job: build:app
+  tags: [linux, self-hosted]
+  # See test:a11y — Xvfb jobs must not share the runner's display.
+  resource_group: gtk-xvfb
+  variables:
+    VRT_PLATFORM: linux-gtk
+    VRT_SCREENSHOT_DIR: build/screen-catalog
+    CATALOG_OUT_DIR: build/screen-catalog
+    CORE_FIXTURES_API: "${CI_API_V4_URL}/projects/vauchi%2Fcore/repository/files/vauchi-app%2Ffixtures"
+  script:
+    - mkdir -p "$CATALOG_OUT_DIR"
+    - |
+      fetch_core_fixture() {
+        curl -fsSL -u "gitlab-ci-token:${CI_JOB_TOKEN}" \
+          "${CORE_FIXTURES_API}%2F${1}/raw?ref=main" -o "build/${1}"
+      }
+      if fetch_core_fixture screen_catalog_v1.json; then
+        CATALOG=build/screen_catalog_v1.json
+        CATALOG_SOURCE="core main screen_catalog_v1.json"
+      elif fetch_core_fixture presentation_contract_v1.json; then
+        CATALOG=build/presentation_contract_v1.json
+        CATALOG_SOURCE="FALLBACK core main presentation_contract_v1.json (screen catalog not on Core main yet)"
+      else
+        # Last resort: the pinned vauchi-app checkout cargo already fetched
+        # for build:app carries the contract fixture too.
+        CATALOG=$(find "${CARGO_HOME:-$HOME/.cargo}/git/checkouts" \
+          -path '*/vauchi-app/fixtures/presentation_contract_v1.json' | head -n 1)
+        [ -n "$CATALOG" ] || { echo "no catalog source reachable (Core raw API and cargo checkout)"; exit 1; }
+        CATALOG_SOURCE="FALLBACK pinned cargo checkout $CATALOG (Core raw API unreachable)"
+      fi
+      echo "catalog source: $CATALOG_SOURCE"
+      echo "$CATALOG_SOURCE" > "$CATALOG_OUT_DIR/SOURCE.txt"
+      chmod +x target/release/render_catalog
+      # Same headless recipe as tests/atspi/run-tests.sh: Cairo renderer
+      # (no DRI3 under Xvfb), a private display, a fresh session bus.
+      env GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 GDK_BACKEND=x11 XDG_CURRENT_DESKTOP=none \
+        xvfb-run -a -s '-screen 0 980x1480x24' \
+        dbus-run-session -- target/release/render_catalog "$CATALOG" "$CATALOG_OUT_DIR" 900 1400
+      count=$(find "$CATALOG_OUT_DIR" -name '*.png' | wc -l | tr -d ' ')
+      echo "rendered $count PNG(s) from: $CATALOG_SOURCE"
+      [ "$count" -gt 0 ]
+  after_script:
+    - !reference [.vrt-upload-script, script]
+  artifacts:
+    when: always
+    paths:
+      - build/screen-catalog/
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        compare_to: refs/heads/$CI_DEFAULT_BRANCH
+        paths:
+          - "src/**"
+          - "Cargo.lock"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
