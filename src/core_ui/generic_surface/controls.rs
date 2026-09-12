@@ -273,3 +273,52 @@ pub(super) fn render(
         _ => Label::new(None).upcast(),
     }
 }
+
+// INLINE_TEST_REQUIRED: tests exercise private-to-the-crate helpers with no
+// public accessor, and cannot be reached through a widget without a display.
+#[cfg(test)]
+mod choice_tests {
+    use super::{ChoiceWidget, choice_value, choice_widget};
+    use vauchi_core::{ChoiceOption, InputValue};
+
+    fn options(count: usize) -> Vec<ChoiceOption> {
+        (1..=count)
+            .map(|index| ChoiceOption {
+                id: format!("option_{index}"),
+                label: format!("Option {index}"),
+            })
+            .collect()
+    }
+
+    /// The design canvas draws two- and three-way choices (contact-detail
+    /// Perspective, groups Members/Visibility) as a segmented control; a
+    /// single option has nothing to switch between and Settings' 15-entry
+    /// theme list would not fit in a row of buttons.
+    // @internal
+    #[test]
+    fn two_and_three_options_render_segmented_everything_else_drops_down() {
+        assert_eq!(choice_widget(0), ChoiceWidget::DropDown);
+        assert_eq!(choice_widget(1), ChoiceWidget::DropDown);
+        assert_eq!(choice_widget(2), ChoiceWidget::Segmented);
+        assert_eq!(choice_widget(3), ChoiceWidget::Segmented);
+        assert_eq!(choice_widget(4), ChoiceWidget::DropDown);
+        assert_eq!(choice_widget(15), ChoiceWidget::DropDown);
+    }
+
+    // @internal
+    #[test]
+    fn the_activated_segment_emits_its_option_id_as_the_choice_value() {
+        let options = options(3);
+
+        assert_eq!(
+            choice_value(&options, 1),
+            InputValue::Choice(Some("option_2".to_string()))
+        );
+    }
+
+    // @internal
+    #[test]
+    fn a_segment_index_past_the_options_emits_no_choice() {
+        assert_eq!(choice_value(&options(2), 2), InputValue::Choice(None));
+    }
+}
