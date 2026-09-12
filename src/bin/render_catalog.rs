@@ -169,9 +169,9 @@ fn main() {
         .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_activate(move |app| {
-        let catalog_window = build_app_window(app, width, height);
+        let catalog_window = Rc::new(build_app_window(app, width, height));
         catalog_window.window.present();
-        drive_jobs(app, &catalog_window, jobs.clone(), themes.clone());
+        drive_jobs(app, catalog_window, jobs.clone(), themes.clone());
     });
 
     let no_args: [String; 0] = [];
@@ -201,8 +201,30 @@ struct CatalogWindow {
     root: GtkBox,
     /// The box Core's surfaces and context bar are written into.
     replay_target: GtkBox,
-    toast_overlay: adw::ToastOverlay,
+    split_view: adw::OverlaySplitView,
+    /// Replaced before every job (`fresh_toast_overlay`), never reused.
+    toast_overlay: RefCell<adw::ToastOverlay>,
     app_engine: Rc<RefCell<AppEngine>>,
+}
+
+impl CatalogWindow {
+    /// Swap in an empty toast overlay as the split view's content pane.
+    ///
+    /// A toast one screen raises (BLE unavailable on the runner, say) must
+    /// not linger into the next screen's capture. libadwaita 1.4 offers no
+    /// way to drop an overlay's pending toasts (`dismiss_all` is 1.7), so
+    /// the overlay itself is replaced. The sidebar built by
+    /// `build_split_view` keeps the first overlay for its row-activation
+    /// dispatch, which the harness never triggers.
+    fn fresh_toast_overlay(&self) -> adw::ToastOverlay {
+        let fresh = adw::ToastOverlay::new();
+        fresh.set_hexpand(true);
+        let stale = self.toast_overlay.replace(fresh.clone());
+        stale.set_child(gtk4::Widget::NONE);
+        fresh.set_child(Some(&self.replay_target));
+        self.split_view.set_content(Some(&fresh));
+        fresh
+    }
 }
 
 /// The same chrome `app::build_ui` assembles: header bar over a sidebar
@@ -227,7 +249,8 @@ fn build_app_window(app: &adw::Application, width: i32, height: i32) -> CatalogW
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(&content));
     toast_overlay.set_hexpand(true);
-    root.append(&build_split_view(&content, &app_engine, &toast_overlay));
+    let split_view = build_split_view(&content, &app_engine, &toast_overlay);
+    root.append(&split_view);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -239,7 +262,8 @@ fn build_app_window(app: &adw::Application, width: i32, height: i32) -> CatalogW
         window,
         root,
         replay_target: content,
-        toast_overlay,
+        split_view,
+        toast_overlay: RefCell::new(toast_overlay),
         app_engine,
     }
 }
@@ -248,7 +272,7 @@ fn build_app_window(app: &adw::Application, width: i32, height: i32) -> CatalogW
 /// the batch, let the window paint, capture, advance. Quits when drained.
 fn drive_jobs(
     app: &adw::Application,
-    window: &CatalogWindow,
+    window: Rc<CatalogWindow>,
     mut jobs: VecDeque<Rc<Job>>,
     themes: Rc<Themes>,
 ) {
@@ -257,16 +281,14 @@ fn drive_jobs(
         app.quit();
         return;
     };
-    let engine = window.app_engine.clone();
-    let replay_target = window.replay_target.clone();
-    let toast_overlay = window.toast_overlay.clone();
-    start_job(&first, &themes, &replay_target, &engine, &toast_overlay);
+    start_job(&first, &themes, &window);
 
     let current = Rc::new(RefCell::new(first));
     let queue = Rc::new(RefCell::new(jobs));
     let frames = Rc::new(Cell::new(0u32));
     let app = app.clone();
-    window.root.add_tick_callback(move |widget, _clock| {
+    let root = window.root.clone();
+    root.add_tick_callback(move |widget, _clock| {
         frames.set(frames.get() + 1);
         if frames.get() < FRAMES_BEFORE_CAPTURE {
             return glib::ControlFlow::Continue;
@@ -284,20 +306,14 @@ fn drive_jobs(
             app.quit();
             return glib::ControlFlow::Break;
         };
-        start_job(&next, &themes, &replay_target, &engine, &toast_overlay);
+        start_job(&next, &themes, &window);
         *current.borrow_mut() = next;
         frames.set(0);
         glib::ControlFlow::Continue
     });
 }
 
-fn start_job(
-    job: &Job,
-    themes: &Themes,
-    replay_target: &GtkBox,
-    app_engine: &Rc<RefCell<AppEngine>>,
-    toast_overlay: &adw::ToastOverlay,
-) {
+fn start_job(job: &Job, themes: &Themes, window: &CatalogWindow) {
     eprintln!(
         "[render-catalog] {} ({:?}) -> {}",
         job.screen.code_id,
@@ -305,10 +321,11 @@ fn start_job(
         job.out_path.display()
     );
     job.variant.apply(themes);
+    let toast_overlay = window.fresh_toast_overlay();
     replay_command_batch(
-        replay_target,
-        app_engine,
-        toast_overlay,
+        &window.replay_target,
+        &window.app_engine,
+        &toast_overlay,
         job.screen.commands.clone(),
     );
 }
