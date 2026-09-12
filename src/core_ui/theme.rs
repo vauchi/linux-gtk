@@ -464,6 +464,28 @@ mod tests {
         }
     }
 
+    /// The `button` ground above is applied at application priority, which
+    /// also beats libadwaita's own `button:checked` fill — so a toggle group
+    /// (the segmented Choice control) painted its active segment exactly
+    /// like the idle ones and the reader could not tell which was chosen.
+    // @internal
+    #[test]
+    fn generate_css_fills_a_checked_button_with_the_accent() {
+        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+
+        let body = rule_body(&css, "button:checked");
+        assert!(
+            body.contains("background-color: @vauchi_accent"),
+            "`button:checked` must take the accent ground so the active \
+             segment of a toggle group stands out from the idle ones: {body:?}"
+        );
+        assert!(
+            body.contains("color: @vauchi_bg_primary"),
+            "`button:checked` must pair the accent ground with the inverse \
+             text colour so the label stays readable on it: {body:?}"
+        );
+    }
+
     #[test]
     fn generate_css_different_themes_produce_different_output() {
         let dark = ThemeColors {
