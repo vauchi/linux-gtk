@@ -3,7 +3,10 @@
 
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Label, Orientation, Widget};
-use vauchi_core::{InputValue, PresentationNode, PresentationTokens, SurfaceId};
+use vauchi_core::{
+    AccessibilitySpec, BindingId, ChoiceOption, InputValue, PresentationNode, PresentationTokens,
+    SurfaceId,
+};
 
 use super::{OnEvent, action_button, emit_binding_gesture, emit_value, targets};
 use crate::core_ui::accessibility::{apply as apply_accessibility, mark_invalid};
@@ -180,31 +183,17 @@ pub(super) fn render(
                     .halign(gtk4::Align::Start)
                     .build(),
             );
-            let labels = options
-                .iter()
-                .map(|option| option.label.as_str())
-                .collect::<Vec<_>>();
-            let dropdown = gtk4::DropDown::from_strings(&labels);
-            dropdown.set_sensitive(*enabled);
-            dropdown.set_widget_name(binding_id.as_str());
-            apply_accessibility(&dropdown, accessibility);
-            if let Some(index) = selected
-                .as_ref()
-                .and_then(|selected| options.iter().position(|option| &option.id == selected))
-            {
-                dropdown.set_selected(index as u32);
-            }
-            let options = options.clone();
-            let id = binding_id.clone();
-            let surface = surface_id.clone();
-            let callback = on_event.clone();
-            dropdown.connect_selected_notify(move |dropdown| {
-                let value = options
-                    .get(dropdown.selected() as usize)
-                    .map(|option| option.id.clone());
-                emit_value(&surface, &id, InputValue::Choice(value), &callback);
+            let choice = ChoiceControl {
+                binding_id,
+                selected: selected.as_deref(),
+                options,
+                enabled: *enabled,
+                accessibility,
+            };
+            group.append(&match choice_widget(options.len()) {
+                ChoiceWidget::Segmented => segmented_choice(&choice, surface_id, on_event, tokens),
+                ChoiceWidget::DropDown => dropdown_choice(&choice, surface_id, on_event),
             });
-            group.append(&dropdown);
             group.upcast()
         }
         PresentationNode::Confirmation {
@@ -272,6 +261,113 @@ pub(super) fn render(
         }
         _ => Label::new(None).upcast(),
     }
+}
+
+/// The design canvas draws two- and three-way choices as a segmented
+/// control; anything longer stays a drop-down so Settings' 15-entry theme
+/// list does not become a row of buttons.
+const SEGMENTED_OPTION_COUNTS: std::ops::RangeInclusive<usize> = 2..=3;
+
+#[derive(Debug, PartialEq, Eq)]
+enum ChoiceWidget {
+    Segmented,
+    DropDown,
+}
+
+fn choice_widget(option_count: usize) -> ChoiceWidget {
+    if SEGMENTED_OPTION_COUNTS.contains(&option_count) {
+        ChoiceWidget::Segmented
+    } else {
+        ChoiceWidget::DropDown
+    }
+}
+
+fn choice_value(options: &[ChoiceOption], index: usize) -> InputValue {
+    InputValue::Choice(options.get(index).map(|option| option.id.clone()))
+}
+
+struct ChoiceControl<'a> {
+    binding_id: &'a BindingId,
+    selected: Option<&'a str>,
+    options: &'a [ChoiceOption],
+    enabled: bool,
+    accessibility: &'a AccessibilitySpec,
+}
+
+fn segmented_choice(
+    choice: &ChoiceControl<'_>,
+    surface_id: &SurfaceId,
+    on_event: &OnEvent,
+    tokens: &PresentationTokens,
+) -> Widget {
+    let segments = GtkBox::new(Orientation::Horizontal, 0);
+    segments.add_css_class("linked");
+    segments.set_sensitive(choice.enabled);
+    segments.set_widget_name(choice.binding_id.as_str());
+    apply_accessibility(&segments, choice.accessibility);
+    let mut first_segment: Option<gtk4::ToggleButton> = None;
+    for (index, option) in choice.options.iter().enumerate() {
+        let segment = gtk4::ToggleButton::builder()
+            .label(&option.label)
+            .active(choice.selected == Some(option.id.as_str()))
+            .hexpand(true)
+            .build();
+        segment.set_size_request(-1, targets::minimum_target_px(tokens));
+        match &first_segment {
+            Some(first) => segment.set_group(Some(first)),
+            None => first_segment = Some(segment.clone()),
+        }
+        let options = choice.options.to_vec();
+        let id = choice.binding_id.clone();
+        let surface = surface_id.clone();
+        let callback = on_event.clone();
+        segment.connect_toggled(move |segment| {
+            // The group fires `toggled` on the segment that just went
+            // inactive too; only the newly active one is the choice.
+            if segment.is_active() {
+                emit_value(&surface, &id, choice_value(&options, index), &callback);
+            }
+        });
+        segments.append(&segment);
+    }
+    segments.upcast()
+}
+
+fn dropdown_choice(
+    choice: &ChoiceControl<'_>,
+    surface_id: &SurfaceId,
+    on_event: &OnEvent,
+) -> Widget {
+    let labels = choice
+        .options
+        .iter()
+        .map(|option| option.label.as_str())
+        .collect::<Vec<_>>();
+    let dropdown = gtk4::DropDown::from_strings(&labels);
+    dropdown.set_sensitive(choice.enabled);
+    dropdown.set_widget_name(choice.binding_id.as_str());
+    apply_accessibility(&dropdown, choice.accessibility);
+    if let Some(index) = choice.selected.and_then(|selected| {
+        choice
+            .options
+            .iter()
+            .position(|option| option.id == selected)
+    }) {
+        dropdown.set_selected(index as u32);
+    }
+    let options = choice.options.to_vec();
+    let id = choice.binding_id.clone();
+    let surface = surface_id.clone();
+    let callback = on_event.clone();
+    dropdown.connect_selected_notify(move |dropdown| {
+        emit_value(
+            &surface,
+            &id,
+            choice_value(&options, dropdown.selected() as usize),
+            &callback,
+        );
+    });
+    dropdown.upcast()
 }
 
 // INLINE_TEST_REQUIRED: tests exercise private-to-the-crate helpers with no
