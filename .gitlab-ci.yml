@@ -142,7 +142,7 @@ build:app:
           # so build:app must also fire when only the AT-SPI harness under
           # tests/atspi/** changes. Without this path, an AT-SPI-only MR
           # produces a zero-job pipeline (GitLab marks the pipeline failed).
-          - "tests/atspi/**"
+          - "tests/atspi/**/*"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:unit:
@@ -199,8 +199,8 @@ test:a11y:
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/**"
-          - "tests/atspi/**"
+          - "src/**/*"
+          - "tests/atspi/**/*"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -258,8 +258,8 @@ test:snapshots:
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/**"
-          - "tests/atspi/**"
+          - "src/**/*"
+          - "tests/atspi/**/*"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -338,7 +338,7 @@ test:screen-catalog:
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/**"
+          - "src/**/*"
           - "Cargo.lock"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -448,12 +448,12 @@ check:design-drift:
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/core_ui/generic_surface/**"
+          - "src/core_ui/generic_surface/**/*"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         paths:
-          - "src/core_ui/generic_surface/**"
+          - "src/core_ui/generic_surface/**/*"
           - ".gitlab-ci.yml"
 
 # Parser-parity gate for Core's canonical PresentationNode enum.
