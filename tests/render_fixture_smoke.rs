@@ -152,9 +152,30 @@ fn catalog_entry(code_id: &str, title: &str, nodes: Vec<PresentationNode>) -> se
     })
 }
 
+/// A light theme the renderer can find without the sibling `themes/` repo:
+/// CI builds Core from a cargo git checkout, whose compiled-in catalog then
+/// holds only the default dark theme.
+fn write_light_theme_catalog(dir: &std::path::Path) -> std::path::PathBuf {
+    use vauchi_app::theme::{ThemeMode, default_theme};
+
+    let mut light = default_theme();
+    light.id = "test-light".into();
+    light.name = "Test Light".into();
+    light.mode = ThemeMode::Light;
+    std::mem::swap(&mut light.colors.bg_primary, &mut light.colors.text_primary);
+    std::mem::swap(
+        &mut light.colors.bg_secondary,
+        &mut light.colors.text_secondary,
+    );
+    let path = dir.join("themes.json");
+    std::fs::write(&path, serde_json::to_vec_pretty(&vec![light]).unwrap()).unwrap();
+    path
+}
+
 fn run_render_catalog(catalog: &std::path::Path, out_dir: &std::path::Path) {
     let bin = env!("CARGO_BIN_EXE_render_catalog");
     let (width, height) = (900, 1400);
+    let themes = write_light_theme_catalog(catalog.parent().unwrap());
     let status = Command::new("xvfb-run")
         .args([
             "-a",
@@ -167,6 +188,7 @@ fn run_render_catalog(catalog: &std::path::Path, out_dir: &std::path::Path) {
             &height.to_string(),
         ])
         .env("GDK_BACKEND", "x11")
+        .env("VAUCHI_THEMES_JSON", &themes)
         .status()
         .expect("spawn render-catalog under xvfb-run");
     assert!(status.success(), "render-catalog exited with {status}");
