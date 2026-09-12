@@ -80,6 +80,13 @@ button {{
     color: @vauchi_text_primary;
 }}
 
+/* The `button` ground above outranks libadwaita's own `:checked` fill, so
+   without this the active segment of a toggle group looked idle. */
+button:checked {{
+    background-color: @vauchi_accent;
+    color: @vauchi_bg_primary;
+}}
+
 entry {{
     background-color: @vauchi_bg_tertiary;
     color: @vauchi_text_primary;
