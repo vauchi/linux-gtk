@@ -15,7 +15,14 @@
 //! Usage: render-catalog <catalog.json> <out-dir> [width] [height]
 //!
 //! Writes `<out-dir>/<code_id>.png` (default theme), `<code_id>.light.png`
-//! (first bundled light theme) and `<code_id>.large.png` (150% text scale).
+//! (first light theme) and `<code_id>.large.png` (150% text scale).
+//!
+//! The light theme comes from `VAUCHI_THEMES_JSON` (a generated
+//! `themes.json`) when set, else from the compiled-in catalog. Core built
+//! from a cargo git checkout has no sibling `themes/` repo, so its
+//! compiled-in catalog holds only the default dark theme; rendering the
+//! light variant with it would silently duplicate the default PNGs, so a
+//! missing light theme aborts the run instead.
 //! Accepts the screen catalog (`screens[]`) or, as a fallback, the
 //! presentation contract fixture (`initial_commands` + `steps[]`).
 
@@ -28,7 +35,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Orientation, glib};
 use libadwaita as adw;
 
-use vauchi_app::theme::{Theme, ThemeMode, bundled_themes, default_theme};
+use vauchi_app::theme::{Theme, ThemeMode, bundled_themes, default_theme, load_themes_from_json};
 use vauchi_app::ui::AppEngine;
 use vauchi_core::api::Vauchi;
 use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, MAX_FRAMES_BEFORE_CAPTURE, widget_to_png};
@@ -59,13 +66,10 @@ impl Variant {
         }
     }
 
-    fn theme(self) -> Theme {
+    fn theme(self, themes: &Themes) -> &Theme {
         match self {
-            Variant::Light => bundled_themes()
-                .into_iter()
-                .find(|theme| theme.mode == ThemeMode::Light)
-                .unwrap_or_else(default_theme),
-            Variant::Default | Variant::LargeText => default_theme(),
+            Variant::Light => &themes.light,
+            Variant::Default | Variant::LargeText => &themes.default,
         }
     }
 
@@ -76,14 +80,14 @@ impl Variant {
         }
     }
 
-    fn apply(self) {
-        let theme = self.theme();
+    fn apply(self, themes: &Themes) {
+        let theme = self.theme(themes);
         let scheme = match theme.mode {
             ThemeMode::Light => adw::ColorScheme::ForceLight,
             _ => adw::ColorScheme::ForceDark,
         };
         adw::StyleManager::default().set_color_scheme(scheme);
-        apply_theme(&theme);
+        apply_theme(theme);
         if let Some(settings) = gtk4::Settings::default() {
             settings.set_gtk_xft_dpi((BASE_DPI * self.text_scale() * XFT_DPI_UNIT) as i32);
         }
@@ -94,6 +98,46 @@ struct Job {
     screen: Rc<CatalogScreen>,
     variant: Variant,
     out_path: PathBuf,
+}
+
+struct Themes {
+    default: Theme,
+    light: Theme,
+}
+
+const THEMES_JSON_ENV: &str = "VAUCHI_THEMES_JSON";
+
+fn resolve_themes() -> Themes {
+    let (catalog, origin) = match std::env::var_os(THEMES_JSON_ENV) {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            let bytes = std::fs::read(&path)
+                .unwrap_or_else(|e| panic!("{THEMES_JSON_ENV}={}: {e}", path.display()));
+            let catalog = load_themes_from_json(&bytes)
+                .unwrap_or_else(|e| panic!("{THEMES_JSON_ENV}={}: {e}", path.display()));
+            (catalog, format!("{THEMES_JSON_ENV}={}", path.display()))
+        }
+        None => (bundled_themes(), "compiled-in catalog".to_string()),
+    };
+    let ids: Vec<&str> = catalog.iter().map(|theme| theme.id.as_str()).collect();
+    let light = catalog
+        .iter()
+        .find(|theme| theme.mode == ThemeMode::Light)
+        .cloned()
+        .unwrap_or_else(|| {
+            panic!(
+                "no light theme in {origin} (themes: {ids:?}); set {THEMES_JSON_ENV} to a generated themes.json"
+            )
+        });
+    eprintln!(
+        "[render-catalog] themes from {origin}: default={} light={}",
+        default_theme().id,
+        light.id
+    );
+    Themes {
+        default: default_theme(),
+        light,
+    }
 }
 
 fn main() {
@@ -115,6 +159,7 @@ fn main() {
         Variant::ALL.len()
     );
     let jobs = plan_jobs(loaded.screens, &out_dir);
+    let themes = Rc::new(resolve_themes());
 
     // NON_UNIQUE: parallel test runs share one session bus; a unique
     // GApplication would hand `activate` to the first instance and exit 0
@@ -126,7 +171,7 @@ fn main() {
     app.connect_activate(move |app| {
         let catalog_window = build_app_window(app, width, height);
         catalog_window.window.present();
-        drive_jobs(app, &catalog_window, jobs.clone());
+        drive_jobs(app, &catalog_window, jobs.clone(), themes.clone());
     });
 
     let no_args: [String; 0] = [];
@@ -201,7 +246,12 @@ fn build_app_window(app: &adw::Application, width: i32, height: i32) -> CatalogW
 
 /// Apply one job per `FRAMES_BEFORE_CAPTURE` frames: switch variant, replay
 /// the batch, let the window paint, capture, advance. Quits when drained.
-fn drive_jobs(app: &adw::Application, window: &CatalogWindow, mut jobs: VecDeque<Rc<Job>>) {
+fn drive_jobs(
+    app: &adw::Application,
+    window: &CatalogWindow,
+    mut jobs: VecDeque<Rc<Job>>,
+    themes: Rc<Themes>,
+) {
     let Some(first) = jobs.pop_front() else {
         eprintln!("[render-catalog] nothing to render");
         app.quit();
@@ -210,7 +260,7 @@ fn drive_jobs(app: &adw::Application, window: &CatalogWindow, mut jobs: VecDeque
     let engine = window.app_engine.clone();
     let replay_target = window.replay_target.clone();
     let toast_overlay = window.toast_overlay.clone();
-    start_job(&first, &replay_target, &engine, &toast_overlay);
+    start_job(&first, &themes, &replay_target, &engine, &toast_overlay);
 
     let current = Rc::new(RefCell::new(first));
     let queue = Rc::new(RefCell::new(jobs));
@@ -234,7 +284,7 @@ fn drive_jobs(app: &adw::Application, window: &CatalogWindow, mut jobs: VecDeque
             app.quit();
             return glib::ControlFlow::Break;
         };
-        start_job(&next, &replay_target, &engine, &toast_overlay);
+        start_job(&next, &themes, &replay_target, &engine, &toast_overlay);
         *current.borrow_mut() = next;
         frames.set(0);
         glib::ControlFlow::Continue
@@ -243,6 +293,7 @@ fn drive_jobs(app: &adw::Application, window: &CatalogWindow, mut jobs: VecDeque
 
 fn start_job(
     job: &Job,
+    themes: &Themes,
     replay_target: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
@@ -253,7 +304,7 @@ fn start_job(
         job.variant,
         job.out_path.display()
     );
-    job.variant.apply();
+    job.variant.apply(themes);
     replay_command_batch(
         replay_target,
         app_engine,
