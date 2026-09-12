@@ -62,6 +62,30 @@ window {{
     font-family: "{body_font}";
 }}
 
+/* libadwaita grounds the split view's `.sidebar-pane` but leaves the
+   `.content-pane` transparent, and its buttons, entries and cards fill
+   with `alpha(currentColor, .1)` — a tint of the *text* colour. Under a
+   dark theme the text is light, so wherever nothing opaque lies beneath
+   (the offscreen catalog capture; any pane drawn before the window) the
+   controls come out near-white behind light text. Every surface therefore
+   carries its own opaque theme ground. `entry` covers `SearchEntry` too:
+   both share the `entry` CSS node. */
+.content-pane {{
+    background-color: @vauchi_bg_primary;
+    color: @vauchi_text_primary;
+}}
+
+button {{
+    background-color: @vauchi_bg_tertiary;
+    color: @vauchi_text_primary;
+}}
+
+entry {{
+    background-color: @vauchi_bg_tertiary;
+    color: @vauchi_text_primary;
+    border-color: @vauchi_border;
+}}
+
 .suggested-action {{
     background-color: @vauchi_accent;
     color: @vauchi_bg_primary;
@@ -105,10 +129,6 @@ checkbutton:focus-visible,
 .card {{
     border-color: @vauchi_border;
     background-color: @vauchi_bg_secondary;
-}}
-
-entry {{
-    border-color: @vauchi_border;
 }}
 
 /* Core's PresentationTextStyle::Heading maps to GTK's standard "title-2"
