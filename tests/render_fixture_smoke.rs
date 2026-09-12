@@ -107,6 +107,17 @@ fn render_fixture_writes_valid_png() {
 /// One catalog entry, as `render-catalog` reads it: a Core command batch
 /// keyed by the screen's stable `code_id`.
 fn catalog_entry(code_id: &str, title: &str, nodes: Vec<PresentationNode>) -> serde_json::Value {
+    catalog_entry_with_commands(code_id, title, nodes, Vec::new())
+}
+
+/// `catalog_entry` plus platform commands appended after the surface, the
+/// way an exchange screen's batch carries its hardware requests.
+fn catalog_entry_with_commands(
+    code_id: &str,
+    title: &str,
+    nodes: Vec<PresentationNode>,
+    extra_commands: Vec<vauchi_core::Command>,
+) -> serde_json::Value {
     use vauchi_core::{Command, NavigationItem, NavigationSpec};
 
     let surface = SurfaceSpec {
@@ -136,7 +147,7 @@ fn catalog_entry(code_id: &str, title: &str, nodes: Vec<PresentationNode>) -> se
             badge_count: 0,
         }],
     };
-    let commands = vec![
+    let mut commands = vec![
         Command::ReplaceSurface { surface },
         Command::SetNavigation {
             surface_id: SurfaceId::new(code_id).expect("surface id"),
@@ -144,6 +155,7 @@ fn catalog_entry(code_id: &str, title: &str, nodes: Vec<PresentationNode>) -> se
             navigation,
         },
     ];
+    commands.extend(extra_commands);
     serde_json::json!({
         "code_id": code_id,
         "title": title,
@@ -265,6 +277,78 @@ fn render_catalog_writes_one_png_per_screen_and_variant() {
     assert_ne!(
         contacts, contacts_large,
         "large-text variant is byte-identical to the default text scale"
+    );
+}
+
+fn plain_settings_entry() -> serde_json::Value {
+    catalog_entry(
+        "settings",
+        "Settings",
+        vec![PresentationNode::Progress {
+            label: Some("Storage used".into()),
+            value: Some(0.4),
+            accessibility: AccessibilitySpec::label("Storage used"),
+        }],
+    )
+}
+
+/// A screen whose batch asks for BLE raises the "not available" toast on a
+/// machine without an adapter (every CI runner). That toast belongs to its
+/// own capture only: the next screen's PNG must be byte-identical to the
+/// same screen rendered on its own, with no toast to inherit.
+// @internal
+#[test]
+fn render_catalog_does_not_carry_a_toast_into_the_next_screens_capture() {
+    if !have("xvfb-run") {
+        eprintln!("skip: xvfb-run not available — cannot render headlessly");
+        return;
+    }
+
+    let after_toast = tempfile::tempdir().expect("create isolated render output directory");
+    let alone = tempfile::tempdir().expect("create isolated render output directory");
+    let after_toast_catalog = after_toast.path().join("screen_catalog.json");
+    let alone_catalog = alone.path().join("screen_catalog.json");
+    let ble_screen = catalog_entry_with_commands(
+        "exchange",
+        "Exchange",
+        vec![PresentationNode::Text {
+            id: None,
+            content: "Hold the phones together".into(),
+            style: PresentationTextStyle::Heading,
+            accessibility: AccessibilitySpec::label("Hold the phones together"),
+        }],
+        vec![vauchi_core::Command::BleStartScanning {
+            service_uuid: "0000feed-0000-1000-8000-00805f9b34fb".into(),
+        }],
+    );
+    std::fs::write(
+        &after_toast_catalog,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_version": 1,
+            "screens": [ble_screen, plain_settings_entry()],
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        &alone_catalog,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_version": 1,
+            "screens": [plain_settings_entry()],
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    run_render_catalog(&after_toast_catalog, &after_toast.path().join("out"));
+    run_render_catalog(&alone_catalog, &alone.path().join("out"));
+
+    let settings_after_toast = read_png(&after_toast.path().join("out/settings.png"));
+    let settings_alone = read_png(&alone.path().join("out/settings.png"));
+    assert_eq!(
+        settings_after_toast, settings_alone,
+        "settings.png differs when rendered after a toast-raising screen: \
+         the previous screen's toast leaked into this capture"
     );
 }
 

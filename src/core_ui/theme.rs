@@ -398,6 +398,52 @@ mod tests {
         );
     }
 
+    /// The CSS block that follows `selector` (up to its closing brace), or
+    /// an empty string when no rule opens with exactly that selector line.
+    fn rule_body<'a>(css: &'a str, selector: &str) -> &'a str {
+        let open = format!("\n{selector} {{");
+        css.find(&open)
+            .map(|start| {
+                let body = &css[start + open.len()..];
+                &body[..body.find('}').unwrap_or(body.len())]
+            })
+            .unwrap_or("")
+    }
+
+    /// libadwaita paints the split view's `.sidebar-pane` but leaves the
+    /// `.content-pane` transparent; its buttons, entries and cards fill with
+    /// `alpha(currentColor, .1)`. Under a dark theme the window ground is
+    /// dark, so the transparent pane and its near-transparent controls read
+    /// as white wherever nothing sits beneath them (the offscreen catalog
+    /// capture) while the text stays light-on-dark — every row invisible.
+    /// Each surface therefore takes its own opaque theme ground.
+    // @internal
+    #[test]
+    fn generate_css_grounds_the_content_pane_and_its_controls_in_theme_tokens() {
+        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+
+        for (selector, token) in [
+            (".content-pane", "@vauchi_bg_primary"),
+            (".card", "@vauchi_bg_secondary"),
+            ("button", "@vauchi_bg_tertiary"),
+            ("entry", "@vauchi_bg_tertiary"),
+        ] {
+            let body = rule_body(&css, selector);
+            assert!(
+                body.contains(&format!("background-color: {token}")),
+                "`{selector}` must take its ground from {token}, or under a dark \
+                 theme it stays libadwaita-transparent and reads as white: {body:?}"
+            );
+        }
+        for selector in [".content-pane", "button", "entry"] {
+            assert!(
+                rule_body(&css, selector).contains("color: @vauchi_text_primary"),
+                "`{selector}` must pair its ground with @vauchi_text_primary so \
+                 the text stays readable on it"
+            );
+        }
+    }
+
     #[test]
     fn generate_css_different_themes_produce_different_output() {
         let dark = ThemeColors {
