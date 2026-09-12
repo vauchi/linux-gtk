@@ -18,6 +18,7 @@ include:
       - '/ci-templates/reuse.yml'
       - '/ci-templates/perf.yml'
       - '/ci-templates/design-drift.yml'
+      - '/ci-templates/content-fetch.yml'
       - '/ci-templates/parser-parity.yml'
       - '/ci-templates/removed-symbols.yml'
       - '/ci-templates/badges.yml'
@@ -286,6 +287,13 @@ test:screen-catalog:
     VRT_SCREENSHOT_DIR: build/screen-catalog
     CATALOG_OUT_DIR: build/screen-catalog
     CORE_FIXTURES_API: "${CI_API_V4_URL}/projects/vauchi%2Fcore/repository/files/vauchi-app%2Ffixtures"
+    # The light variant needs a light theme; Core built from a cargo git
+    # checkout compiles in only the default dark one, so the renderer reads
+    # the catalog `.clone-themes` generates from the sibling repo instead.
+    VAUCHI_THEMES_JSON: ../themes/generated/themes.json
+  before_script:
+    - !reference [.self-hosted, before_script]
+    - !reference [.clone-themes, before_script]
   script:
     - mkdir -p "$CATALOG_OUT_DIR"
     - |
