@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{Command, InteractionId};
+use vauchi_core::{Command, InteractionId, SurfaceId};
 
 use super::widgets::{COMMAND_STATE, context_bar_button, dispatch_event, render_bar};
 use super::{environment, overlays, sidebar};
@@ -27,8 +27,23 @@ pub(crate) fn handle_commands(
     let mut presentation_changed = false;
     let mut pending_overlay = None;
     for command in commands {
+        let dropped = describe_revisioned(&command).map(|(kind, surface_id, revision)| {
+            let current = COMMAND_STATE.with(|state| {
+                state
+                    .borrow()
+                    .surface_by_id(surface_id)
+                    .map(|surface| surface.revision)
+            });
+            format!(
+                "{kind} for {} rev {revision}, shell has rev {current:?}",
+                surface_id.as_str()
+            )
+        });
         let accepted = COMMAND_STATE.with(|state| state.borrow_mut().apply(command.clone()));
         if !accepted {
+            if let Some(detail) = dropped {
+                eprintln!("[CoreUI] Failed: dropped {detail}");
+            }
             continue;
         }
         match command {
@@ -190,4 +205,33 @@ pub(super) fn find_widget_by_name(root: &gtk4::Widget, widget_name: &str) -> Opt
         child = widget.next_sibling();
     }
     None
+}
+
+fn describe_revisioned(command: &Command) -> Option<(&'static str, &SurfaceId, u64)> {
+    match command {
+        Command::ReplaceSurface { surface } => {
+            Some(("ReplaceSurface", &surface.surface_id, surface.revision))
+        }
+        Command::SetContextBar {
+            surface_id,
+            revision,
+            ..
+        } => Some(("SetContextBar", surface_id, *revision)),
+        Command::SetNavigation {
+            surface_id,
+            revision,
+            ..
+        } => Some(("SetNavigation", surface_id, *revision)),
+        Command::PresentOverlay {
+            surface_id,
+            revision,
+            ..
+        } => Some(("PresentOverlay", surface_id, *revision)),
+        Command::DismissOverlay {
+            surface_id,
+            revision,
+            ..
+        } => Some(("DismissOverlay", surface_id, *revision)),
+        _ => None,
+    }
 }
