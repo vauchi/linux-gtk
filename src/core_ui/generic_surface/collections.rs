@@ -95,19 +95,71 @@ fn picture_widget(bytes: &[u8], shape: PresentationImageShape) -> Widget {
     )
 }
 
+/// GTK size-request units for an `Image` node's `size` hint — the square,
+/// aspect kept and fit rather than cropped, that a picture (or its
+/// fallback initials) draws into. Extracted so Core's logical units are
+/// asserted without a display, the way `targets::minimum_target_px` pins
+/// the touch-target floor.
+fn sized_square_px(size: u16) -> i32 {
+    i32::from(size)
+}
+
+/// `size` present: the picture is fit inside a `size_px` square,
+/// never cropped, centred in the width it is given — `ContentFit::Contain`
+/// plus `can_shrink` do the fitting; `.avatar`'s CSS-driven sizing does not
+/// apply here, since Core's hint overrides shape-based sizing rather than
+/// adding to it.
+fn sized_picture_widget(bytes: &[u8], size_px: i32) -> Widget {
+    let gbytes = gtk4::glib::Bytes::from(bytes);
+    gtk4::gdk::Texture::from_bytes(&gbytes).map_or_else(
+        |_| sized_fallback_widget("", size_px),
+        |texture| {
+            let picture = gtk4::Picture::for_paintable(&texture);
+            picture.set_content_fit(gtk4::ContentFit::Contain);
+            picture.set_can_shrink(true);
+            picture.set_size_request(size_px, size_px);
+            picture.set_halign(gtk4::Align::Center);
+            picture.upcast()
+        },
+    )
+}
+
+/// The fallback-text (or undecodable-picture) counterpart of
+/// `sized_picture_widget`: Core's contract sizes the fallback to the same
+/// square a picture would have drawn into.
+fn sized_fallback_widget(text: &str, size_px: i32) -> Widget {
+    let label = Label::builder()
+        .label(text)
+        .halign(gtk4::Align::Center)
+        .valign(gtk4::Align::Center)
+        .build();
+    label.set_size_request(size_px, size_px);
+    label.upcast()
+}
+
 fn image_widget(
     content: &ImageContent<'_>,
     shape: PresentationImageShape,
     target_px: i32,
+    size: Option<u16>,
 ) -> Widget {
-    match content {
-        // Nothing to show shows nothing, whatever the shape: an empty
-        // avatar carrying the node's accessibility label would announce a
-        // picture that is not there.
-        ImageContent::Nothing => GtkBox::new(Orientation::Horizontal, 0).upcast(),
+    match (content, size) {
+        // Nothing to show shows nothing, whatever the shape or size: an
+        // empty avatar carrying the node's accessibility label would
+        // announce a picture that is not there.
+        (ImageContent::Nothing, _) => GtkBox::new(Orientation::Horizontal, 0).upcast(),
+        // A `size` hint overrides shape-based sizing outright — it is the
+        // one case core's contract asks to fit rather than crop, so it
+        // takes priority over the `Circle` shape's own avatar crop too.
+        (ImageContent::Picture(bytes), Some(size)) => {
+            sized_picture_widget(bytes, sized_square_px(size))
+        }
+        (ImageContent::Initials(initials), Some(size)) => {
+            sized_fallback_widget(initials, sized_square_px(size))
+        }
         _ if shape_is_circle(shape) => avatar_widget(content, target_px),
-        ImageContent::Picture(bytes) => picture_widget(bytes, shape),
-        ImageContent::Initials(initials) => Label::builder()
+        (ImageContent::Picture(bytes), None) => picture_widget(bytes, shape),
+        (ImageContent::Initials(initials), None) => Label::builder()
             .label(*initials)
             .css_classes(shape_classes(shape))
             .build()
@@ -189,6 +241,7 @@ pub(super) fn render(
             data,
             fallback_text,
             shape,
+            size,
             activation,
             accessibility,
             ..
@@ -197,13 +250,13 @@ pub(super) fn render(
             let target_px = targets::minimum_target_px(tokens);
             activation.as_ref().map_or_else(
                 || {
-                    let widget = image_widget(&content, *shape, target_px);
+                    let widget = image_widget(&content, *shape, target_px, *size);
                     apply_accessibility(&widget, accessibility);
                     widget
                 },
                 |action| {
                     let button = action_button(action, surface_id, on_event, tokens);
-                    button.set_child(Some(&image_widget(&content, *shape, target_px)));
+                    button.set_child(Some(&image_widget(&content, *shape, target_px, *size)));
                     apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
