@@ -12,7 +12,7 @@
 
 use gtk4::prelude::*;
 use gtk4::{
-    AccessibleRole, Align, Box as GtkBox, Image, Label, ListBox, ListBoxRow, Orientation,
+    AccessibleRole, Align, Box as GtkBox, Button, Image, Label, ListBox, ListBoxRow, Orientation,
     PolicyType, ScrolledWindow, SelectionMode,
 };
 use libadwaita as adw;
@@ -201,14 +201,27 @@ pub(super) fn set_collapsed(command_target: &GtkBox, collapsed: bool) {
 fn build_row(item: &NavigationItem, selected: bool) -> ListBoxRow {
     let row = ListBoxRow::new();
     row.set_widget_name(item.interaction_id.as_str());
-    row.set_focusable(true);
-    row.set_accessible_role(AccessibleRole::Tab);
+    // The button below is the focus stop and the accessible tab; a list row
+    // exposes no AT-SPI action, so assistive tech could see a destination
+    // but not choose it (2026-05-16-linux-gtk-atspi-sidebar-navigate).
+    row.set_focusable(false);
     row.add_css_class("vauchi-row");
     row.add_css_class("nav-sidebar-row");
     if selected {
         row.add_css_class("selected");
     }
-    accessibility::apply_label(&row, &item.accessibility_label);
+
+    let button = Button::builder()
+        .accessible_role(AccessibleRole::Tab)
+        .build();
+    button.add_css_class("flat");
+    accessibility::apply_label(&button, &item.accessibility_label);
+    let activated_row = row.downgrade();
+    button.connect_clicked(move |_| {
+        if let Some(row) = activated_row.upgrade() {
+            row.activate();
+        }
+    });
 
     let content = GtkBox::new(Orientation::Horizontal, 8);
     content.set_margin_top(8);
@@ -233,7 +246,8 @@ fn build_row(item: &NavigationItem, selected: bool) -> ListBoxRow {
         content.append(&badge);
     }
 
-    row.set_child(Some(&content));
+    button.set_child(Some(&content));
+    row.set_child(Some(&button));
     row
 }
 
