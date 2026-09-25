@@ -172,6 +172,7 @@ def gtk_app(gtk_binary, _session_data_dir):
 
     yield app_root
 
+    _record_early_exit(proc)
     proc.terminate()
     try:
         proc.wait(timeout=5)
@@ -195,7 +196,22 @@ def _print_app_log_tail(proc):
         _APP_LOGS.append(path)
 
 
+def _record_early_exit(proc):
+    """Note an app that died before its teardown, with the code or signal.
+
+    A native crash (SIGSEGV, SIGABRT) prints nothing to the app's own log.
+    """
+    code = proc.poll()
+    if code is not None:
+        _APP_EXITS.append((getattr(proc, "vauchi_log_path", "?"), code))
+
+
+_APP_EXITS = []
+
+
 def pytest_terminal_summary(terminalreporter):
+    for path, code in _APP_EXITS:
+        terminalreporter.write_line(f"gvauchi exited before teardown: code {code} ({path})")
     for path in _APP_LOGS:
         with open(path, "rb") as log:
             tail = log.read().decode(errors="replace").splitlines()[-80:]
@@ -224,6 +240,7 @@ def gtk_app_fresh(gtk_binary):
 
     yield app_root
 
+    _record_early_exit(proc)
     proc.terminate()
     try:
         proc.wait(timeout=5)
@@ -258,6 +275,7 @@ def gtk_app_seeded_isolated(gtk_binary):
 
     yield app_root, proc
 
+    _record_early_exit(proc)
     if proc.poll() is None:
         proc.terminate()
         try:
@@ -286,6 +304,7 @@ def gtk_app_onboarding(gtk_binary):
 
     yield app_root
 
+    _record_early_exit(proc)
     proc.terminate()
     try:
         proc.wait(timeout=5)
