@@ -263,7 +263,24 @@ pub(super) fn dispatch_event(
     let origin = origin.cloned();
     glib::idle_add_local_once(move || {
         let commands = match app_engine.borrow_mut().dispatch(event) {
-            Ok(commands) => commands,
+            Ok(commands) => {
+                let kinds: Vec<String> = commands
+                    .iter()
+                    .map(|command| match command {
+                        vauchi_core::Command::ReplaceSurface { surface } => format!(
+                            "ReplaceSurface({}@{})",
+                            surface.surface_id.as_str(),
+                            surface.revision
+                        ),
+                        other => format!("{other:?}")
+                            .chars()
+                            .take_while(|c| c.is_alphanumeric())
+                            .collect(),
+                    })
+                    .collect();
+                eprintln!("[CoreUI] diag: dispatch ok -> {kinds:?}");
+                commands
+            }
             Err(error) => {
                 eprintln!("[CoreUI] Failed: dispatch rejected: {error}");
                 return;

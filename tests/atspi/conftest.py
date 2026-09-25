@@ -214,7 +214,7 @@ def pytest_terminal_summary(terminalreporter):
         terminalreporter.write_line(f"gvauchi exited before teardown: code {code} ({path})")
     for path in _APP_LOGS:
         with open(path, "rb") as log:
-            tail = log.read().decode(errors="replace").splitlines()[-80:]
+            tail = log.read().decode(errors="replace").splitlines()[-400:]
         terminalreporter.write_sep("-", f"gvauchi output: {path} (last {len(tail)} lines)")
         for line in tail:
             terminalreporter.write_line(line)
