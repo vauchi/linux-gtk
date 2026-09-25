@@ -173,16 +173,34 @@ def open_navigation(app, timeout=3.0):
     return None
 
 
-def sidebar_names(app):
-    """Compatibility name: return destinations from the navigation overlay."""
+def sidebar_tabs(app):
+    """Destinations the persistent sidebar shows, as page-tab accessibles.
+
+    While the sidebar is expanded GTK does not present the navigation
+    overlay at all (overlays::present, D4), so this is the only place the
+    destinations exist; it is empty when the split view has collapsed.
+    """
+    return [tab for tab in find_all(app, role="page tab") if tab.get_name()]
+
+
+def navigation_destinations(app):
+    """Core's destinations wherever the window shows them: sidebar or overlay."""
+    tabs = sidebar_tabs(app)
+    if tabs:
+        return tabs
     overlay = open_navigation(app)
     if overlay is None:
         return []
     return [
-        button.get_name()
+        button
         for button in find_all(overlay, role="button", max_depth=8)
         if button.get_name()
     ]
+
+
+def sidebar_names(app):
+    """Destination names from the sidebar, or from the overlay when collapsed."""
+    return [destination.get_name() for destination in navigation_destinations(app)]
 
 
 def wait_for_labels_loaded(app, timeout=5.0):
@@ -215,6 +233,27 @@ def _wait_for_stable_fingerprint(
     return last
 
 
+def _activate_sidebar_tab(app, tab, screen_label):
+    """Choose a sidebar destination and confirm the content changed."""
+    try:
+        action = tab.get_action_iface()
+        if not (action and action.get_n_actions() > 0):
+            _warn(f"sidebar tab '{screen_label}' exposes no AT-SPI action")
+            return False
+        before = content_fingerprint(app)
+        if not action.do_action(0):
+            _warn(f"do_action rejected for sidebar tab '{screen_label}'")
+            return False
+        final = _wait_for_stable_fingerprint(app)
+        if final == before:
+            _warn(f"activating sidebar tab '{screen_label}' left the content tree unchanged")
+            return False
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _warn(f"navigation to '{screen_label}' via the sidebar failed: {exc}")
+        return False
+
+
 def navigate_to(app, screen_label):
     """Choose a Core-provided destination and confirm a settled transition.
 
@@ -223,6 +262,9 @@ def navigate_to(app, screen_label):
     """
     if screen_label in SETTINGS_ROUTES:
         return _navigate_via_settings(app, SETTINGS_ROUTES[screen_label])
+    tab = next((t for t in sidebar_tabs(app) if t.get_name() == screen_label), None)
+    if tab is not None:
+        return _activate_sidebar_tab(app, tab, screen_label)
     overlay = open_navigation(app)
     if overlay is None:
         _warn(f"navigation overlay did not open for '{screen_label}'")

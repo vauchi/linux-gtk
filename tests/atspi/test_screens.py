@@ -4,35 +4,30 @@
 """Contextual navigation and generic-surface verification via AT-SPI."""
 
 from helpers import dump_tree, find_all
-from navigation import EXPECTED_DESTINATIONS, open_navigation
+from navigation import EXPECTED_DESTINATIONS, navigation_destinations
 
 
 class TestContextualNavigation:
-    """The native navigation overlay mirrors Core's command model."""
+    """Core's destinations reach the window: in the sidebar while it is
+    expanded (the overlay is then not presented, D4), else in the overlay."""
 
     def test_overlay_has_expected_destinations(self, gtk_app):
-        overlay = open_navigation(gtk_app)
-        assert overlay is not None, dump_tree(gtk_app, 12)
-        names = [
-            button.get_name()
-            for button in find_all(overlay, role="button")
-            if button.get_name()
-        ]
+        destinations = navigation_destinations(gtk_app)
+        assert destinations, dump_tree(gtk_app, 12)
+        names = [destination.get_name() for destination in destinations]
         assert all(name in names for name in EXPECTED_DESTINATIONS), names
 
     def test_destination_actions_have_labels(self, gtk_app):
-        overlay = open_navigation(gtk_app)
-        assert overlay is not None
-        for button in find_all(overlay, role="button"):
-            assert button.get_name(), dump_tree(button)
+        destinations = navigation_destinations(gtk_app)
+        assert destinations, dump_tree(gtk_app, 12)
+        for destination in destinations:
+            assert destination.get_name(), dump_tree(destination)
 
     def test_destination_actions_are_invocable(self, gtk_app):
-        overlay = open_navigation(gtk_app)
-        assert overlay is not None
-        buttons = find_all(overlay, role="button")
-        assert buttons
-        for button in buttons:
-            action = button.get_action_iface()
+        destinations = navigation_destinations(gtk_app)
+        assert destinations, dump_tree(gtk_app, 12)
+        for destination in destinations:
+            action = destination.get_action_iface()
             assert action is not None and action.get_n_actions() > 0
 
 
