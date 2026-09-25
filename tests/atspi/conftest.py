@@ -218,6 +218,7 @@ def gtk_app_fresh(gtk_binary):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+    _print_app_log_tail(proc)
 
     shutil.rmtree(data_dir, ignore_errors=True)
 
@@ -279,5 +280,6 @@ def gtk_app_onboarding(gtk_binary):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+    _print_app_log_tail(proc)
 
     shutil.rmtree(data_dir, ignore_errors=True)
