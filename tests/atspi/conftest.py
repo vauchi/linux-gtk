@@ -181,15 +181,27 @@ def gtk_app(gtk_binary, _session_data_dir):
     _print_app_log_tail(proc)
 
 
-def _print_app_log_tail(proc, lines=80):
-    """Show the shared app's own output in the CI log after the session."""
+_APP_LOGS = []
+
+
+def _print_app_log_tail(proc):
+    """Queue this app's own output for the end-of-run report.
+
+    Written from `pytest_terminal_summary`, because pytest captures file
+    descriptor 2 during fixtures and drops what a teardown prints.
+    """
     path = getattr(proc, "vauchi_log_path", None)
-    if not path or not os.path.exists(path):
-        return
-    with open(path, "rb") as log:
-        tail = log.read().decode(errors="replace").splitlines()[-lines:]
-    sys.__stderr__.write(f"\n--- gvauchi output (last {len(tail)} lines, {path}) ---\n")
-    sys.__stderr__.write("\n".join(tail) + "\n--- end gvauchi output ---\n")
+    if path and os.path.exists(path):
+        _APP_LOGS.append(path)
+
+
+def pytest_terminal_summary(terminalreporter):
+    for path in _APP_LOGS:
+        with open(path, "rb") as log:
+            tail = log.read().decode(errors="replace").splitlines()[-80:]
+        terminalreporter.write_sep("-", f"gvauchi output: {path} (last {len(tail)} lines)")
+        for line in tail:
+            terminalreporter.write_line(line)
 
 
 @pytest.fixture(scope="session")
