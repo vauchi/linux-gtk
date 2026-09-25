@@ -438,7 +438,7 @@ fn render_row(
 // widget without a display.
 #[cfg(test)]
 mod image_content_tests {
-    use super::{ImageContent, image_content, shape_is_circle};
+    use super::{ImageContent, image_content, shape_is_circle, sized_square_px};
     use vauchi_core::PresentationImageShape;
 
     // @internal
@@ -486,5 +486,11 @@ mod image_content_tests {
     fn only_circle_resolves_to_the_avatar_widget() {
         assert!(shape_is_circle(PresentationImageShape::Circle));
         assert!(!shape_is_circle(PresentationImageShape::Natural));
+    }
+
+    // @internal
+    #[test]
+    fn sized_square_px_carries_cores_logical_units_into_gtk_pixels() {
+        assert_eq!(sized_square_px(88), 88);
     }
 }
