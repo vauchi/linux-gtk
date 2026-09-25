@@ -92,7 +92,11 @@ pub(super) fn render(
             let blur_surface = surface.clone();
             let blur_callback = callback.clone();
             entry.connect_has_focus_notify(move |entry| {
-                if !entry.has_focus() {
+                // A rebuild that tears this entry down also takes its focus.
+                // Reporting that as the user leaving the field made Core
+                // re-present the same surface, whose new entry took focus and
+                // was torn down again: an endless onboarding loop (linux-gtk!207).
+                if !entry.has_focus() && entry.is_mapped() && entry.root().is_some() {
                     emit_value(
                         &blur_surface,
                         &blur_id,
