@@ -11,6 +11,7 @@ which causes "did not appear in AT-SPI tree" timeouts on CI.
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -67,12 +68,17 @@ def _launch_and_find(binary, env, attempts=2, find_timeout=15.0):
     last_stderr = ""
     last_stdout = ""
     for attempt in range(1, attempts + 1):
+        # A file, not a pipe: nothing reads the pipe while the app runs, so
+        # once it filled the app blocked on its next write and froze.
+        log_path = tempfile.mkstemp(prefix="gvauchi-", suffix=".log")[1]
+        log_file = open(log_path, "wb")
         proc = subprocess.Popen(
             [binary],
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
         )
+        proc.vauchi_log_path = log_path
         deadline = time.monotonic() + find_timeout
         app_root = None
         while time.monotonic() < deadline and app_root is None:
@@ -87,11 +93,11 @@ def _launch_and_find(binary, env, attempts=2, find_timeout=15.0):
 
         proc.kill()
         try:
-            stdout, stderr = proc.communicate(timeout=5)
-            last_stdout = stdout.decode(errors="replace")[:500]
-            last_stderr = stderr.decode(errors="replace")[:500]
-        except subprocess.TimeoutExpired:
             proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        with open(log_path, "rb") as log:
+            last_stderr = log.read().decode(errors="replace")[-500:]
 
     try:
         desktop_dump = dump_tree(Atspi.get_desktop(0), max_depth=2)
@@ -172,6 +178,18 @@ def gtk_app(gtk_binary, _session_data_dir):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+    _print_app_log_tail(proc)
+
+
+def _print_app_log_tail(proc, lines=80):
+    """Show the shared app's own output in the CI log after the session."""
+    path = getattr(proc, "vauchi_log_path", None)
+    if not path or not os.path.exists(path):
+        return
+    with open(path, "rb") as log:
+        tail = log.read().decode(errors="replace").splitlines()[-lines:]
+    sys.__stderr__.write(f"\n--- gvauchi output (last {len(tail)} lines, {path}) ---\n")
+    sys.__stderr__.write("\n".join(tail) + "\n--- end gvauchi output ---\n")
 
 
 @pytest.fixture(scope="session")

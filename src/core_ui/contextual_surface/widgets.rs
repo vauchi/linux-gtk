@@ -262,8 +262,12 @@ pub(super) fn dispatch_event(
     let toast_overlay = toast_overlay.clone();
     let origin = origin.cloned();
     glib::idle_add_local_once(move || {
-        let Ok(commands) = app_engine.borrow_mut().dispatch(event) else {
-            return;
+        let commands = match app_engine.borrow_mut().dispatch(event) {
+            Ok(commands) => commands,
+            Err(error) => {
+                eprintln!("[CoreUI] Failed: dispatch rejected: {error}");
+                return;
+            }
         };
         super::commands::handle_commands(
             &container,
