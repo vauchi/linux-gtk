@@ -49,7 +49,8 @@ EXPECTED_DESTINATIONS = [
 # use, valued by the Settings row that Core routes to it
 # (`intercept/settings.rs`: "help_center" → AppScreen::Help).
 SETTINGS_ROUTES = {
-    "Help": "Help Center",
+    # core v0.67.1 restructured Settings; the `help_center` row reads "Help".
+    "Help": "Help",
 }
 
 
