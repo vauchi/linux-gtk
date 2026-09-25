@@ -50,12 +50,16 @@ class TestOnboardingWorkflow:
             timeout=5.0,
         ) is not None
         assert click_button(app, "Create new identity")
-        assert wait_for_element(
+        name_field = wait_for_element(
             app,
             role="text",
             name="Display name input",
             timeout=5.0,
-        ) is not None, dump_tree(app, max_depth=12)
+        )
+        assert name_field is not None, (
+            f"top-level children after Create: {_child_summary(app)}\n"
+            f"{dump_tree(app, max_depth=12)}"
+        )
 
         assert set_text(app, "Display name input", "Harness Explorer")
         assert click_button(app, "Continue")
@@ -150,3 +154,15 @@ class TestHardwareDegradation:
         assert gtk_app is not None
         labels = find_all(gtk_app, role="label")
         assert len(labels) > 0
+
+
+def _child_summary(app):
+    """Name the app's top-level windows; an empty list means none survived."""
+    try:
+        return [
+            f"{child.get_role_name()}:{child.get_name()!r}"
+            for child in (app.get_child_at_index(i) for i in range(app.get_child_count()))
+            if child is not None
+        ]
+    except Exception as exc:  # noqa: BLE001
+        return f"<unreadable: {exc}>"
