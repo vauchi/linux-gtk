@@ -244,6 +244,16 @@ def _activate_sidebar_tab(app, tab, screen_label):
         if not action.do_action(0):
             _warn(f"do_action rejected for sidebar tab '{screen_label}'")
             return False
+        # The shell dispatches on the next idle and redraws after Core
+        # answers, so a stability wait alone can settle on the old tree.
+        try:
+            wait_until(
+                lambda: content_fingerprint(app) != before,
+                timeout=3.0,
+                message=f"content did not change after choosing {screen_label!r}",
+            )
+        except AssertionError:
+            pass
         final = _wait_for_stable_fingerprint(app)
         if final == before:
             _warn(f"activating sidebar tab '{screen_label}' left the content tree unchanged")
