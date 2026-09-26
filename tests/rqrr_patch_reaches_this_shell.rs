@@ -6,43 +6,40 @@
 //! solely inside the workspace that declares it, so without a stanza of our
 //! own this crate resolves upstream `rqrr` from crates.io — unclamped — under
 //! `panic = "abort"`. This test reads the lock file the binary was built from
-//! and fails the moment `rqrr` resolves from the registry again.
+//! and fails the moment `rqrr` resolves from the registry again — including
+//! when a stale redirect leaves the fork as a dead second entry.
 //! Record: `_private/docs/problems/2026-09-10-linux-gtk-unpatched-rqrr-abort-path/`.
 
 const LOCK: &str = include_str!("../Cargo.lock");
 
-fn rqrr_source() -> Option<String> {
+fn rqrr_sources() -> Vec<String> {
+    let mut sources = Vec::new();
     let mut in_rqrr = false;
     for line in LOCK.lines() {
         let line = line.trim();
         if line == "[[package]]" {
             in_rqrr = false;
-            continue;
-        }
-        if line == "name = \"rqrr\"" {
+        } else if line == "name = \"rqrr\"" {
             in_rqrr = true;
-            continue;
-        }
-        if !in_rqrr {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix("source = ") {
-            return Some(rest.trim_matches('"').to_string());
+        } else if in_rqrr && let Some(rest) = line.strip_prefix("source = ") {
+            sources.push(rest.trim_matches('"').to_string());
         }
     }
-    None
+    sources
 }
 
 // @scenario: exchange :: A malformed QR frame never aborts the desktop shell
 #[test]
 fn rqrr_resolves_from_the_vendored_fork_not_the_registry() {
-    let source = rqrr_source().expect("Cargo.lock lists an rqrr package with a source");
-    assert!(
-        source.starts_with("git+https://gitlab.com/vauchi/core.git"),
-        "rqrr must come from core's vendored fork (clamped perspective), got: {source}"
+    let sources = rqrr_sources();
+    assert_eq!(
+        sources.len(),
+        1,
+        "exactly one rqrr must resolve; two means the redirect names a stale tag: {sources:?}"
     );
     assert!(
-        !source.starts_with("registry+"),
-        "rqrr resolved from crates.io — the abort path is live again"
+        sources[0].starts_with("git+https://gitlab.com/vauchi/core.git"),
+        "rqrr must come from core's vendored fork (clamped perspective), got: {}",
+        sources[0]
     );
 }
