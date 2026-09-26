@@ -18,9 +18,16 @@ old test only checked that the action was *callable* (`navigated == True`)
 — here we assert the screen actually transitions.
 """
 
+import time
+
 import pytest
 
-from navigation import EXPECTED_DESTINATIONS, content_fingerprint, navigate_to
+from navigation import (
+    EXPECTED_DESTINATIONS,
+    content_fingerprint,
+    navigate_to,
+    sidebar_tabs,
+)
 
 
 def test_contextual_navigation_changes_screen(gtk_app):
@@ -50,4 +57,24 @@ def test_contextual_navigation_changes_screen(gtk_app):
         f"Expected >= 2 sidebar screens to transition; got {transitioned}. "
         "AT-SPI contextual navigation action is a no-op "
         "(see 2026-05-16-linux-gtk-atspi-sidebar-navigate)."
+    )
+
+
+def test_navigation_leaves_the_sidebar_state_alone(gtk_app):
+    """Choosing a destination must not collapse or restore the sidebar.
+
+    The window's size does not change here, so neither may the split
+    view. The shell once measured its width inside the split view, which
+    narrows while the sidebar is shown: Medium showed the sidebar, the
+    narrower report flipped Core to Compact, collapsing it widened the
+    report back to Medium — one flip per interaction inside that band.
+    """
+    shown = [bool(sidebar_tabs(gtk_app))]
+    for screen in EXPECTED_DESTINATIONS:
+        navigate_to(gtk_app, screen)
+        time.sleep(0.5)
+        shown.append(bool(sidebar_tabs(gtk_app)))
+    assert len(set(shown)) == 1, (
+        f"sidebar shown before and after each navigation: {shown} "
+        f"(destinations {EXPECTED_DESTINATIONS})"
     )
