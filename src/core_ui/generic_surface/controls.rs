@@ -92,11 +92,15 @@ pub(super) fn render(
             let blur_surface = surface.clone();
             let blur_callback = callback.clone();
             entry.connect_has_focus_notify(move |entry| {
-                // A rebuild that tears this entry down also takes its focus.
-                // Reporting that as the user leaving the field made Core
-                // re-present the same surface, whose new entry took focus and
-                // was torn down again: an endless onboarding loop (linux-gtk!207).
-                if !entry.has_focus() && entry.is_mapped() && entry.root().is_some() {
+                // The focus lands on the entry's inner `GtkText`, so the
+                // entry's own `has_focus()` is false even while it is being
+                // typed in — focus *arriving* looked like focus loss. And
+                // an entry the shell has just dropped for a re-render
+                // reports its loss after leaving the window; that is the
+                // shell's doing, not the user leaving the field.
+                if !entry.state_flags().contains(gtk4::StateFlags::FOCUS_WITHIN)
+                    && entry.root().is_some()
+                {
                     emit_value(
                         &blur_surface,
                         &blur_id,
