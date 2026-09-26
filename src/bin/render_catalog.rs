@@ -281,7 +281,9 @@ fn drive_jobs(
         app.quit();
         return;
     };
+    let settled = Rc::new(Cell::new(false));
     start_job(&first, &themes, &window);
+    settle_after_replay(&settled);
 
     let current = Rc::new(RefCell::new(first));
     let queue = Rc::new(RefCell::new(jobs));
@@ -289,6 +291,9 @@ fn drive_jobs(
     let app = app.clone();
     let root = window.root.clone();
     root.add_tick_callback(move |widget, _clock| {
+        if !settled.get() {
+            return glib::ControlFlow::Continue;
+        }
         frames.set(frames.get() + 1);
         if frames.get() < FRAMES_BEFORE_CAPTURE {
             return glib::ControlFlow::Continue;
@@ -307,9 +312,25 @@ fn drive_jobs(
             return glib::ControlFlow::Break;
         };
         start_job(&next, &themes, &window);
+        settle_after_replay(&settled);
         *current.borrow_mut() = next;
         frames.set(0);
         glib::ControlFlow::Continue
+    });
+}
+
+/// Hold the capture countdown until the events a replay queued have reached
+/// Core. A replayed platform command (BLE scan, say) answers with an event on
+/// a default-priority idle, and Core's reply re-renders the window; counted
+/// from the replay, the capture could beat that reply and the next job
+/// would show it instead. GLib runs no low-priority idle while a
+/// default-priority one is pending, so this one fires after them.
+fn settle_after_replay(settled: &Rc<Cell<bool>>) {
+    settled.set(false);
+    let settled = settled.clone();
+    glib::idle_add_local_full(glib::Priority::LOW, move || {
+        settled.set(true);
+        glib::ControlFlow::Break
     });
 }
 
