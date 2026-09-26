@@ -26,6 +26,9 @@ include:
       - '/ci-templates/github-mirror.yml'
       - '/ci-templates/vrt-upload.yml'
       - '/ci-templates/coverage.yml'
+      - '/ci-templates/verified-fetch.yml'
+      - '/ci-templates/tool-install.yml'
+      - '/ci-templates/cross-cutting-lint.yml'
 
 variables:
   VAUCHI_SCRIPTS_REF: "ci-templates-v2026.09.26"
@@ -509,12 +512,24 @@ verify:upstream-prerelease:
 # ============================================================
 # Only run on tags or manual trigger — not on every MR.
 
+# Exact-zero release gate (ADR-066): package:deb/package:rpm run on any
+# tag (bare $CI_COMMIT_TAG, not just semver), so this overrides the
+# shared template's semver-only default rule to match — otherwise a
+# non-semver tag push would create those jobs without this one existing
+# alongside them, and their `needs:` would reference an absent job.
+release:ratchet-zero:
+  extends: .release-ratchet-zero
+  rules:
+    - if: $CI_COMMIT_TAG
+
 package:deb:
   stage: package
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/debian:bookworm
   tags: [docker]
   needs:
     - job: build:app
+      optional: true
+    - job: release:ratchet-zero
       optional: true
   before_script:
     - apt-get update -qq
@@ -539,6 +554,8 @@ package:rpm:
   needs:
     - job: build:app
       optional: true
+    - job: release:ratchet-zero
+      optional: true
   before_script:
     - dnf install -y rpm-build cargo rust gtk4-devel libadwaita-devel
         qrencode-devel pkgconfig
@@ -562,7 +579,9 @@ package:flatpak:
   stage: package
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/bilelmoussaoui/flatpak-github-actions:gnome-47
   tags: [docker]
-  needs: []
+  needs:
+    - job: release:ratchet-zero
+      optional: true
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -585,6 +604,8 @@ package:appimage:
   # job, but 'build:app' does not exist in the pipeline").
   needs:
     - job: build:app
+      optional: true
+    - job: release:ratchet-zero
       optional: true
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
