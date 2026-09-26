@@ -99,7 +99,6 @@ fn build_wrapper(
     let app_engine = app_engine.clone();
     let toast_overlay = toast_overlay.clone();
     list.connect_row_activated(move |_, row| {
-        eprintln!("[CoreUI] diag: sidebar row_activated {}", row.widget_name());
         let Ok(interaction_id) = InteractionId::new(row.widget_name().as_str()) else {
             return;
         };
@@ -219,16 +218,8 @@ fn build_row(item: &NavigationItem, selected: bool) -> ListBoxRow {
     accessibility::apply_label(&button, &item.accessibility_label);
     let activated_row = row.downgrade();
     button.connect_clicked(move |_| {
-        // Emit the list's own signal rather than `row.activate()`, which
-        // left the content unchanged in CI (linux-gtk!207): the one
-        // `row_activated` handler below dispatches either way.
-        let Some(row) = activated_row.upgrade() else {
-            eprintln!("[CoreUI] diag: sidebar tab clicked, row gone");
-            return;
-        };
-        eprintln!("[CoreUI] diag: sidebar tab clicked {}", row.widget_name());
-        if let Some(list) = row.parent().and_downcast::<ListBox>() {
-            list.emit_by_name::<()>("row-activated", &[&row]);
+        if let Some(row) = activated_row.upgrade() {
+            row.activate();
         }
     });
 
