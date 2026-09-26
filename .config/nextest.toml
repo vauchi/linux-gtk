@@ -5,3 +5,14 @@
 [profile.ci.junit]
 # Path is relative to nextest's output dir (target/nextest/ci/), not project root.
 path = "junit.xml"
+
+# Each smoke test starts its own `xvfb-run -a`, which picks a display by
+# scanning lock files before Xvfb takes one, so concurrent runs pick the same
+# display. Debian's script retries on the next number; Arch's does not, and
+# its `kill` of the lost server then fails the test.
+[test-groups]
+xvfb = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'binary(render_fixture_smoke)'
+test-group = 'xvfb'
