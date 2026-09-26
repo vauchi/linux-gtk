@@ -28,13 +28,17 @@ pub(crate) fn install_environment_reporting(
     });
 }
 
+/// Reports the window's size, never `container`'s: the container sits inside
+/// the sidebar split view, so its width shrinks when Core's Medium class
+/// shows the sidebar — reporting it would flip Core back to Compact, which
+/// collapses the sidebar and widens the container again, on every
+/// interaction.
 pub(super) fn report_environment(container: &GtkBox, app_engine: &Rc<RefCell<AppEngine>>) {
-    report_environment_with_size(
-        container,
-        app_engine,
-        container.width().max(1),
-        container.height().max(1),
+    let (width, height) = container.root().map_or_else(
+        || (container.width(), container.height()),
+        |root| (root.width(), root.height()),
     );
+    report_environment_with_size(container, app_engine, width.max(1), height.max(1));
 }
 
 fn report_environment_with_size(
