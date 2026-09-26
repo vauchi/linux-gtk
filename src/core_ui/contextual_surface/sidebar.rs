@@ -164,24 +164,6 @@ pub(super) fn update(command_target: &GtkBox, navigation: Option<&NavigationSpec
     }
 }
 
-/// Whether the split view is currently showing its sidebar pane rather than
-/// collapsed to a narrow single column.
-///
-/// `overlays::present` reads this to decide whether a
-/// `PresentOverlay(Navigation)` still needs its modal fallback (D4): a
-/// nonexistent split view (the offscreen render-fixture harness, or a
-/// window not yet built) behaves as collapsed, so the modal keeps working
-/// exactly as it did before this sidebar existed.
-pub(super) fn is_expanded(command_target: &GtkBox) -> bool {
-    let Some(root) = command_target.root() else {
-        return false;
-    };
-    let root: gtk4::Widget = root.upcast();
-    super::commands::find_widget_by_name(&root, SPLIT_VIEW_NAME)
-        .and_then(|widget| widget.downcast::<adw::OverlaySplitView>().ok())
-        .is_some_and(|split_view| !split_view.is_collapsed())
-}
-
 /// Collapse the split view to a single column, or restore the sidebar
 /// pane. Driven by Core's `WindowClass` (`environment::apply_window_class`)
 /// rather than a shell-computed width — a window without the split view

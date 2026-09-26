@@ -9,7 +9,7 @@ from navigation import EXPECTED_DESTINATIONS, navigation_destinations
 
 class TestContextualNavigation:
     """Core's destinations reach the window: in the sidebar while it is
-    expanded (the overlay is then not presented, D4), else in the overlay."""
+    expanded, else in the overlay."""
 
     def test_overlay_has_expected_destinations(self, gtk_app):
         destinations = navigation_destinations(gtk_app)

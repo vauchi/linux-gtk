@@ -107,14 +107,11 @@ fn build_ui(app: &adw::Application) {
     toast_overlay.set_hexpand(true);
 
     // F6/D4: a persistent sidebar for the destinations Core publishes via
-    // `SetNavigation`, alongside the toast-wrapped content pane. The
-    // navigation overlay's modal (`overlays::present`) keeps working as the
-    // fallback once this split view collapses to a single column.
+    // `SetNavigation`, alongside the toast-wrapped content pane. Core's
+    // navigation overlay still opens on request, sidebar shown or not.
     let split_view = build_split_view(&content, &app_engine, &toast_overlay);
 
     root.append(&split_view);
-
-    render_current_surface(&content, &app_engine, &toast_overlay);
 
     // Register event handler for background screen invalidation (Plan 2C).
     // Core events (sync, contact updates, etc.) re-render the active screen
@@ -133,6 +130,13 @@ fn build_ui(app: &adw::Application) {
         .default_height(600)
         .content(&root)
         .build();
+
+    // After the window exists, never before: the sidebar and the
+    // environment report both look up the window from `content`, and a
+    // render with no root drops Core's first `SetNavigation` — the sidebar
+    // then stays empty while the split view, still expanded, suppresses
+    // the navigation overlay too.
+    render_current_surface(&content, &app_engine, &toast_overlay);
 
     // Auto-lock: navigate to lock screen when window loses focus (C1 App Security)
     {

@@ -176,9 +176,8 @@ def open_navigation(app, timeout=3.0):
 def sidebar_tabs(app):
     """Destinations the persistent sidebar shows, as page-tab accessibles.
 
-    While the sidebar is expanded GTK does not present the navigation
-    overlay at all (overlays::present, D4), so this is the only place the
-    destinations exist; it is empty when the split view has collapsed.
+    Empty when the split view has collapsed; the navigation overlay offers
+    the same destinations either way.
     """
     return [tab for tab in find_all(app, role="page tab") if tab.get_name()]
 

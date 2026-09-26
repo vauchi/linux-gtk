@@ -24,13 +24,8 @@ pub(super) fn present(
     origin: Option<&Button>,
 ) {
     match overlay.kind {
-        // D4: a nonempty persistent sidebar already shows every destination,
-        // so the modal only earns its keep as the narrow-window fallback —
-        // when the split view has collapsed to a single column.
         OverlayKind::Navigation => {
-            if !super::sidebar::is_expanded(container) {
-                present_navigation(container, app_engine, toast_overlay, surface_id, overlay)
-            }
+            present_navigation(container, app_engine, toast_overlay, surface_id, overlay)
         }
         OverlayKind::ActionMenu => {
             if let Some(origin) = origin {
