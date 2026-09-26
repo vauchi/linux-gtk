@@ -33,11 +33,16 @@ cargo test
 
 ## Architecture
 
-This app implements the core-driven UI contract:
+This app is a display-only shell: core emits generic, fully prepared
+presentation commands, and the app reports opaque events back.
 
-- **ScreenRenderer** renders `ScreenModel` from core (direct Rust types)
-- **Component renderers** (one per core `Component` enum variant) using GTK4 widgets
-- **ActionHandler** maps user input to `UserAction` enum
+- **Generic surface** (`src/core_ui/generic_surface`) renders core's
+  presentation commands with GTK4 widgets
+- **Contextual surface** (`src/core_ui/contextual_surface`) maps core's
+  back, navigation, primary, and secondary roles to native bars and
+  overlays
+- **Action dispatcher** (`src/core_ui/action_dispatcher`) reports user
+  input to core as opaque events
 - **Platform chrome**: HeaderBar, GNotification, libadwaita styling
 
 All business logic lives in `vauchi-core` (Rust). This repo is a pure rendering layer.
