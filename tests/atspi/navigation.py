@@ -215,9 +215,16 @@ def wait_for_labels_loaded(app, timeout=5.0):
 
 
 def _wait_for_stable_fingerprint(
-    app, timeout=2.0, interval=0.05, required_stable_reads=3
+    app, timeout=2.0, interval=0.05, required_stable_reads=3, changed_from=None
 ):
+    # The shell hands the event to Core on the next main-loop idle and
+    # AT-SPI publishes the rebuilt tree after that, so an early read still
+    # shows the old screen — and three identical old reads look "stable".
+    # Wait for the change to start before waiting for it to settle.
     deadline = time.monotonic() + timeout
+    if changed_from is not None:
+        while time.monotonic() < deadline and content_fingerprint(app) == changed_from:
+            time.sleep(interval)
     last = content_fingerprint(app)
     stable = 1
     while time.monotonic() < deadline:
@@ -244,17 +251,7 @@ def _activate_sidebar_tab(app, tab, screen_label):
         if not action.do_action(0):
             _warn(f"do_action rejected for sidebar tab '{screen_label}'")
             return False
-        # The shell dispatches on the next idle and redraws after Core
-        # answers, so a stability wait alone can settle on the old tree.
-        try:
-            wait_until(
-                lambda: content_fingerprint(app) != before,
-                timeout=3.0,
-                message=f"content did not change after choosing {screen_label!r}",
-            )
-        except AssertionError:
-            pass
-        final = _wait_for_stable_fingerprint(app)
+        final = _wait_for_stable_fingerprint(app, changed_from=before)
         if final == before:
             _warn(f"activating sidebar tab '{screen_label}' left the content tree unchanged")
             return False
@@ -305,7 +302,7 @@ def navigate_to(app, screen_label):
             timeout=3.0,
             message=f"Navigation overlay remained open after choosing {screen_label!r}",
         )
-        final = _wait_for_stable_fingerprint(app)
+        final = _wait_for_stable_fingerprint(app, changed_from=before)
         if final == before:
             _warn(f"activating '{screen_label}' left the content tree unchanged")
             return False
@@ -337,7 +334,7 @@ def _navigate_via_settings(app, row_label):
         if not action.do_action(0):
             _warn(f"do_action rejected for Settings row '{row_label}'")
             return False
-        final = _wait_for_stable_fingerprint(app)
+        final = _wait_for_stable_fingerprint(app, changed_from=before)
         if final == before:
             _warn(
                 f"activating Settings row '{row_label}' left the content tree unchanged"
