@@ -43,6 +43,7 @@ fn list_rows_keep_primary_and_secondary_actions_opaque() {
     let original = PresentationNode::List {
         id: BindingId::new("items").expect("binding id"),
         label: Some("Items".into()),
+        style: vauchi_core::PresentationListStyle::Rows,
         rows: vec![PresentationRow {
             title: "One".into(),
             subtitle: None,
