@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{ActionTone, Event, InteractionId, StandardShortcut, SurfaceId};
+use vauchi_core::{ActionTone, Command, Event, InteractionId, StandardShortcut, SurfaceId};
 
 use crate::core_ui::accessibility;
 
@@ -262,13 +262,7 @@ pub(super) fn dispatch_event(
     let toast_overlay = toast_overlay.clone();
     let origin = origin.cloned();
     glib::idle_add_local_once(move || {
-        let commands = match app_engine.borrow_mut().dispatch(event) {
-            Ok(commands) => commands,
-            Err(error) => {
-                eprintln!("[CoreUI] Failed: dispatch rejected: {error}");
-                return;
-            }
-        };
+        let commands = commands_for_event(&app_engine, event);
         super::commands::handle_commands(
             &container,
             &app_engine,
@@ -277,4 +271,15 @@ pub(super) fn dispatch_event(
             origin.as_ref(),
         );
     });
+}
+
+/// The batch the shell applies for one event, rejected or not.
+pub fn commands_for_event(app_engine: &RefCell<AppEngine>, event: Event) -> Vec<Command> {
+    match app_engine.borrow_mut().dispatch(event) {
+        Ok(commands) => commands,
+        Err(error) => {
+            eprintln!("[CoreUI] Failed: dispatch rejected: {error}");
+            Vec::new()
+        }
+    }
 }

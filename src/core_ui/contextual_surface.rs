@@ -12,6 +12,7 @@ mod widgets;
 pub(crate) use commands::handle_commands;
 pub(crate) use environment::install_environment_reporting;
 pub use sidebar::build_split_view;
+pub use widgets::commands_for_event;
 pub(crate) use widgets::{
     dispatch_platform_event, dispatch_shortcut, render_current_surface, request_back,
 };
