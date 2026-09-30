@@ -3,8 +3,14 @@
 
 //! Headless smoke tests for GTK's generic Core presentation boundary.
 
+use std::cell::RefCell;
+
+use vauchi_app::i18n::get_string;
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{Command, Event, InputMode, MotionPreference, WindowClass, api::Vauchi};
+use vauchi_core::{
+    AlertSpec, Command, Event, InputMode, MotionPreference, SurfaceId, WindowClass, api::Vauchi,
+};
+use vauchi_gtk::core_ui::contextual_surface::commands_for_event;
 
 // @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
@@ -53,4 +59,27 @@ fn desktop_window_facts_produce_a_core_owned_profile() {
         [Command::SetPresentationProfile { profile }]
             if profile.window_class == WindowClass::Expanded
     ));
+}
+
+// ADR-045 Am1: Core owns what a rejected event turns into; the shell applies it.
+// @internal
+#[test]
+fn rejected_event_yields_the_alert_core_prepared() {
+    let engine = RefCell::new(AppEngine::new(Vauchi::in_memory().expect("in-memory Core")));
+    let locale = engine.borrow().render_context().resolved_locale();
+    let activation_before_environment_reported = Event::SurfaceActivated {
+        surface_id: SurfaceId::new("never-presented").unwrap(),
+    };
+
+    let commands = commands_for_event(&engine, activation_before_environment_reported);
+
+    assert_eq!(
+        commands,
+        vec![Command::PresentAlert {
+            alert: AlertSpec {
+                title: get_string(locale, "error.title"),
+                message: get_string(locale, "error.generic"),
+            },
+        }]
+    );
 }
