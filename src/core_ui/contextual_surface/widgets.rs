@@ -275,11 +275,10 @@ pub(super) fn dispatch_event(
 
 /// The batch the shell applies for one event, rejected or not.
 pub fn commands_for_event(app_engine: &RefCell<AppEngine>, event: Event) -> Vec<Command> {
-    match app_engine.borrow_mut().dispatch(event) {
-        Ok(commands) => commands,
-        Err(error) => {
-            eprintln!("[CoreUI] Failed: dispatch rejected: {error}");
-            Vec::new()
-        }
-    }
+    let outcome = app_engine.borrow_mut().dispatch(event);
+    outcome.unwrap_or_else(|error| {
+        // The kind only: a rejection's Display text can echo user input.
+        eprintln!("[CoreUI] Failed: dispatch rejected: {}", error.kind());
+        app_engine.borrow().reject_dispatch(&error)
+    })
 }

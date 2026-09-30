@@ -60,11 +60,19 @@ fn report_environment_with_size(
         input_modes: vec![InputMode::Keyboard, InputMode::Pointer],
         motion,
     };
-    if let Ok(commands) = app_engine.borrow_mut().dispatch(event) {
-        for command in commands {
-            if let Command::SetPresentationProfile { profile } = command {
+    for command in super::commands_for_event(app_engine, event) {
+        match command {
+            Command::SetPresentationProfile { profile } => {
                 apply_window_class(container, profile.window_class);
             }
+            Command::PresentAlert { alert } => {
+                crate::core_ui::action_dispatcher::show_alert(
+                    container,
+                    &alert.title,
+                    &alert.message,
+                );
+            }
+            _ => {}
         }
     }
 }
