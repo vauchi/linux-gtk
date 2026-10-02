@@ -7,7 +7,9 @@
 use std::collections::HashSet;
 
 use gtk4::gio;
-use vauchi_gtk::core_ui::navigation_icons::{navigation_icon_names, resolve_icon_name};
+use vauchi_gtk::core_ui::navigation_icons::{
+    content_pictogram_name, navigation_icon_names, resolve_icon_name,
+};
 use vauchi_gtk::core_ui::pictograms;
 
 /// The icon tokens Core attaches to navigation items, mirroring
@@ -249,4 +251,31 @@ fn malformed_pictogram_tokens_fall_back() {
     ] {
         assert_eq!(navigation_icon_names(Some(token)), fallback, "{token}");
     }
+}
+
+/// List rows and status nodes draw an icon only for Vauchi's own pictograms,
+/// so every other screen keeps the layout it had.
+// @internal
+#[test]
+fn content_pictogram_names_only_bundled_pictograms() {
+    assert_eq!(
+        content_pictogram_name(Some("pictogram.exchange.hover"), theme_with_bundle).as_deref(),
+        Some("pictogram-exchange-hover-symbolic")
+    );
+    for token in CORE_NAVIGATION_TOKENS {
+        assert_eq!(
+            content_pictogram_name(Some(token), |_| true),
+            None,
+            "{token}"
+        );
+    }
+    assert_eq!(content_pictogram_name(None, |_| true), None);
+    assert_eq!(
+        content_pictogram_name(Some("no.such.token"), |_| true),
+        None
+    );
+    assert_eq!(
+        content_pictogram_name(Some("pictogram.exchange.not_bundled"), theme_with_bundle),
+        None
+    );
 }
