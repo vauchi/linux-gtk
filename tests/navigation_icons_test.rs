@@ -6,7 +6,9 @@
 
 use std::collections::HashSet;
 
+use gtk4::gio;
 use vauchi_gtk::core_ui::navigation_icons::{navigation_icon_names, resolve_icon_name};
+use vauchi_gtk::core_ui::pictograms;
 
 /// The icon tokens Core attaches to navigation items, mirroring
 /// `tab_metadata` in `vauchi-app/src/ui/app_engine/navigation.rs`. Core owns
@@ -31,11 +33,43 @@ const CORE_NAVIGATION_TOKENS: &[&str] = &[
     "house",
 ];
 
-fn first_name(token: &str) -> &'static str {
+/// The exchange pictograms Core names as `pictogram.exchange.<name>`,
+/// mirroring `assets/pictograms/exchange/`. This copy exists so the bundle can
+/// be proven to carry every one of them.
+const CORE_EXCHANGE_PICTOGRAMS: &[&str] = &[
+    "glance",
+    "hover",
+    "bump",
+    "shake",
+    "magic",
+    "tap_tap",
+    "tap_hover_shake",
+    "link",
+    "cable",
+];
+
+fn first_name(token: &str) -> String {
     navigation_icon_names(Some(token))
         .first()
-        .copied()
+        .map(|name| name.to_string())
         .expect("every token names at least one icon")
+}
+
+fn bundled_svg(icon_name: &str) -> Option<String> {
+    pictograms::register_resources();
+    let path = format!(
+        "{}/scalable/actions/{icon_name}.svg",
+        pictograms::ICON_RESOURCE_PATH
+    );
+    gio::resources_lookup_data(&path, gio::ResourceLookupFlags::NONE)
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// A theme that carries every stock name but, for pictograms, only what this
+/// build bundles — the situation a real session is in.
+fn theme_with_bundle(name: &str) -> bool {
+    !name.starts_with("pictogram-") || bundled_svg(name).is_some()
 }
 
 // @internal
@@ -68,7 +102,10 @@ fn every_core_token_names_the_icon_it_should() {
 fn backup_names_local_storage_never_a_cloud() {
     let names = navigation_icon_names(Some("externaldrive"));
 
-    assert_eq!(names.first().copied(), Some("drive-harddisk"));
+    assert_eq!(
+        names.first().map(|name| name.as_ref()),
+        Some("drive-harddisk")
+    );
     for name in names {
         assert!(!name.contains("cloud"), "{name} suggests remote storage");
         assert!(!name.contains("network"), "{name} suggests remote storage");
@@ -84,7 +121,7 @@ fn distinct_tokens_get_distinct_icons() {
     for token in CORE_NAVIGATION_TOKENS {
         let name = first_name(token);
         assert_ne!(name, fallback, "{token} silently fell through to fallback");
-        assert!(seen.insert(name), "{token} reuses the icon {name}");
+        assert!(seen.insert(name.clone()), "{token} reuses the icon {name}");
     }
 }
 
@@ -95,7 +132,10 @@ fn distinct_tokens_get_distinct_icons() {
 fn unknown_and_absent_tokens_fall_back() {
     let fallback = navigation_icon_names(Some("sparkles.rectangle.not.a.token"));
 
-    assert_eq!(fallback.first().copied(), Some("view-app-grid"));
+    assert_eq!(
+        fallback.first().map(|name| name.as_ref()),
+        Some("view-app-grid")
+    );
     assert_eq!(navigation_icon_names(None), fallback);
     assert_eq!(navigation_icon_names(Some("")), fallback);
     assert_eq!(navigation_icon_names(Some("   ")), fallback);
@@ -141,4 +181,72 @@ fn a_themeless_session_still_gets_a_name() {
     }
     assert!(!resolve_icon_name(None, |_| false).is_empty());
     assert!(!resolve_icon_name(Some("no.such.token"), |_| false).is_empty());
+}
+
+// @internal
+#[test]
+fn a_pictogram_token_names_its_symbolic_icon() {
+    assert_eq!(
+        first_name("pictogram.exchange.hover"),
+        "pictogram-exchange-hover-symbolic"
+    );
+    assert_eq!(
+        first_name("pictogram.exchange.tap_hover_shake"),
+        "pictogram-exchange-tap_hover_shake-symbolic"
+    );
+}
+
+// @internal
+#[test]
+fn every_exchange_pictogram_resolves_to_its_bundled_icon() {
+    for name in CORE_EXCHANGE_PICTOGRAMS {
+        let token = format!("pictogram.exchange.{name}");
+        let icon = resolve_icon_name(Some(&token), theme_with_bundle);
+
+        assert_eq!(icon, format!("pictogram-exchange-{name}-symbolic"));
+        assert!(bundled_svg(&icon).is_some(), "{icon} is not bundled");
+    }
+}
+
+/// GTK before 4.20 recolors a symbolic icon by filling every path with the
+/// foreground colour, so a stroked outline would render as a solid blob.
+// @internal
+#[test]
+fn bundled_pictograms_are_fill_only() {
+    for name in CORE_EXCHANGE_PICTOGRAMS {
+        let icon = format!("pictogram-exchange-{name}-symbolic");
+        let svg = bundled_svg(&icon).unwrap_or_else(|| panic!("{icon} is not bundled"));
+
+        assert!(!svg.contains("stroke"), "{icon} still carries a stroke");
+        assert!(svg.contains("<path"), "{icon} draws nothing");
+    }
+}
+
+/// Core may name a pictogram before this build bundles it.
+// @internal
+#[test]
+fn a_pictogram_this_build_lacks_falls_back() {
+    let icon = resolve_icon_name(Some("pictogram.exchange.not_bundled"), theme_with_bundle);
+
+    assert_eq!(icon, "view-app-grid");
+}
+
+// @internal
+#[test]
+fn malformed_pictogram_tokens_fall_back() {
+    let fallback = navigation_icon_names(None);
+
+    for token in [
+        "pictogram",
+        "pictogram.",
+        "pictogram.exchange",
+        "pictogram.exchange.",
+        "pictogram..hover",
+        "pictogram.exchange.hover.extra",
+        "pictogram.exchange.../hover",
+        "pictogram.exchange.Hover",
+        "pictogram.exchange.ho ver",
+    ] {
+        assert_eq!(navigation_icon_names(Some(token)), fallback, "{token}");
+    }
 }
