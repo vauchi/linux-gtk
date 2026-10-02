@@ -175,6 +175,17 @@ pub fn navigation_icon_names(token: Option<&str>) -> Vec<Cow<'static, str>> {
         .map_or_else(|| static_names(FALLBACK), |(_, names)| static_names(names))
 }
 
+/// The bundled pictogram a list row or status node should draw, if any.
+/// Unlike navigation, these surfaces drew no icon before pictograms existed,
+/// so anything but a pictogram this build can draw yields `None` rather than
+/// a fallback marker.
+pub fn content_pictogram_name(
+    token: Option<&str>,
+    has_icon: impl Fn(&str) -> bool,
+) -> Option<String> {
+    pictogram_icon_name(token?.trim()).filter(|name| has_icon(name))
+}
+
 /// The first name `has_icon` accepts, or the last candidate when it accepts
 /// none — a themeless session still leaves a name beside the label rather
 /// than an empty gap.

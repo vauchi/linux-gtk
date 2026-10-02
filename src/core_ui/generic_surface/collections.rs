@@ -12,6 +12,7 @@ use vauchi_core::{
 
 use super::{OnEvent, action_button, emit_value, render_node, targets};
 use crate::core_ui::accessibility::apply as apply_accessibility;
+use crate::core_ui::navigation_icons::content_pictogram_name;
 
 /// What an `Image` node resolves to, decided before any widget exists so the
 /// choice can be asserted without a display.
@@ -265,6 +266,7 @@ pub(super) fn render(
         PresentationNode::Status {
             title,
             detail,
+            icon_token,
             badge,
             activation,
             accessibility,
@@ -275,6 +277,7 @@ pub(super) fn render(
                 .flatten()
                 .collect::<Vec<_>>()
                 .join(" — ");
+            let pictogram = content_pictogram(icon_token.as_deref());
             activation.as_ref().map_or_else(
                 || {
                     let status = Label::builder()
@@ -282,12 +285,27 @@ pub(super) fn render(
                         .wrap(true)
                         .halign(gtk4::Align::Start)
                         .build();
-                    apply_accessibility(&status, accessibility);
-                    status.upcast()
+                    let Some(pictogram) = &pictogram else {
+                        apply_accessibility(&status, accessibility);
+                        return status.upcast();
+                    };
+                    let with_icon = GtkBox::new(Orientation::Horizontal, 8);
+                    with_icon.append(pictogram);
+                    with_icon.append(&status);
+                    apply_accessibility(&with_icon, accessibility);
+                    with_icon.upcast()
                 },
                 |action| {
                     let button = action_button(action, surface_id, on_event, tokens);
-                    button.set_label(&text);
+                    match &pictogram {
+                        Some(pictogram) => {
+                            let content = GtkBox::new(Orientation::Horizontal, 8);
+                            content.append(pictogram);
+                            content.append(&Label::new(Some(&text)));
+                            button.set_child(Some(&content));
+                        }
+                        None => button.set_label(&text),
+                    }
                     apply_accessibility(&button, accessibility);
                     button.upcast()
                 },
@@ -422,6 +440,22 @@ fn row_leading(row: &PresentationRow) -> Option<Widget> {
     }
 }
 
+/// A leading pictogram for a list row or status node, drawn as a symbolic
+/// icon so it takes the surrounding text colour. Decorative: the text next to
+/// it already names the mode.
+fn content_pictogram(token: Option<&str>) -> Option<Widget> {
+    let theme = crate::core_ui::pictograms::icon_theme()?;
+    let name = content_pictogram_name(token, |name| theme.has_icon(name))?;
+    Some(
+        gtk4::Image::builder()
+            .icon_name(name)
+            .pixel_size(24)
+            .accessible_role(gtk4::AccessibleRole::Presentation)
+            .build()
+            .upcast(),
+    )
+}
+
 fn render_row(
     row: &PresentationRow,
     surface_id: &SurfaceId,
@@ -459,7 +493,8 @@ fn render_row(
     // Avatar and text form one accessible unit: the row's name has to cover
     // what a reader will land on, not just the text beside the picture.
     let inner = GtkBox::new(Orientation::Horizontal, 8);
-    if let Some(leading) = row_leading(row) {
+    if let Some(leading) = row_leading(row).or_else(|| content_pictogram(row.icon_token.as_deref()))
+    {
         inner.append(&leading);
     }
     content.set_hexpand(true);
