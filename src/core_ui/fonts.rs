@@ -24,6 +24,7 @@ pub fn register_app_fonts() {
     // SAFETY: `FcConfigGetCurrent`/`FcConfigAppFontAddDir` are Fontconfig's
     // documented process-global registration API. `add_app_font_dir` only
     // passes them a NUL-terminated copy of `dir`.
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage — Fontconfig C API, no safe binding
     unsafe {
         add_app_font_dir(&dir);
     }
@@ -38,6 +39,7 @@ pub fn resolve_font_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os(FONT_DIR_ENV) {
         return Some(PathBuf::from(dir));
     }
+    // nosemgrep: rust.lang.security.current-exe.current-exe — locates bundled fonts, no security decision
     let exe = std::env::current_exe().ok()?;
     find_data_fonts_dir(&exe)
 }
@@ -67,6 +69,7 @@ unsafe fn add_app_font_dir(dir: &Path) -> bool {
     // SAFETY: `config` is either null or a valid `FcConfig*` returned by
     // Fontconfig itself; `c_dir` is a valid NUL-terminated C string kept
     // alive for the whole call.
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage — Fontconfig C API, no safe binding
     unsafe {
         let config = fontconfig_sys::FcConfigGetCurrent();
         fontconfig_sys::FcConfigAppFontAddDir(config, c_dir.as_ptr().cast()) != 0
