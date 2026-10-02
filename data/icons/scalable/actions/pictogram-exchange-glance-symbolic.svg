@@ -1,0 +1,10 @@
+<!-- SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Fill-only copy of assets/pictograms/exchange/generated/svg/glance.svg, outlines expanded into filled shapes by picosvg: GTK before 4.20 fills every path of a symbolic icon. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+  <defs/>
+  <path fill="#000000" d="M1.305,11.603 Q2.266,9.922 4.056,8.263 Q7.686,4.9 12,4.9 Q16.313,4.9 19.942,8.262 Q21.732,9.92 22.695,11.603 L22.695,11.603 Q22.921,12 22.695,12.397 Q21.734,14.078 19.944,15.737 Q16.314,19.1 12,19.1 Q7.687,19.1 4.058,15.738 Q2.268,14.08 1.305,12.397 L1.305,12.397 Q1.079,12 1.305,11.603 Z M2.935,12 Q3.752,13.274 5.145,14.565 Q8.315,17.5 12,17.5 Q15.686,17.5 18.856,14.563 Q20.249,13.273 21.065,12 Q20.248,10.726 18.855,9.435 Q15.685,6.5 12,6.5 Q8.314,6.5 5.144,9.437 Q3.751,10.727 2.935,12 Z"/>
+  <path fill="#000000" d="M8.2,12 Q8.2,8.2 12,8.2 Q15.8,8.2 15.8,12 Q15.8,15.8 12,15.8 Q8.2,15.8 8.2,12 Z M9.8,12 Q9.8,14.2 12,14.2 Q14.2,14.2 14.2,12 Q14.2,9.8 12,9.8 Q9.8,9.8 9.8,12 Z"/>
+  <path fill="#000000" d="M10.9,12 A1.1 1.1 0 1 0 13.1,12 A1.1 1.1 0 1 0 10.9,12 Z"/>
+</svg>
+

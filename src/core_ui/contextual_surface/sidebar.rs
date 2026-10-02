@@ -211,11 +211,11 @@ fn build_row(item: &NavigationItem, selected: bool) -> ListBoxRow {
     content.set_margin_start(12);
     content.set_margin_end(12);
 
-    let theme = gtk4::gdk::Display::default().map(|display| gtk4::IconTheme::for_display(&display));
+    let theme = crate::core_ui::pictograms::icon_theme();
     let icon_name = resolve_icon_name(item.icon_token.as_deref(), |name| {
         theme.as_ref().is_some_and(|theme| theme.has_icon(name))
     });
-    content.append(&Image::from_icon_name(icon_name));
+    content.append(&Image::from_icon_name(&icon_name));
 
     let label = Label::new(Some(&item.label));
     label.set_hexpand(true);

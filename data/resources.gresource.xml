@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<gresources>
+  <gresource prefix="/com/vauchi/desktop">
+    <file>icons/scalable/actions/pictogram-exchange-bump-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-cable-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-glance-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-hover-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-link-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-magic-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-shake-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-tap_hover_shake-symbolic.svg</file>
+    <file>icons/scalable/actions/pictogram-exchange-tap_tap-symbolic.svg</file>
+  </gresource>
+</gresources>

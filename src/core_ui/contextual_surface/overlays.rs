@@ -236,11 +236,14 @@ fn present_action_menu(
 
 /// Core names an icon on navigation items only, so an action menu stays plain
 /// rather than growing a column of neutral markers.
-fn overlay_icon_name(action: &vauchi_core::ActionSpec, kind: OverlayKind) -> Option<&'static str> {
+fn overlay_icon_name(
+    action: &vauchi_core::ActionSpec,
+    kind: OverlayKind,
+) -> Option<std::borrow::Cow<'static, str>> {
     if kind != OverlayKind::Navigation && action.icon_token.is_none() {
         return None;
     }
-    let theme = gtk4::gdk::Display::default().map(|display| gtk4::IconTheme::for_display(&display));
+    let theme = crate::core_ui::pictograms::icon_theme();
     Some(resolve_icon_name(action.icon_token.as_deref(), |name| {
         theme.as_ref().is_some_and(|theme| theme.has_icon(name))
     }))
@@ -257,7 +260,7 @@ fn overlay_button(action: &vauchi_core::ActionSpec, kind: OverlayKind) -> Button
     match overlay_icon_name(action, kind) {
         Some(icon_name) => button.set_child(Some(
             &adw::ButtonContent::builder()
-                .icon_name(icon_name)
+                .icon_name(icon_name.as_ref())
                 .label(&action.label)
                 .build(),
         )),

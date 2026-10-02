@@ -12,6 +12,7 @@ Build-Depends: debhelper-compat (= 13),
                libadwaita-1-dev,
                libqrencode-dev,
                libfontconfig1-dev,
+               libglib2.0-dev-bin,
                pkg-config
 Standards-Version: 4.6.2
 Homepage: https://vauchi.app

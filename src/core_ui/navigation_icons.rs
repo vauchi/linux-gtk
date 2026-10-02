@@ -4,6 +4,8 @@
 //! Resolves the platform-neutral `icon_token` Core attaches to an action into
 //! an icon name the GTK icon theme can draw.
 
+use std::borrow::Cow;
+
 /// Shown when Core names a token this build has not learned, so a new
 /// destination arrives with a marker rather than a hole in the row. An
 /// apps-grid icon reads as "some section of this app" and stays truthful;
@@ -132,16 +134,45 @@ const NAMES_BY_TOKEN: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Icon names to try, in order, for one Core token. Never empty: a token this
-/// build has not learned yields the neutral fallback chain.
-pub fn navigation_icon_names(token: Option<&str>) -> &'static [&'static str] {
-    let Some(token) = token.map(str::trim).filter(|token| !token.is_empty()) else {
-        return FALLBACK;
+/// `pictogram.<group>.<name>` names one of Vauchi's own pictograms, which
+/// this build bundles as `pictogram-<group>-<name>-symbolic` (see
+/// `core_ui::pictograms`). The mapping is a pure rename so a new pictogram
+/// needs only its SVG, never a table entry here.
+fn pictogram_icon_name(token: &str) -> Option<String> {
+    let mut segments = token.strip_prefix("pictogram.")?.split('.');
+    let (Some(group), Some(name), None) = (segments.next(), segments.next(), segments.next())
+    else {
+        return None;
     };
+    let well_formed = |segment: &str| {
+        !segment.is_empty()
+            && segment
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    };
+    (well_formed(group) && well_formed(name)).then(|| format!("pictogram-{group}-{name}-symbolic"))
+}
+
+fn static_names(names: &'static [&'static str]) -> Vec<Cow<'static, str>> {
+    names.iter().copied().map(Cow::Borrowed).collect()
+}
+
+/// Icon names to try, in order, for one Core token. Never empty: a token this
+/// build has not learned yields the neutral fallback chain, and a pictogram
+/// is followed by that chain in case this build does not bundle it.
+pub fn navigation_icon_names(token: Option<&str>) -> Vec<Cow<'static, str>> {
+    let Some(token) = token.map(str::trim).filter(|token| !token.is_empty()) else {
+        return static_names(FALLBACK);
+    };
+    if let Some(pictogram) = pictogram_icon_name(token) {
+        let mut names = vec![Cow::Owned(pictogram)];
+        names.extend(static_names(FALLBACK));
+        return names;
+    }
     NAMES_BY_TOKEN
         .iter()
         .find(|(candidate, _)| *candidate == token)
-        .map_or(FALLBACK, |(_, names)| *names)
+        .map_or_else(|| static_names(FALLBACK), |(_, names)| static_names(names))
 }
 
 /// The first name `has_icon` accepts, or the last candidate when it accepts
@@ -150,12 +181,18 @@ pub fn navigation_icon_names(token: Option<&str>) -> &'static [&'static str] {
 ///
 /// Takes the predicate rather than a `gtk4::IconTheme` so the resolution
 /// order is provable without a display.
-pub fn resolve_icon_name(token: Option<&str>, has_icon: impl Fn(&str) -> bool) -> &'static str {
-    let names = navigation_icon_names(token);
-    names
+pub fn resolve_icon_name(
+    token: Option<&str>,
+    has_icon: impl Fn(&str) -> bool,
+) -> Cow<'static, str> {
+    let mut names = navigation_icon_names(token);
+    let chosen = names
         .iter()
-        .find(|name| has_icon(name))
-        .or_else(|| names.last())
-        .copied()
-        .unwrap_or("")
+        .position(|name| has_icon(name))
+        .unwrap_or(names.len().saturating_sub(1));
+    if chosen < names.len() {
+        names.swap_remove(chosen)
+    } else {
+        Cow::Borrowed("")
+    }
 }

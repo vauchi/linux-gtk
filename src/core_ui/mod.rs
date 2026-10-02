@@ -9,4 +9,5 @@ pub mod contextual_surface;
 pub mod fonts;
 pub mod generic_surface;
 pub mod navigation_icons;
+pub mod pictograms;
 pub mod theme;
