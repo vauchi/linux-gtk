@@ -8,7 +8,7 @@ use vauchi_core::{
 };
 use vauchi_gtk::core_ui::contextual_surface::{
     GtkContextRole, GtkOverlayTransition, GtkPresentationState, context_controls,
-    interaction_for_shortcut,
+    context_controls_with, interaction_for_shortcut,
 };
 
 fn surface(id: &str) -> SurfaceId {
@@ -570,4 +570,33 @@ fn set_navigation_with_empty_items_is_stored_as_empty() {
         stored.items.is_empty(),
         "empty navigation.items must round-trip as empty, not be dropped"
     );
+}
+
+/// The sidebar lists the same destinations the navigation launcher opens,
+/// so beside a sidebar the bar leaves that control out (vauchi/private#479).
+// @scenario: generic_presentation_protocol.feature :: Contextual controls expose four stable roles
+#[test]
+fn context_controls_leave_the_navigation_launcher_out_beside_a_sidebar() {
+    let bar = ContextBar {
+        back: Some(action("back", Some(StandardShortcut::Back))),
+        navigation: Some(action("navigate", None)),
+        primary: Some(action("save", Some(StandardShortcut::ActivatePrimary))),
+        secondary: Some(action("more", None)),
+    };
+
+    let beside_sidebar = context_controls_with(&bar, true);
+    assert_eq!(
+        beside_sidebar
+            .iter()
+            .map(|control| control.role)
+            .collect::<Vec<_>>(),
+        vec![
+            GtkContextRole::Back,
+            GtkContextRole::Primary,
+            GtkContextRole::Secondary
+        ]
+    );
+
+    let alone = context_controls_with(&bar, false);
+    assert_eq!(alone.len(), 4, "without a sidebar the launcher stays");
 }
