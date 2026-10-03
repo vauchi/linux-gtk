@@ -14,7 +14,9 @@ use vauchi_core::{ActionTone, Command, Event, InteractionId, StandardShortcut, S
 use crate::core_ui::accessibility;
 
 use super::environment;
-use super::{GtkContextRole, GtkPresentationState, context_controls, interaction_for_shortcut};
+use super::{
+    GtkContextRole, GtkPresentationState, context_controls_with, interaction_for_shortcut,
+};
 
 const CONTEXT_BAR_NAME: &str = "contextual-command-bar";
 
@@ -43,6 +45,7 @@ pub(super) fn render_bar(
     toast_overlay: &adw::ToastOverlay,
     surface_id: &SurfaceId,
     bar: &vauchi_core::ContextBar,
+    navigation_shown: bool,
 ) {
     remove_existing_bar(container);
     let strip = GtkBox::new(Orientation::Horizontal, 8);
@@ -54,7 +57,7 @@ pub(super) fn render_bar(
     strip.set_margin_start(8);
     strip.set_margin_end(8);
 
-    for control in context_controls(bar) {
+    for control in context_controls_with(bar, navigation_shown) {
         let button = build_button(control.role, control.action, control.emphasized);
         let interaction_id = control.action.interaction_id.clone();
         let surface_id = surface_id.clone();

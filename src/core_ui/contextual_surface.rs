@@ -61,9 +61,24 @@ pub struct GtkContextControl<'a> {
 }
 
 pub fn context_controls(bar: &ContextBar) -> Vec<GtkContextControl<'_>> {
+    context_controls_with(bar, false)
+}
+
+/// The controls to draw. Beside a sidebar the navigation launcher is left
+/// out: both open the same destinations, and two controls for one list
+/// was what readers could not name (vauchi/private#479).
+pub fn context_controls_with(
+    bar: &ContextBar,
+    navigation_shown: bool,
+) -> Vec<GtkContextControl<'_>> {
+    let navigation = if navigation_shown {
+        None
+    } else {
+        bar.navigation.as_ref()
+    };
     [
         (GtkContextRole::Back, bar.back.as_ref()),
-        (GtkContextRole::Navigation, bar.navigation.as_ref()),
+        (GtkContextRole::Navigation, navigation),
         (GtkContextRole::Primary, bar.primary.as_ref()),
         (GtkContextRole::Secondary, bar.secondary.as_ref()),
     ]

@@ -169,7 +169,17 @@ fn render_presentation(
         generic_surface::render(container, surface, &on_event);
     }
     if let Some((surface_id, bar)) = context_bar {
-        render_bar(container, app_engine, toast_overlay, &surface_id, &bar);
+        let navigation_shown = navigation
+            .as_ref()
+            .is_some_and(|navigation| !navigation.items.is_empty());
+        render_bar(
+            container,
+            app_engine,
+            toast_overlay,
+            &surface_id,
+            &bar,
+            navigation_shown,
+        );
     }
     restore_focus(container, focus_name.as_deref());
 }
