@@ -18,6 +18,7 @@ from helpers import click_button, find_all, find_one, dump_tree
 from navigation import (
     EXPECTED_DESTINATIONS,
     NAVIGATION_LABEL,
+    navigate_to,
     navigation_destinations,
     open_navigation,
     sidebar_tabs,
@@ -106,6 +107,7 @@ class TestScreenInformation:
     def test_info_opens_a_dialog_that_reads_the_screen_text(self, gtk_app):
         """Core labels the control "Info" and names it "About this screen";
         the dialog carries Core's text and closes with its Close button."""
+        assert navigate_to(gtk_app, "Contacts"), dump_tree(gtk_app, max_depth=6)
         assert click_button(gtk_app, "About this screen"), (
             "No info control on the context bar.\n"
             f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=6)}"
