@@ -3,7 +3,8 @@
 
 """Launch and basic AT-SPI tree verification tests."""
 
-from helpers import find_all, find_one, dump_tree
+from helpers import find_all, dump_tree
+from navigation import sidebar_names
 
 
 class TestAppLaunch:
@@ -35,11 +36,11 @@ class TestAppLaunch:
             f"No window with 'Vauchi' in name. Found: {window_names}"
         )
 
-    def test_contextual_navigation_exists(self, gtk_app):
-        """The Core-provided navigation action should be discoverable."""
-        navigation = find_one(gtk_app, role="button", name="More")
-        assert navigation is not None, (
-            f"Contextual navigation action not found. Tree:\n{dump_tree(gtk_app, 12)}"
+    def test_core_destinations_are_discoverable(self, gtk_app):
+        """Core's destinations reach AT-SPI, in the sidebar or the overlay."""
+        names = sidebar_names(gtk_app)
+        assert names, (
+            f"No navigation destination found. Tree:\n{dump_tree(gtk_app, 12)}"
         )
 
     def test_screen_title_exists(self, gtk_app):

@@ -14,50 +14,70 @@ import re
 import pytest
 
 from helpers import find_all, find_one, dump_tree
-from navigation import EXPECTED_DESTINATIONS, open_navigation
+from navigation import (
+    EXPECTED_DESTINATIONS,
+    NAVIGATION_LABEL,
+    navigation_destinations,
+    open_navigation,
+    sidebar_tabs,
+)
 
 
 class TestContextualNavigation:
-    """Core-driven navigation overlay."""
+    """Core's destinations, shown once: in the sidebar, or in the overlay
+    the `More` launcher opens while the split view is collapsed
+    (vauchi/private#479)."""
 
-    def test_navigation_launcher_opens_overlay(self, gtk_app):
-        """The contextual navigation action must open a native overlay."""
-        nav = open_navigation(gtk_app)
-        assert nav is not None, (
-            "Contextual navigation overlay did not open.\n"
-            f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=4)}"
-        )
+    def test_destinations_are_offered_exactly_once(self, gtk_app):
+        """Beside the sidebar the launcher would open the same list twice."""
+        launchers = [
+            button
+            for button in find_all(gtk_app, role="button", name=NAVIGATION_LABEL)
+            if button.get_name()
+        ]
+        if sidebar_tabs(gtk_app):
+            assert not launchers, (
+                "The sidebar shows the destinations, yet a launcher is on screen.\n"
+                f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=6)}"
+            )
+        else:
+            assert launchers, (
+                "Neither a sidebar nor a launcher offers the destinations.\n"
+                f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=6)}"
+            )
+            assert open_navigation(gtk_app) is not None, (
+                "Contextual navigation overlay did not open.\n"
+                f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=4)}"
+            )
 
-    def test_navigation_actions_have_core_labels(self, gtk_app):
+    def test_navigation_destinations_have_core_labels(self, gtk_app):
         """Every top-level destination must be named and actionable."""
-        nav = open_navigation(gtk_app)
-        assert nav is not None
-        buttons = find_all(nav, role="button")
-        names = [button.get_name() for button in buttons if button.get_name()]
+        destinations = navigation_destinations(gtk_app)
+        names = [destination.get_name() for destination in destinations]
         assert all(name in names for name in EXPECTED_DESTINATIONS), names
-        for button in buttons:
-            assert button.get_name(), dump_tree(button)
-            action = button.get_action_iface()
-            assert action is not None and action.get_n_actions() > 0
+        for destination in destinations:
+            action = destination.get_action_iface()
+            assert action is not None and action.get_n_actions() > 0, dump_tree(destination)
 
     def test_destination_icons_are_not_named_accessibles(self, gtk_app):
         """The icon beside each word must not be its own AT-SPI object.
 
         Every destination shows a themed icon next to its label. The icon
         repeats what the label already says, so a screen reader should stop
-        once — on the button. If the icon reaches the bus as a named object
-        of its own, the reader stops twice, and the second stop announces a
-        freedesktop icon name: "system users symbolic", "preferences system
-        symbolic". The iOS shell had exactly this defect with SF Symbols
-        (`ios!649`), where the symbol identifier was read aloud verbatim.
+        once — on the destination. If the icon reaches the bus as a named
+        object of its own, the reader stops twice, and the second stop
+        announces a freedesktop icon name: "system users symbolic",
+        "preferences system symbolic". The iOS shell had exactly this defect
+        with SF Symbols (`ios!649`), where the symbol identifier was read
+        aloud verbatim.
 
         Asserting on the *shape* of the name rather than on a copy of
         `NAMES_BY_TOKEN`: the table changes whenever a theme turns out to
         lack a glyph, and a test that has to be edited alongside it stops
         being a check and becomes a mirror.
         """
-        nav = open_navigation(gtk_app)
-        assert nav is not None
+        destinations = navigation_destinations(gtk_app)
+        assert destinations, dump_tree(gtk_app, max_depth=6)
         icon_name_shape = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)+$")
         # This suite is expected to be green here from the start, so the
         # pattern never gets a red run to prove it can fire (CC-27). Pin both
@@ -68,12 +88,13 @@ class TestContextualNavigation:
         assert not icon_name_shape.match("My Card")
         offenders = [
             node.get_name()
-            for node in find_all(nav)
+            for destination in destinations
+            for node in find_all(destination)
             if node.get_name() and icon_name_shape.match(node.get_name())
         ]
         assert not offenders, (
             f"These reach AT-SPI as icon names rather than words: {offenders}\n"
-            f"Overlay tree:\n{dump_tree(nav)}"
+            + "".join(dump_tree(destination) for destination in destinations)
         )
 
 
