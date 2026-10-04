@@ -5,6 +5,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Orientation};
 use libadwaita as adw;
+use libadwaita::prelude::MessageDialogExt as _;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -39,8 +40,56 @@ pub(super) fn present(
                 );
             }
         }
+        OverlayKind::Information => {
+            present_information(container, app_engine, toast_overlay, surface_id, overlay)
+        }
         _ => {}
     }
+}
+
+/// Text about the surface, read once and closed: the body is a label
+/// the screen reader walks, and closing reports a dismissal so Core
+/// forgets the overlay.
+fn present_information(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+    surface_id: SurfaceId,
+    overlay: OverlaySpec,
+) {
+    let parent = container
+        .root()
+        .and_then(|root| root.downcast::<gtk4::Window>().ok());
+    let dialog = adw::MessageDialog::builder()
+        .heading(overlay.title.as_deref().unwrap_or_default())
+        .body(overlay.body.as_deref().unwrap_or_default())
+        .modal(true)
+        .build();
+    dialog.set_transient_for(parent.as_ref());
+    dialog.add_css_class("information-panel");
+    dialog.add_response(
+        "close",
+        &vauchi_app::i18n::get_string(crate::locale::detect_locale(), "action.close"),
+    );
+    dialog.set_default_response(Some("close"));
+    dialog.set_close_response("close");
+
+    let container = container.clone();
+    let app_engine = app_engine.clone();
+    let toast_overlay = toast_overlay.clone();
+    dialog.connect_response(None, move |_, _| {
+        dispatch_event(
+            &container,
+            &app_engine,
+            &toast_overlay,
+            Event::OverlayDismissed {
+                surface_id: surface_id.clone(),
+                kind: OverlayKind::Information,
+            },
+            None,
+        );
+    });
+    dialog.present();
 }
 
 fn present_navigation(

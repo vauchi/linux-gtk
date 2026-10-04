@@ -51,6 +51,7 @@ pub enum GtkContextRole {
     Navigation,
     Primary,
     Secondary,
+    Info,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -81,6 +82,7 @@ pub fn context_controls_with(
         (GtkContextRole::Navigation, navigation),
         (GtkContextRole::Primary, bar.primary.as_ref()),
         (GtkContextRole::Secondary, bar.secondary.as_ref()),
+        (GtkContextRole::Info, bar.info.as_ref()),
     ]
     .into_iter()
     .filter_map(|(role, action)| {

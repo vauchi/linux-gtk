@@ -140,6 +140,7 @@ fn build_button(
         GtkContextRole::Navigation => button.add_css_class("context-navigation"),
         GtkContextRole::Primary => button.add_css_class("context-primary"),
         GtkContextRole::Secondary => button.add_css_class("context-secondary"),
+        GtkContextRole::Info => button.add_css_class("context-info"),
     }
     if emphasized {
         button.set_hexpand(true);
