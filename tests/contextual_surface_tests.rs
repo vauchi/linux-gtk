@@ -606,3 +606,66 @@ fn context_controls_leave_the_navigation_launcher_out_beside_a_sidebar() {
     let alone = context_controls_with(&bar, false);
     assert_eq!(alone.len(), 4, "without a sidebar the launcher stays");
 }
+
+/// Core's fifth slot explains the surface (vauchi/private#479). It is
+/// drawn last, and a bar from an older Core without it changes nothing.
+// @scenario: generic_presentation_protocol.feature :: Contextual controls expose four stable roles
+#[test]
+fn context_controls_draw_the_info_slot_last_and_only_when_core_sends_it() {
+    let with_info = ContextBar {
+        back: Some(action("back", Some(StandardShortcut::Back))),
+        navigation: None,
+        primary: Some(action("save", Some(StandardShortcut::ActivatePrimary))),
+        secondary: Some(action("more", None)),
+        info: Some(action("presentation.info", None)),
+    };
+    let roles = |bar: &ContextBar| {
+        context_controls_with(bar, true)
+            .iter()
+            .map(|control| control.role)
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        roles(&with_info),
+        vec![
+            GtkContextRole::Back,
+            GtkContextRole::Primary,
+            GtkContextRole::Secondary,
+            GtkContextRole::Info
+        ]
+    );
+    let info = context_controls_with(&with_info, true)
+        .into_iter()
+        .find(|control| control.role == GtkContextRole::Info)
+        .expect("the info control");
+    assert!(!info.emphasized, "only the primary action fills the row");
+
+    let without = ContextBar {
+        info: None,
+        ..with_info
+    };
+    assert_eq!(
+        roles(&without),
+        vec![
+            GtkContextRole::Back,
+            GtkContextRole::Primary,
+            GtkContextRole::Secondary
+        ]
+    );
+}
+
+/// A text panel has nothing to slide in from; it fades like the action
+/// menu under either motion preference.
+// @scenario: generic_presentation_protocol.feature :: Overlay kinds remain distinct with reduced motion
+#[test]
+fn an_information_overlay_crossfades_under_either_motion_preference() {
+    assert_eq!(
+        GtkOverlayTransition::for_overlay(OverlayKind::Information, MotionPreference::Full),
+        GtkOverlayTransition::ActionCrossfade,
+    );
+    assert_eq!(
+        GtkOverlayTransition::for_overlay(OverlayKind::Information, MotionPreference::Reduced),
+        GtkOverlayTransition::ActionCrossfade,
+    );
+}

@@ -10,10 +10,11 @@ accessible label is missing from the rendered UI.
 """
 
 import re
+import time
 
 import pytest
 
-from helpers import find_all, find_one, dump_tree
+from helpers import click_button, find_all, find_one, dump_tree
 from navigation import (
     EXPECTED_DESTINATIONS,
     NAVIGATION_LABEL,
@@ -96,6 +97,36 @@ class TestContextualNavigation:
             f"These reach AT-SPI as icon names rather than words: {offenders}\n"
             + "".join(dump_tree(destination) for destination in destinations)
         )
+
+
+class TestScreenInformation:
+    """The bar's info control opens Core's text about the screen
+    (vauchi/private#479)."""
+
+    def test_info_opens_a_dialog_that_reads_the_screen_text(self, gtk_app):
+        """Core labels the control "Info" and names it "About this screen";
+        the dialog carries Core's text and closes with its Close button."""
+        assert click_button(gtk_app, "About this screen"), (
+            "No info control on the context bar.\n"
+            f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=6)}"
+        )
+        body = None
+        deadline = time.monotonic() + 3.0
+        while body is None and time.monotonic() < deadline:
+            body = next(
+                (
+                    node
+                    for node in find_all(gtk_app, role="label")
+                    if (node.get_name() or "").startswith("Here are the people")
+                ),
+                None,
+            )
+            time.sleep(0.1)
+        assert body is not None, (
+            "The info dialog did not show the Contacts text.\n"
+            f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=8)}"
+        )
+        assert click_button(gtk_app, "Close"), dump_tree(gtk_app, max_depth=8)
 
 
 class TestTextInputComponent:
