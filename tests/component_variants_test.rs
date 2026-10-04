@@ -57,6 +57,7 @@ fn list_rows_keep_primary_and_secondary_actions_opaque() {
             secondary_actions: vec![action("more.one", "More")],
             controls: Vec::new(),
             accessibility: AccessibilitySpec::label("One"),
+            info: None,
         }],
         searchable: false,
         paging: None,

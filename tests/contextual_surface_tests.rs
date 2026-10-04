@@ -130,6 +130,7 @@ fn dismiss_overlay_closes_the_open_overlay() {
         title: Some("Navigate".into()),
         items: vec![action("opaque.target", None)],
         body: None,
+        close_label: None,
     };
 
     state.apply(Command::ReplaceSurface {
@@ -180,6 +181,7 @@ fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
         title: Some("Navigate".into()),
         items: vec![action("opaque.target", None)],
         body: None,
+        close_label: None,
     };
 
     let mut surface_spec = surface_spec("contacts", 4);
