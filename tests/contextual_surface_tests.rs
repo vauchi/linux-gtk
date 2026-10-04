@@ -129,6 +129,7 @@ fn dismiss_overlay_closes_the_open_overlay() {
         kind: OverlayKind::Navigation,
         title: Some("Navigate".into()),
         items: vec![action("opaque.target", None)],
+        body: None,
     };
 
     state.apply(Command::ReplaceSurface {
@@ -165,6 +166,7 @@ fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
         navigation: Some(action("navigate", None)),
         primary: Some(action("save", Some(StandardShortcut::ActivatePrimary))),
         secondary: Some(action("more", None)),
+        info: None,
     };
     let profile = PresentationProfile {
         window_class: WindowClass::Expanded,
@@ -177,6 +179,7 @@ fn command_state_keeps_core_bar_profile_and_overlay_data_opaque() {
         kind: OverlayKind::Navigation,
         title: Some("Navigate".into()),
         items: vec![action("opaque.target", None)],
+        body: None,
     };
 
     let mut surface_spec = surface_spec("contacts", 4);
@@ -386,6 +389,7 @@ fn context_controls_preserve_core_semantics_in_four_role_order() {
         navigation: Some(action("navigate", None)),
         primary: Some(action("save", Some(StandardShortcut::ActivatePrimary))),
         secondary: Some(destructive_more),
+        info: None,
     };
 
     let controls = context_controls(&bar);
@@ -423,6 +427,7 @@ fn keyboard_activation_uses_only_core_declared_shortcuts() {
         navigation: Some(action("navigate", None)),
         primary: Some(undo),
         secondary: None,
+        info: None,
     };
 
     assert_eq!(
@@ -582,6 +587,7 @@ fn context_controls_leave_the_navigation_launcher_out_beside_a_sidebar() {
         navigation: Some(action("navigate", None)),
         primary: Some(action("save", Some(StandardShortcut::ActivatePrimary))),
         secondary: Some(action("more", None)),
+        info: None,
     };
 
     let beside_sidebar = context_controls_with(&bar, true);
