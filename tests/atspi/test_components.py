@@ -128,7 +128,18 @@ class TestScreenInformation:
             "The info dialog did not show the Contacts text.\n"
             f"AT-SPI tree:\n{dump_tree(gtk_app, max_depth=8)}"
         )
-        assert click_button(gtk_app, "Close"), dump_tree(gtk_app, max_depth=8)
+        # The main window's title bar has a "Close" of its own, and clicking
+        # that one quits the app for the rest of the suite.
+        dialog = next(
+            (
+                node
+                for node in find_all(gtk_app, role="dialog", max_depth=3)
+                if find_one(node, role="label", name=body.get_name())
+            ),
+            None,
+        )
+        assert dialog is not None, dump_tree(gtk_app, max_depth=8)
+        assert click_button(dialog, "Close"), dump_tree(dialog, max_depth=6)
 
 
 class TestTextInputComponent:
