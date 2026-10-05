@@ -278,21 +278,91 @@ fn register_wakeup_poll(
     let toast_overlay = toast_overlay.clone();
 
     glib::timeout_add_local(std::time::Duration::from_secs(30), move || {
-        let notifications = app_engine.borrow_mut().on_wakeup();
-        let commands = app_engine.borrow_mut().drain_pending_commands();
-
-        for n in notifications {
-            let notification = gio::Notification::new(&n.title);
-            notification.set_body(Some(&n.body));
-            notification.set_priority(platform::notifications::os_priority_for(n.priority));
-            app.send_notification(Some(&n.event_key), &notification);
-        }
-
-        if !commands.is_empty() {
-            handle_commands(&content, &app_engine, &toast_overlay, commands, None);
-        }
-
+        fire_wakeup(&app, &app_engine, &content, &toast_overlay);
         glib::ControlFlow::Continue
+    });
+}
+
+/// Run due work for one `on_wakeup()` tick and dispatch its result: OS
+/// notifications are posted, and any pending commands (e.g. the next
+/// `ScheduleWakeup`, or screen-presentation lifecycle commands) are
+/// dispatched through the same generic command path as user-driven
+/// reducer output. Shared by the 30-second fallback poll and the
+/// fast-path timer `arm_wakeup` arms for a tighter `ScheduleWakeup` (#450).
+fn fire_wakeup<A: IsA<gio::Application>>(
+    app: &A,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let notifications = app_engine.borrow_mut().on_wakeup();
+    let commands = app_engine.borrow_mut().drain_pending_commands();
+
+    for n in notifications {
+        let notification = gio::Notification::new(&n.title);
+        notification.set_body(Some(&n.body));
+        notification.set_priority(platform::notifications::os_priority_for(n.priority));
+        app.send_notification(Some(&n.event_key), &notification);
+    }
+
+    if !commands.is_empty() {
+        handle_commands(content, app_engine, toast_overlay, commands, None);
+    }
+}
+
+thread_local! {
+    /// The fast-path wakeup `arm_wakeup` is currently waiting on, if any.
+    /// Single-threaded (the GTK main loop owns every call), so a
+    /// thread-local is enough to let a new `ScheduleWakeup` replace a
+    /// stale one instead of both firing.
+    static PENDING_FAST_WAKEUP: RefCell<Option<glib::SourceId>> = const { RefCell::new(None) };
+}
+
+/// Delay, in milliseconds, before the shell should next call
+/// `on_wakeup()` for a `Command::ScheduleWakeup`. `earliest_millis`
+/// replaces `earliest_secs` when Core supplies it — a live QR exchange's
+/// frame dwell is finer-grained than a second — otherwise `earliest_secs`
+/// is used; either way the result never exceeds `deadline_secs`, Core's
+/// latest acceptable bound. Ported from macOS `armWakeupTimer` (#450).
+pub(crate) fn wakeup_delay_millis(
+    earliest_secs: u32,
+    deadline_secs: u32,
+    earliest_millis: Option<u32>,
+) -> u64 {
+    let earliest = earliest_millis.map_or_else(|| u64::from(earliest_secs) * 1000, u64::from);
+    earliest.min(u64::from(deadline_secs) * 1000)
+}
+
+/// Arms a one-shot wakeup timer at `delay_millis`, replacing any pending
+/// one (ADR-044 Am2a). The 30-second poll `register_wakeup_poll` installs
+/// keeps running underneath as the fallback heartbeat; this is the fast
+/// path a live QR exchange's sub-second `ScheduleWakeup` needs to advance
+/// on time (#450).
+pub(crate) fn arm_wakeup<A: IsA<gio::Application> + Clone + 'static>(
+    app: &A,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    content: &GtkBox,
+    toast_overlay: &adw::ToastOverlay,
+    delay_millis: u64,
+) {
+    PENDING_FAST_WAKEUP.with(|pending| {
+        if let Some(previous) = pending.borrow_mut().take() {
+            previous.remove();
+        }
+    });
+    let app = app.clone();
+    let app_engine = app_engine.clone();
+    let content = content.clone();
+    let toast_overlay = toast_overlay.clone();
+    let source_id =
+        glib::timeout_add_local_once(std::time::Duration::from_millis(delay_millis), move || {
+            PENDING_FAST_WAKEUP.with(|pending| {
+                pending.borrow_mut().take();
+            });
+            fire_wakeup(&app, &app_engine, &content, &toast_overlay);
+        });
+    PENDING_FAST_WAKEUP.with(|pending| {
+        *pending.borrow_mut() = Some(source_id);
     });
 }
 

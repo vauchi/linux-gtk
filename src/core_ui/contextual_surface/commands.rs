@@ -84,6 +84,34 @@ pub(crate) fn handle_commands(
                     application.quit();
                 }
             }
+            // The 30-second fallback poll (`register_wakeup_poll`) keeps
+            // running regardless; this arms the fast path a live QR
+            // exchange's sub-second `earliest_millis` needs (#450).
+            Command::ScheduleWakeup {
+                earliest_secs,
+                deadline_secs,
+                earliest_millis,
+                ..
+            } => {
+                if let Some(window) = container
+                    .root()
+                    .and_then(|root| root.downcast::<gtk4::Window>().ok())
+                    && let Some(application) = window.application()
+                {
+                    let delay_millis = crate::app::wakeup_delay_millis(
+                        earliest_secs,
+                        deadline_secs,
+                        earliest_millis,
+                    );
+                    crate::app::arm_wakeup(
+                        &application,
+                        app_engine,
+                        container,
+                        toast_overlay,
+                        delay_millis,
+                    );
+                }
+            }
             other => platform_commands.push(other),
         }
     }
