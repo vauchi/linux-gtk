@@ -7,7 +7,8 @@ use libadwaita as adw;
 use vauchi_app::i18n::{self, Locale};
 use vauchi_core::{
     ActionSpec, BindingId, InputValue, PresentationImageShape, PresentationNode,
-    PresentationQrPurpose, PresentationRow, PresentationTokens, SurfaceId,
+    PresentationQrErrorCorrection, PresentationQrPurpose, PresentationRow, PresentationTokens,
+    QrPlacement, SurfaceId,
 };
 
 use super::{OnEvent, action_button, emit_value, render_node, targets};
@@ -170,6 +171,57 @@ fn image_widget(
 
 const QR_LIGHT_RGB: (f64, f64, f64) = (1.0, 1.0, 1.0);
 const QR_DARK_RGB: (f64, f64, f64) = (0.0, 0.0, 0.0);
+const QR_SIDE_PX: i32 = 200;
+
+/// A placed display code's side and top-left corner inside its square, in
+/// pixels. Pure so a test can assert the numbers without a `DrawingArea`
+/// (vauchi/private#450, ported from macOS `QrFrameSpec`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct QrFrame {
+    side: f64,
+    left: f64,
+    top: f64,
+}
+
+/// `placement` is Core's `(size, x, y)` permille triple, taken apart from
+/// its typed `QrPlacement` at the call site rather than threaded through
+/// here: `QrPlacement::new` already keeps a real one inside the square, so
+/// this stays defensive (and testable at its boundary values) without
+/// depending on that invariant.
+///
+/// No placement, or a nonsensical size, is the full square. A size or
+/// corner that still reached outside the square is pulled back in, so the
+/// code is never drawn past its node.
+fn qr_frame(placement: Option<(u16, u16, u16)>, square_side: f64) -> QrFrame {
+    const FULL: f64 = 1000.0;
+    let Some((size, x, y)) = placement.filter(|(size, ..)| *size > 0) else {
+        return QrFrame {
+            side: square_side,
+            left: 0.0,
+            top: 0.0,
+        };
+    };
+    let size = f64::from(size).min(FULL);
+    let room = FULL - size;
+    // Multiply before dividing: 650 × 200 / 1000 is exact.
+    let scaled = |permille: f64| permille * square_side / FULL;
+    QrFrame {
+        side: scaled(size),
+        left: scaled(f64::from(x).min(room)),
+        top: scaled(f64::from(y).min(room)),
+    }
+}
+
+/// Core Image's `low`/`medium` naming for `qrcode`'s `EcLevel`: `Low` maps
+/// to `L`; absent or an unrecognised (future `non_exhaustive`) level draws
+/// at `M`, the level this shell drew before placement/error_correction
+/// existed (vauchi/private#450).
+fn qr_error_correction_level(level: Option<PresentationQrErrorCorrection>) -> qrcode::EcLevel {
+    match level {
+        Some(PresentationQrErrorCorrection::Low) => qrcode::EcLevel::L,
+        _ => qrcode::EcLevel::M,
+    }
+}
 
 pub(super) fn render(
     node: &PresentationNode,
@@ -317,6 +369,8 @@ pub(super) fn render(
             purpose,
             label,
             accessibility,
+            placement,
+            error_correction,
             ..
         } => {
             let group = GtkBox::new(Orientation::Vertical, 4);
@@ -324,7 +378,7 @@ pub(super) fn render(
             match purpose {
                 PresentationQrPurpose::Display => {
                     if let Some(payload) = payloads.first() {
-                        let code = render_qr(payload);
+                        let code = render_qr(payload, *placement, *error_correction);
                         // A custom-drawn surface has no intrinsic accessible
                         // identity: unnamed and roleless, a screen reader
                         // cannot announce the QR code at all.
@@ -348,39 +402,49 @@ pub(super) fn render(
     }
 }
 
-fn render_qr(payload: &str) -> DrawingArea {
+fn render_qr(
+    payload: &str,
+    placement: Option<QrPlacement>,
+    error_correction: Option<PresentationQrErrorCorrection>,
+) -> DrawingArea {
     let drawing = DrawingArea::builder()
-        .width_request(200)
-        .height_request(200)
+        .width_request(QR_SIDE_PX)
+        .height_request(QR_SIDE_PX)
         .halign(gtk4::Align::Center)
         .build();
-    let modules = qrcode::QrCode::new(payload).ok().map(|code| {
-        code.to_colors()
-            .chunks(code.width())
-            .map(|row| {
-                row.iter()
-                    .map(|color| *color == qrcode::Color::Dark)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-    });
-    drawing.set_draw_func(move |_, context, width, height| {
+    let level = qr_error_correction_level(error_correction);
+    let modules = qrcode::QrCode::with_error_correction_level(payload, level)
+        .ok()
+        .map(|code| {
+            code.to_colors()
+                .chunks(code.width())
+                .map(|row| {
+                    row.iter()
+                        .map(|color| *color == qrcode::Color::Dark)
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        });
+    let placement = placement.map(|p| (p.size(), p.x(), p.y()));
+    drawing.set_draw_func(move |_, context, width, _height| {
         context.set_source_rgb(QR_LIGHT_RGB.0, QR_LIGHT_RGB.1, QR_LIGHT_RGB.2);
         let _ = context.paint();
         let Some(modules) = &modules else {
             return;
         };
         context.set_source_rgb(QR_DARK_RGB.0, QR_DARK_RGB.1, QR_DARK_RGB.2);
-        let module_width = f64::from(width) / modules.len() as f64;
-        let module_height = f64::from(height) / modules.len() as f64;
+        // The node is square (width_request == height_request), so one
+        // frame covers both axes.
+        let frame = qr_frame(placement, f64::from(width));
+        let module_side = frame.side / modules.len() as f64;
         for (y, row) in modules.iter().enumerate() {
             for (x, dark) in row.iter().enumerate() {
                 if *dark {
                     context.rectangle(
-                        x as f64 * module_width,
-                        y as f64 * module_height,
-                        module_width.ceil(),
-                        module_height.ceil(),
+                        frame.left + x as f64 * module_side,
+                        frame.top + y as f64 * module_side,
+                        module_side.ceil(),
+                        module_side.ceil(),
                     );
                 }
             }
