@@ -295,3 +295,30 @@ fn register_wakeup_poll(
         glib::ControlFlow::Continue
     });
 }
+
+// INLINE_TEST_REQUIRED: the delay a `Command::ScheduleWakeup` resolves to
+// is pure arithmetic on its three fields — no GTK timer needed to assert
+// the number (vauchi/private#450, ported from macOS `armWakeupTimer`).
+#[cfg(test)]
+mod wakeup_delay_tests {
+    use super::wakeup_delay_millis;
+
+    // @internal
+    #[test]
+    fn millis_wins_over_seconds_when_core_supplies_both() {
+        assert_eq!(wakeup_delay_millis(1, 1, Some(300)), 300);
+    }
+
+    // @internal
+    #[test]
+    fn seconds_are_used_when_millis_is_absent() {
+        assert_eq!(wakeup_delay_millis(30, 90, None), 30_000);
+    }
+
+    // @internal
+    #[test]
+    fn the_delay_never_exceeds_the_deadline() {
+        assert_eq!(wakeup_delay_millis(5, 2, None), 2_000);
+        assert_eq!(wakeup_delay_millis(0, 1, Some(5_000)), 1_000);
+    }
+}
