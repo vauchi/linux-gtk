@@ -515,10 +515,21 @@ fn render_row(
         apply_accessibility(&inner, &row.accessibility);
         row_box.append(&inner);
     }
-    for action in &row.secondary_actions {
+    for action in row_action_controls(row) {
         row_box.append(&action_button(action, surface_id, on_event, tokens));
     }
     row_box.upcast()
+}
+
+/// The buttons a row draws after its primary content, in Core's priority
+/// order: the row's own explanation first (vauchi/private#515), then
+/// whatever else it attached — matching the placement every other shell
+/// gives Core's `info` action relative to `secondary_actions`.
+fn row_action_controls(row: &PresentationRow) -> Vec<&ActionSpec> {
+    row.info
+        .iter()
+        .chain(row.secondary_actions.iter())
+        .collect()
 }
 
 // INLINE_TEST_REQUIRED: asserts on the private `image_content`/`shape_is_circle`

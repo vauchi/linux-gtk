@@ -68,10 +68,7 @@ fn present_information(
         .build();
     dialog.set_transient_for(parent.as_ref());
     dialog.add_css_class("information-panel");
-    dialog.add_response(
-        "close",
-        &vauchi_app::i18n::get_string(crate::locale::detect_locale(), "action.close"),
-    );
+    dialog.add_response("close", &close_label(&overlay));
     dialog.set_default_response(Some("close"));
     dialog.set_close_response("close");
 
@@ -91,6 +88,21 @@ fn present_information(
         );
     });
     dialog.present();
+}
+
+/// Core's own wording for the overlay's way out when it sent one
+/// (vauchi/private#515); the shell's locale word otherwise, so an older
+/// Core that omits `close_label` sees the text it always has.
+fn close_label(overlay: &OverlaySpec) -> Cow<'_, str> {
+    overlay.close_label.as_deref().map_or_else(
+        || {
+            Cow::Owned(vauchi_app::i18n::get_string(
+                crate::locale::detect_locale(),
+                "action.close",
+            ))
+        },
+        Cow::Borrowed,
+    )
 }
 
 fn present_navigation(
