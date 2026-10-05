@@ -6,8 +6,8 @@ use gtk4::{Box as GtkBox, Button, DrawingArea, Entry, Label, Orientation, Widget
 use libadwaita as adw;
 use vauchi_app::i18n::{self, Locale};
 use vauchi_core::{
-    BindingId, InputValue, PresentationImageShape, PresentationNode, PresentationQrPurpose,
-    PresentationRow, PresentationTokens, SurfaceId,
+    ActionSpec, BindingId, InputValue, PresentationImageShape, PresentationNode,
+    PresentationQrPurpose, PresentationRow, PresentationTokens, SurfaceId,
 };
 
 use super::{OnEvent, action_button, emit_value, render_node, targets};
@@ -580,5 +580,70 @@ mod image_content_tests {
     #[test]
     fn sized_square_px_carries_cores_logical_units_into_gtk_pixels() {
         assert_eq!(sized_square_px(88), 88);
+    }
+}
+
+// INLINE_TEST_REQUIRED: the row the buttons draw from has no public
+// accessor and cannot be reached through a widget without a display.
+#[cfg(test)]
+mod row_action_control_tests {
+    use super::{PresentationRow, row_action_controls};
+    use vauchi_core::{AccessibilitySpec, ActionSpec, ActionTone, InteractionId};
+
+    fn action(id: &str) -> ActionSpec {
+        ActionSpec {
+            interaction_id: InteractionId::new(id).expect("interaction id"),
+            label: id.into(),
+            accessibility_label: id.into(),
+            icon_token: None,
+            enabled: true,
+            tone: ActionTone::Standard,
+            shortcut: None,
+        }
+    }
+
+    fn row(info: Option<ActionSpec>, secondary_actions: Vec<ActionSpec>) -> PresentationRow {
+        PresentationRow {
+            title: "Row".into(),
+            subtitle: None,
+            detail: None,
+            icon_token: None,
+            image_data: None,
+            fallback_text: None,
+            selected: false,
+            enabled: true,
+            activation: None,
+            secondary_actions,
+            info,
+            controls: Vec::new(),
+            accessibility: AccessibilitySpec::label("Row"),
+        }
+    }
+
+    // @internal
+    #[test]
+    fn the_rows_own_explanation_leads_whatever_core_attached_after_it() {
+        let info = action("row.info");
+        let more = action("row.more");
+        let subject = row(Some(info.clone()), vec![more.clone()]);
+
+        assert_eq!(row_action_controls(&subject), vec![&info, &more]);
+    }
+
+    // @internal
+    #[test]
+    fn a_row_without_an_explanation_draws_only_its_secondary_actions() {
+        let more = action("row.more");
+        let subject = row(None, vec![more.clone()]);
+
+        assert_eq!(row_action_controls(&subject), vec![&more]);
+    }
+
+    // @internal
+    #[test]
+    fn a_row_with_neither_draws_no_action_controls() {
+        let subject = row(None, Vec::new());
+
+        assert!(row_action_controls(&subject).is_empty());
     }
 }

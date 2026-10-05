@@ -6,6 +6,7 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Orientation};
 use libadwaita as adw;
 use libadwaita::prelude::MessageDialogExt as _;
+use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -352,5 +353,36 @@ fn animation_duration(full_duration_ms: u32) -> u32 {
         MotionPreference::Full => full_duration_ms,
         MotionPreference::Reduced => 0,
         _ => 0,
+    }
+}
+
+// INLINE_TEST_REQUIRED: the dialog `close_label` feeds has no public
+// accessor and cannot be reached through a widget without a display.
+#[cfg(test)]
+mod close_label_tests {
+    use super::close_label;
+    use vauchi_core::{OverlayKind, OverlaySpec};
+
+    fn overlay(close_label: Option<&str>) -> OverlaySpec {
+        OverlaySpec {
+            kind: OverlayKind::Information,
+            title: None,
+            items: Vec::new(),
+            body: None,
+            close_label: close_label.map(str::to_owned),
+        }
+    }
+
+    // @internal
+    #[test]
+    fn cores_close_label_wins_when_it_sends_one() {
+        assert_eq!(close_label(&overlay(Some("Schließen"))), "Schließen");
+    }
+
+    // @internal
+    #[test]
+    fn an_older_core_with_no_close_label_keeps_the_locale_word() {
+        let expected = vauchi_app::i18n::get_string(crate::locale::detect_locale(), "action.close");
+        assert_eq!(close_label(&overlay(None)), expected);
     }
 }
