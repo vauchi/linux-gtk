@@ -594,6 +594,112 @@ mod image_content_tests {
     }
 }
 
+// INLINE_TEST_REQUIRED: a display code's placement and error-correction
+// level are pure arithmetic on Core's permille fields — no widget or
+// display needed to assert the numbers (vauchi/private#450, ported from
+// macOS `QrFrameSpec`/`qrCorrectionLevel`, squareSide 240 rescaled to
+// this shell's 200px QR_SIDE_PX).
+#[cfg(test)]
+mod qr_placement_tests {
+    use super::{QrFrame, qr_frame};
+
+    // @internal
+    #[test]
+    fn no_placement_draws_the_code_edge_to_edge() {
+        assert_eq!(
+            qr_frame(None, 200.0),
+            QrFrame {
+                side: 200.0,
+                left: 0.0,
+                top: 0.0
+            }
+        );
+    }
+
+    // @internal
+    #[test]
+    fn a_placed_code_is_scaled_and_offset_within_the_square() {
+        assert_eq!(
+            qr_frame(Some((650, 350, 175)), 200.0),
+            QrFrame {
+                side: 130.0,
+                left: 70.0,
+                top: 35.0
+            }
+        );
+        assert_eq!(
+            qr_frame(Some((800, 200, 0)), 200.0),
+            QrFrame {
+                side: 160.0,
+                left: 40.0,
+                top: 0.0
+            }
+        );
+    }
+
+    /// Core's own `QrPlacement` already keeps a placement inside the
+    /// square (`QrPlacement::new` rejects it otherwise), so this never
+    /// happens over the wire. A shell still must not draw past its node.
+    // @internal
+    #[test]
+    fn a_placement_reaching_outside_the_square_is_pulled_back_inside() {
+        assert_eq!(
+            qr_frame(Some((800, 900, 5000)), 200.0),
+            QrFrame {
+                side: 160.0,
+                left: 40.0,
+                top: 40.0
+            }
+        );
+        assert_eq!(
+            qr_frame(Some((4000, 10, 10)), 200.0),
+            QrFrame {
+                side: 200.0,
+                left: 0.0,
+                top: 0.0
+            }
+        );
+    }
+
+    // @internal
+    #[test]
+    fn a_nonsensical_size_falls_back_to_the_full_square() {
+        assert_eq!(
+            qr_frame(Some((0, 0, 0)), 200.0),
+            QrFrame {
+                side: 200.0,
+                left: 0.0,
+                top: 0.0
+            }
+        );
+    }
+}
+
+#[cfg(test)]
+mod qr_error_correction_tests {
+    use super::qr_error_correction_level;
+    use vauchi_core::PresentationQrErrorCorrection;
+
+    // @internal
+    #[test]
+    fn low_maps_to_the_low_qr_ec_level() {
+        assert_eq!(
+            qr_error_correction_level(Some(PresentationQrErrorCorrection::Low)),
+            qrcode::EcLevel::L
+        );
+    }
+
+    // @internal
+    #[test]
+    fn absent_or_medium_maps_to_the_medium_qr_ec_level() {
+        assert_eq!(qr_error_correction_level(None), qrcode::EcLevel::M);
+        assert_eq!(
+            qr_error_correction_level(Some(PresentationQrErrorCorrection::Medium)),
+            qrcode::EcLevel::M
+        );
+    }
+}
+
 // INLINE_TEST_REQUIRED: the row the buttons draw from has no public
 // accessor and cannot be reached through a widget without a display.
 #[cfg(test)]
