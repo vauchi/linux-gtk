@@ -7,7 +7,7 @@ use vauchi_core::{
     PresentationTokens, StandardShortcut, SurfaceId, SurfaceLayout, SurfaceSpec, WindowClass,
 };
 use vauchi_gtk::core_ui::contextual_surface::{
-    GtkContextRole, GtkOverlayTransition, GtkPresentationState, context_controls,
+    GtkContextRole, GtkControlArea, GtkOverlayTransition, GtkPresentationState, context_controls,
     context_controls_with, interaction_for_shortcut,
 };
 
@@ -654,6 +654,31 @@ fn context_controls_draw_the_info_slot_last_and_only_when_core_sends_it() {
             GtkContextRole::Primary,
             GtkContextRole::Secondary
         ]
+    );
+}
+
+/// The bottom row above the tab bar is retired (vauchi/private#534): every
+/// role but the full-width action now draws in the surface's header bar,
+/// Back and a sidebar-less Navigation leading it, Info and Secondary
+/// trailing it; Primary alone moves into the surface content.
+#[test]
+fn only_primary_draws_in_the_surface_content_the_rest_join_the_title_row() {
+    assert_eq!(GtkContextRole::Back.area(), GtkControlArea::TitleRowLeading);
+    assert_eq!(
+        GtkContextRole::Navigation.area(),
+        GtkControlArea::TitleRowLeading
+    );
+    assert_eq!(
+        GtkContextRole::Secondary.area(),
+        GtkControlArea::TitleRowTrailing
+    );
+    assert_eq!(
+        GtkContextRole::Info.area(),
+        GtkControlArea::TitleRowTrailing
+    );
+    assert_eq!(
+        GtkContextRole::Primary.area(),
+        GtkControlArea::SurfaceContent
     );
 }
 
