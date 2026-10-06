@@ -661,6 +661,7 @@ fn context_controls_draw_the_info_slot_last_and_only_when_core_sends_it() {
 /// role but the full-width action now draws in the surface's header bar,
 /// Back and a sidebar-less Navigation leading it, Info and Secondary
 /// trailing it; Primary alone moves into the surface content.
+// @scenario: generic_presentation_protocol.feature :: Contextual controls expose four stable roles
 #[test]
 fn only_primary_draws_in_the_surface_content_the_rest_join_the_title_row() {
     assert_eq!(GtkContextRole::Back.area(), GtkControlArea::TitleRowLeading);
