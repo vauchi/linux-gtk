@@ -7,13 +7,20 @@ use gtk4::prelude::*;
 use gtk4::{self, gio};
 use libadwaita as adw;
 
+/// Widget name `contextual_surface::widgets` looks this header bar up by,
+/// since it lives outside the content container that per-render clearing
+/// walks (vauchi/private#534: Core's title row now draws here).
+pub const SURFACE_TITLE_BAR_NAME: &str = "vauchi-surface-title-bar";
+
 /// Builds an `adw::HeaderBar` without a parallel application action menu.
 ///
 /// The caller must attach the returned widget to the top of the window layout.
 /// `app` is used only to retain the native Quit shortcut.
 pub fn build(app: &adw::Application) -> adw::HeaderBar {
     register_actions(app);
-    adw::HeaderBar::builder().build()
+    let header_bar = adw::HeaderBar::builder().build();
+    header_bar.set_widget_name(SURFACE_TITLE_BAR_NAME);
+    header_bar
 }
 
 fn register_actions(app: &adw::Application) {

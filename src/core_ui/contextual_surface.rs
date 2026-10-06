@@ -54,6 +54,26 @@ pub enum GtkContextRole {
     Info,
 }
 
+/// Where native GTK code draws a role's control now that the separate row
+/// above the content is retired: every role but the full-width action moves
+/// into the surface's header bar (vauchi/private#534).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GtkControlArea {
+    TitleRowLeading,
+    TitleRowTrailing,
+    SurfaceContent,
+}
+
+impl GtkContextRole {
+    pub fn area(self) -> GtkControlArea {
+        match self {
+            GtkContextRole::Back | GtkContextRole::Navigation => GtkControlArea::TitleRowLeading,
+            GtkContextRole::Secondary | GtkContextRole::Info => GtkControlArea::TitleRowTrailing,
+            GtkContextRole::Primary => GtkControlArea::SurfaceContent,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct GtkContextControl<'a> {
     pub role: GtkContextRole,

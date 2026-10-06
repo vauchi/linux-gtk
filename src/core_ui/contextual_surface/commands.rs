@@ -12,7 +12,10 @@ use std::rc::Rc;
 use vauchi_app::ui::AppEngine;
 use vauchi_core::{Command, InteractionId, SurfaceId};
 
-use super::widgets::{COMMAND_STATE, context_bar_button, dispatch_event, render_bar};
+use super::widgets::{
+    COMMAND_STATE, clear_title_row_for, context_bar_button, dispatch_event, render_primary_button,
+    render_title_row,
+};
 use super::{environment, overlays, sidebar};
 use crate::core_ui::generic_surface::{self, OnEvent};
 
@@ -121,8 +124,7 @@ pub(crate) fn handle_commands(
     if let Some((surface_id, overlay)) = pending_overlay {
         // Resolved after the rebuild above, never before: the button that
         // asked for this overlay is orphaned by `render_presentation`.
-        let anchor =
-            origin.and_then(|interaction_id| context_bar_button(container, interaction_id));
+        let anchor = origin.and_then(context_bar_button);
         overlays::present(
             container,
             app_engine,
@@ -196,18 +198,29 @@ fn render_presentation(
     } else if let Some(surface) = surfaces.first() {
         generic_surface::render(container, surface, &on_event);
     }
-    if let Some((surface_id, bar)) = context_bar {
+    if let Some((surface_id, bar)) = &context_bar {
         let navigation_shown = navigation
             .as_ref()
             .is_some_and(|navigation| !navigation.items.is_empty());
-        render_bar(
+        let title = surfaces
+            .iter()
+            .find(|surface| &surface.surface_id == surface_id)
+            .map(|surface| surface.title.as_str())
+            .unwrap_or_default();
+        render_title_row(
             container,
             app_engine,
             toast_overlay,
-            &surface_id,
-            &bar,
+            surface_id,
+            title,
+            bar,
             navigation_shown,
         );
+        if let Some(primary) = bar.primary.as_ref() {
+            render_primary_button(container, app_engine, toast_overlay, surface_id, primary);
+        }
+    } else {
+        clear_title_row_for(container);
     }
     restore_focus(container, focus_name.as_deref());
 }

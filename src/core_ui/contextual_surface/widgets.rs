@@ -2,27 +2,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk4::glib;
+use gtk4::pango;
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Orientation};
+use gtk4::{Box as GtkBox, Button, Label, Widget};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{ActionTone, Command, Event, InteractionId, StandardShortcut, SurfaceId};
+use vauchi_core::{
+    ActionTone, Command, ContextBar, Event, InteractionId, StandardShortcut, SurfaceId,
+};
 
 use crate::core_ui::accessibility;
+use crate::platform::header_bar::SURFACE_TITLE_BAR_NAME;
 
 use super::environment;
 use super::{
-    GtkContextRole, GtkPresentationState, context_controls_with, interaction_for_shortcut,
+    GtkContextRole, GtkControlArea, GtkPresentationState, context_controls_with,
+    interaction_for_shortcut,
 };
-
-const CONTEXT_BAR_NAME: &str = "contextual-command-bar";
 
 thread_local! {
     pub(super) static COMMAND_STATE: RefCell<GtkPresentationState> =
         RefCell::new(GtkPresentationState::default());
+
+    /// The buttons this shell packed into the window's header bar for the
+    /// current surface — tracked so the next render can remove exactly
+    /// these before repacking, and so a click that opens the action menu
+    /// can still find its anchor once the surface rebuild has orphaned it
+    /// (`context_bar_button`).
+    static TITLE_ROW_WIDGETS: RefCell<Vec<Widget>> = const { RefCell::new(Vec::new()) };
 }
 
 pub(crate) fn render_current_surface(
@@ -30,7 +40,6 @@ pub(crate) fn render_current_surface(
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
 ) {
-    remove_existing_bar(container);
     environment::report_environment(container, app_engine);
 
     let Ok(commands) = app_engine.borrow_mut().initial_commands() else {
@@ -39,82 +48,172 @@ pub(crate) fn render_current_surface(
     super::commands::handle_commands(container, app_engine, toast_overlay, commands, None);
 }
 
-pub(super) fn render_bar(
+/// Draws the title row's controls on the window's header bar: Core's
+/// surface title in the middle, Back (and a sidebar-less Navigation
+/// launcher) leading it, Info and Secondary trailing it with Secondary at
+/// the true trailing end (`ContactDetail.dc.html`: info beside the title,
+/// the ellipsis menu at the outer edge). Primary never reaches here — it
+/// draws in the surface content (`render_primary_button`).
+pub(super) fn render_title_row(
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
     toast_overlay: &adw::ToastOverlay,
     surface_id: &SurfaceId,
-    bar: &vauchi_core::ContextBar,
+    title: &str,
+    bar: &ContextBar,
     navigation_shown: bool,
 ) {
-    remove_existing_bar(container);
-    let strip = GtkBox::new(Orientation::Horizontal, 8);
-    strip.set_widget_name(CONTEXT_BAR_NAME);
-    strip.add_css_class("toolbar");
-    strip.add_css_class("contextual-command-bar");
-    strip.set_margin_top(8);
-    strip.set_margin_bottom(8);
-    strip.set_margin_start(8);
-    strip.set_margin_end(8);
+    let Some(header_bar) = locate_header_bar(container) else {
+        return;
+    };
+    clear_title_row(&header_bar);
 
+    let title_label = Label::builder()
+        .label(title)
+        .ellipsize(pango::EllipsizeMode::End)
+        .single_line_mode(true)
+        .build();
+    header_bar.set_title_widget(Some(&title_label));
+
+    let mut trailing = Vec::new();
     for control in context_controls_with(bar, navigation_shown) {
-        let button = build_button(control.role, control.action, control.emphasized);
-        let interaction_id = control.action.interaction_id.clone();
-        let surface_id = surface_id.clone();
-        let app_engine = app_engine.clone();
-        let container = container.clone();
-        let toast_overlay = toast_overlay.clone();
-        button.connect_clicked(move |_| {
-            dispatch_interaction(
-                &container,
-                &app_engine,
-                &toast_overlay,
-                &surface_id,
-                &interaction_id,
-                Some(&interaction_id),
-            );
-        });
-        strip.append(&button);
-    }
-
-    container.append(&strip);
-}
-
-fn remove_existing_bar(container: &GtkBox) {
-    let mut child = container.first_child();
-    while let Some(widget) = child {
-        let next = widget.next_sibling();
-        if widget.widget_name() == CONTEXT_BAR_NAME {
-            container.remove(&widget);
-        }
-        child = next;
-    }
-}
-
-/// Re-resolve a context-bar button by the interaction it carries.
-///
-/// The bar is rebuilt wholesale between the click and the overlay that click
-/// asks for, so the emitting widget is orphaned by then. Scoping the walk to
-/// the bar keeps a same-named surface control from being taken as the anchor.
-pub(super) fn context_bar_button(
-    container: &GtkBox,
-    interaction_id: &InteractionId,
-) -> Option<Button> {
-    let mut child = container.first_child();
-    while let Some(widget) = child {
-        if widget.widget_name() == CONTEXT_BAR_NAME {
-            let mut candidate = widget.first_child();
-            while let Some(control) = candidate {
-                if control.widget_name() == interaction_id.as_str() {
-                    return control.downcast::<Button>().ok();
-                }
-                candidate = control.next_sibling();
+        match control.role.area() {
+            GtkControlArea::TitleRowLeading => {
+                let button = build_button(control.role, control.action, false);
+                wire_context_button(
+                    &button,
+                    surface_id,
+                    &control.action.interaction_id,
+                    container,
+                    app_engine,
+                    toast_overlay,
+                );
+                header_bar.pack_start(&button);
+                track_title_row_widget(button.upcast());
             }
-            return None;
+            GtkControlArea::TitleRowTrailing => trailing.push(control),
+            GtkControlArea::SurfaceContent => {}
         }
-        child = widget.next_sibling();
     }
-    None
+    // Secondary (the ellipsis menu) belongs at the true trailing end; Info
+    // stays nearer the title. `pack_end` places each new call further out,
+    // so Info is packed first regardless of the order the loop above found
+    // them in.
+    trailing.sort_by_key(|control| control.role == GtkContextRole::Secondary);
+    for control in trailing {
+        let button = build_button(control.role, control.action, false);
+        wire_context_button(
+            &button,
+            surface_id,
+            &control.action.interaction_id,
+            container,
+            app_engine,
+            toast_overlay,
+        );
+        header_bar.pack_end(&button);
+        track_title_row_widget(button.upcast());
+    }
+}
+
+/// Primary is the one role the title row never draws: a full-width button
+/// pinned under the surface content, in view for a fixed layout and below
+/// the scroll region for one that scrolls (both already append after the
+/// surface's `ScrolledWindow`, so no layout branch is needed here).
+pub(super) fn render_primary_button(
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+    surface_id: &SurfaceId,
+    action: &vauchi_core::ActionSpec,
+) {
+    let button = build_button(GtkContextRole::Primary, action, true);
+    button.set_margin_top(8);
+    button.set_margin_bottom(8);
+    button.set_margin_start(8);
+    button.set_margin_end(8);
+    wire_context_button(
+        &button,
+        surface_id,
+        &action.interaction_id,
+        container,
+        app_engine,
+        toast_overlay,
+    );
+    container.append(&button);
+}
+
+fn wire_context_button(
+    button: &Button,
+    surface_id: &SurfaceId,
+    interaction_id: &InteractionId,
+    container: &GtkBox,
+    app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
+) {
+    let interaction_id = interaction_id.clone();
+    let surface_id = surface_id.clone();
+    let app_engine = app_engine.clone();
+    let container = container.clone();
+    let toast_overlay = toast_overlay.clone();
+    button.connect_clicked(move |_| {
+        dispatch_interaction(
+            &container,
+            &app_engine,
+            &toast_overlay,
+            &surface_id,
+            &interaction_id,
+            Some(&interaction_id),
+        );
+    });
+}
+
+fn locate_header_bar(container: &GtkBox) -> Option<adw::HeaderBar> {
+    let window = container.root()?.downcast::<gtk4::Window>().ok()?;
+    let widget: Widget = window.upcast();
+    super::commands::find_widget_by_name(&widget, SURFACE_TITLE_BAR_NAME)?
+        .downcast::<adw::HeaderBar>()
+        .ok()
+}
+
+/// Blanks the title row when the active surface has no context bar yet, so
+/// a previous surface's title and buttons never linger (the header bar is
+/// window-level, outside `container`, so it survives `container`'s own
+/// child-clearing loop in `render_presentation`).
+pub(super) fn clear_title_row_for(container: &GtkBox) {
+    if let Some(header_bar) = locate_header_bar(container) {
+        clear_title_row(&header_bar);
+    }
+}
+
+fn clear_title_row(header_bar: &adw::HeaderBar) {
+    header_bar.set_title_widget(None::<&Widget>);
+    TITLE_ROW_WIDGETS.with(|widgets| {
+        for widget in widgets.borrow_mut().drain(..) {
+            header_bar.remove(&widget);
+        }
+    });
+}
+
+fn track_title_row_widget(widget: Widget) {
+    TITLE_ROW_WIDGETS.with(|widgets| widgets.borrow_mut().push(widget));
+}
+
+/// Re-resolve a context-bar button by the interaction it carries, for the
+/// action-menu popover's anchor.
+///
+/// The title row is rebuilt wholesale between the click and the overlay
+/// that click asks for, so the emitting widget is orphaned by then.
+/// Resolving through the tracked title-row widgets (rather than walking the
+/// surface tree) also keeps a same-named surface control from ever being
+/// taken as the anchor.
+pub(super) fn context_bar_button(interaction_id: &InteractionId) -> Option<Button> {
+    TITLE_ROW_WIDGETS.with(|widgets| {
+        widgets
+            .borrow()
+            .iter()
+            .find(|widget| widget.widget_name() == interaction_id.as_str())
+            .and_then(|widget| widget.clone().downcast::<Button>().ok())
+    })
 }
 
 fn build_button(
