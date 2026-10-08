@@ -318,21 +318,6 @@ thread_local! {
     static PENDING_FAST_WAKEUP: RefCell<Option<glib::SourceId>> = const { RefCell::new(None) };
 }
 
-/// Delay, in milliseconds, before the shell should next call
-/// `on_wakeup()` for a `Command::ScheduleWakeup`. `earliest_millis`
-/// replaces `earliest_secs` when Core supplies it — a live QR exchange's
-/// frame dwell is finer-grained than a second — otherwise `earliest_secs`
-/// is used; either way the result never exceeds `deadline_secs`, Core's
-/// latest acceptable bound. Ported from macOS `armWakeupTimer` (#450).
-pub(crate) fn wakeup_delay_millis(
-    earliest_secs: u32,
-    deadline_secs: u32,
-    earliest_millis: Option<u32>,
-) -> u64 {
-    let earliest = earliest_millis.map_or_else(|| u64::from(earliest_secs) * 1000, u64::from);
-    earliest.min(u64::from(deadline_secs) * 1000)
-}
-
 /// Arms a one-shot wakeup timer at `delay_millis`, replacing any pending
 /// one (ADR-044 Am2a). The 30-second poll `register_wakeup_poll` installs
 /// keeps running underneath as the fallback heartbeat; this is the fast
@@ -364,31 +349,4 @@ pub(crate) fn arm_wakeup<A: IsA<gio::Application> + Clone + 'static>(
     PENDING_FAST_WAKEUP.with(|pending| {
         *pending.borrow_mut() = Some(source_id);
     });
-}
-
-// INLINE_TEST_REQUIRED: the delay a `Command::ScheduleWakeup` resolves to
-// is pure arithmetic on its three fields — no GTK timer needed to assert
-// the number (vauchi/private#450, ported from macOS `armWakeupTimer`).
-#[cfg(test)]
-mod wakeup_delay_tests {
-    use super::wakeup_delay_millis;
-
-    // @internal
-    #[test]
-    fn millis_wins_over_seconds_when_core_supplies_both() {
-        assert_eq!(wakeup_delay_millis(1, 1, Some(300)), 300);
-    }
-
-    // @internal
-    #[test]
-    fn seconds_are_used_when_millis_is_absent() {
-        assert_eq!(wakeup_delay_millis(30, 90, None), 30_000);
-    }
-
-    // @internal
-    #[test]
-    fn the_delay_never_exceeds_the_deadline() {
-        assert_eq!(wakeup_delay_millis(5, 2, None), 2_000);
-        assert_eq!(wakeup_delay_millis(0, 1, Some(5_000)), 1_000);
-    }
 }
