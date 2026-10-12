@@ -27,10 +27,12 @@ const APP_ID: &str = "com.vauchi.desktop";
 /// Flag consumed before GTK's argument parser runs.
 static RESET_FOR_TESTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+type DeepLinkOpener = Box<dyn Fn(String)>;
+
 thread_local! {
     /// Hands an opened `vauchi://` link to the engine of the window
     /// `build_ui` made; `None` until that window exists.
-    static OPEN_DEEP_LINK: RefCell<Option<Box<dyn Fn(String)>>> = const { RefCell::new(None) };
+    static OPEN_DEEP_LINK: RefCell<Option<DeepLinkOpener>> = const { RefCell::new(None) };
 }
 
 pub fn run() {
