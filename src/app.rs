@@ -27,6 +27,12 @@ const APP_ID: &str = "com.vauchi.desktop";
 /// Flag consumed before GTK's argument parser runs.
 static RESET_FOR_TESTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+thread_local! {
+    /// Hands an opened `vauchi://` link to the engine of the window
+    /// `build_ui` made; `None` until that window exists.
+    static OPEN_DEEP_LINK: RefCell<Option<Box<dyn Fn(String)>>> = const { RefCell::new(None) };
+}
+
 pub fn run() {
     if let Some(resource_dir) = std::env::var_os("VAUCHI_LOCALES_DIR") {
         let _ = i18n::init(std::path::Path::new(&resource_dir));
@@ -47,12 +53,18 @@ pub fn run() {
 
     platform::screen_capture_protection::enable();
 
-    let mut app_builder = adw::Application::builder().application_id(APP_ID);
+    // HANDLES_OPEN: the desktop entry's `%u` passes a vauchi:// link as an
+    // argument, and a running instance receives it through `open`.
+    let mut flags = gio::ApplicationFlags::HANDLES_OPEN;
     if std::env::var("VAUCHI_TEST_NON_UNIQUE").as_deref() == Ok("1") {
-        app_builder = app_builder.flags(gio::ApplicationFlags::NON_UNIQUE);
+        flags |= gio::ApplicationFlags::NON_UNIQUE;
     }
-    let app = app_builder.build();
+    let app = adw::Application::builder()
+        .application_id(APP_ID)
+        .flags(flags)
+        .build();
     app.connect_activate(build_ui);
+    app.connect_open(open_deep_links);
     app.run_with_args(&args.iter().map(String::as_str).collect::<Vec<_>>());
 }
 
@@ -74,6 +86,21 @@ fn maybe_seed_test_identity(vauchi: &mut vauchi_core::api::Vauchi) {
     match vauchi.create_identity("Test User") {
         Ok(()) => eprintln!("[vauchi] --reset-for-testing: test identity created"),
         Err(e) => eprintln!("[vauchi] --reset-for-testing: failed to create identity: {e}"),
+    }
+}
+
+fn open_deep_links(app: &adw::Application, files: &[gio::File], _hint: &str) {
+    let opened: Vec<String> = files.iter().map(|file| file.uri().to_string()).collect();
+    match app.active_window() {
+        Some(window) => window.present(),
+        None => app.activate(),
+    }
+    for uri in platform::deep_link::deep_link_uris(&opened) {
+        OPEN_DEEP_LINK.with(|open| {
+            if let Some(open) = open.borrow().as_ref() {
+                open(uri);
+            }
+        });
     }
 }
 
@@ -137,6 +164,22 @@ fn build_ui(app: &adw::Application) {
     // then stays empty while the split view, still expanded, suppresses
     // the navigation overlay too.
     render_current_surface(&content, &app_engine, &toast_overlay);
+
+    {
+        let app_engine = app_engine.clone();
+        let content = content.clone();
+        let toast_overlay = toast_overlay.clone();
+        OPEN_DEEP_LINK.with(|open| {
+            *open.borrow_mut() = Some(Box::new(move |uri| {
+                dispatch_platform_event(
+                    &content,
+                    &app_engine,
+                    &toast_overlay,
+                    Event::DeepLinkOpened { uri },
+                );
+            }));
+        });
+    }
 
     // Auto-lock: navigate to lock screen when window loses focus (C1 App Security)
     {

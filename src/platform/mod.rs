@@ -6,6 +6,7 @@
 pub mod audio;
 pub mod ble;
 pub mod camera;
+pub mod deep_link;
 pub mod hardware;
 pub mod header_bar;
 pub mod init;
