@@ -146,6 +146,10 @@ build:app:
           # tests/atspi/** changes. Without this path, an AT-SPI-only MR
           # produces a zero-job pipeline (GitLab marks the pipeline failed).
           - "tests/atspi/**/*"
+          # test:a11y, test:snapshots and test:screen-catalog also run for
+          # any src/** change, a non-Rust file included (VCI06,
+          # vauchi/private#490).
+          - "src/**/*"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:unit:
