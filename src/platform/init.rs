@@ -209,6 +209,61 @@ mod tests {
         assert!(name.starts_with("vauchi-gtk-"));
     }
 
+    /// The system keyring, held in memory so a reopen sees the keys the
+    /// first open saved.
+    #[derive(Default)]
+    struct InMemoryKeyring(std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>);
+
+    impl SecureStorage for InMemoryKeyring {
+        fn save_key(
+            &self,
+            name: &str,
+            key: &[u8],
+        ) -> Result<(), vauchi_core::storage::StorageError> {
+            self.0.lock().unwrap().insert(name.into(), key.to_vec());
+            Ok(())
+        }
+
+        fn load_key(
+            &self,
+            name: &str,
+        ) -> Result<Option<Vec<u8>>, vauchi_core::storage::StorageError> {
+            Ok(self.0.lock().unwrap().get(name).cloned())
+        }
+
+        fn delete_key(&self, name: &str) -> Result<(), vauchi_core::storage::StorageError> {
+            self.0.lock().unwrap().remove(name);
+            Ok(())
+        }
+    }
+
+    // Before an identity exists the database is under Core's bootstrap key
+    // in the keyring (vauchi/private#580 T5.3); a restart must find it.
+    // @internal
+    #[test]
+    fn keyring_reopens_data_written_before_an_identity() {
+        let data_dir = tempfile::tempdir().expect("temporary data directory");
+        let keyring: Arc<dyn SecureStorage> = Arc::new(InMemoryKeyring::default());
+
+        let first = open_with_secure_storage(data_dir.path(), DEFAULT_RELAY_URL, keyring.clone())
+            .expect("first open");
+        first
+            .storage()
+            .contacts()
+            .save_own_card(&vauchi_core::contact_card::ContactCard::new("Before"))
+            .expect("save own card");
+        drop(first);
+
+        let reopened = open_with_secure_storage(data_dir.path(), DEFAULT_RELAY_URL, keyring)
+            .expect("second open");
+        let card = reopened.own_card().expect("read own card");
+        assert!(!reopened.has_identity());
+        assert_eq!(
+            card.map(|card| card.display_name().to_string()),
+            Some("Before".to_string())
+        );
+    }
+
     // @scenario: linux_desktop_reliability.feature :: GTK identity survives restart without a system keyring
     #[test]
     fn file_fallback_reopens_created_identity() {
