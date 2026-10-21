@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use vauchi_app::i18n::Locale;
+use vauchi_app::ui::{AppEngine, RenderContext};
 
 /// Detect locale from environment variables (LC_ALL, LC_MESSAGES, LANG).
 ///
@@ -30,6 +31,27 @@ fn detect_locale_from(mut value_for: impl FnMut(&str) -> Option<String>) -> Loca
         }
     }
     Locale::default()
+}
+
+/// The environment's language tag, unparsed, for Core's `system_locale`:
+/// Core alone maps it to a language (vauchi/private#721, ADR-066). Same
+/// precedence and `C`/`POSIX` skipping as [`detect_locale`].
+pub fn system_locale_from(value_for: impl Fn(&str) -> Option<String>) -> Option<String> {
+    ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .filter_map(value_for)
+        .find(|tag| {
+            let language = tag.split(['_', '.', '@']).next().unwrap_or_default();
+            !matches!(language, "" | "C" | "POSIX")
+        })
+}
+
+pub fn report_system_locale(engine: &mut AppEngine, value_for: impl Fn(&str) -> Option<String>) {
+    let ctx = RenderContext {
+        system_locale: system_locale_from(value_for),
+        ..engine.render_context().clone()
+    };
+    engine.set_render_context(ctx);
 }
 
 // INLINE_TEST_REQUIRED: linux-gtk is a binary crate (no lib.rs);

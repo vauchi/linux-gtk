@@ -113,6 +113,7 @@ fn build_ui(app: &adw::Application) {
     let mut vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
     maybe_seed_test_identity(&mut vauchi);
     let mut app_engine = AppEngine::new(vauchi);
+    crate::locale::report_system_locale(&mut app_engine, |name| std::env::var(name).ok());
     app_engine.bootstrap();
     let app_engine = Rc::new(RefCell::new(app_engine));
 
