@@ -101,6 +101,16 @@ fn open_with_file_fallback(
     Ok(Vauchi::new(config)?)
 }
 
+fn open_with_secure_storage(
+    data_path: &Path,
+    relay_url: &str,
+    secure_storage: Arc<dyn SecureStorage>,
+) -> Result<Vauchi, Box<dyn std::error::Error>> {
+    let config = VauchiConfig::with_storage_path(data_path.join("vauchi.db"))
+        .with_relay_url(relay_url.to_string());
+    Ok(Vauchi::with_secure_storage(config, secure_storage)?)
+}
+
 pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
     let data_path = data_dir()?;
     std::fs::create_dir_all(&data_path)?;
@@ -111,11 +121,7 @@ pub fn init_vauchi() -> Result<Vauchi, Box<dyn std::error::Error>> {
     let secure_storage = detect_secure_storage(&install_id);
 
     Ok(match secure_storage {
-        Some(ss) => {
-            let config = VauchiConfig::with_storage_path(data_path.join("vauchi.db"))
-                .with_relay_url(relay_url);
-            Vauchi::with_secure_storage(config, ss)?
-        }
+        Some(ss) => open_with_secure_storage(&data_path, &relay_url, ss)?,
         None => {
             eprintln!("[vauchi] Using file-backed fallback key (less secure)");
             open_with_file_fallback(&data_path, &relay_url)?
