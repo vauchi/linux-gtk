@@ -103,4 +103,47 @@ mod tests {
             Locale::default()
         );
     }
+
+    fn env<'a>(values: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        move |name| {
+            values
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_string())
+        }
+    }
+
+    // @internal
+    #[test]
+    fn the_raw_tag_of_the_first_set_variable_is_reported() {
+        assert_eq!(
+            system_locale_from(env(&[("LC_ALL", "fr_CH.UTF-8"), ("LANG", "de_DE")])).as_deref(),
+            Some("fr_CH.UTF-8")
+        );
+        assert_eq!(
+            system_locale_from(env(&[("LC_ALL", "C.UTF-8"), ("LANG", "de_DE.UTF-8")])).as_deref(),
+            Some("de_DE.UTF-8")
+        );
+        assert_eq!(
+            system_locale_from(env(&[("LC_ALL", "POSIX"), ("LANG", "")])),
+            None
+        );
+    }
+
+    // @internal
+    #[test]
+    fn following_the_system_renders_the_environment_language() {
+        let mut engine = vauchi_app::ui::AppEngine::new(
+            vauchi_core::api::Vauchi::in_memory().expect("in-memory core"),
+        );
+
+        report_system_locale(&mut engine, env(&[("LANG", "de_DE.UTF-8")]));
+
+        assert_eq!(
+            engine.render_context().locale,
+            None,
+            "still following the system"
+        );
+        assert_eq!(engine.render_context().resolved_locale(), Locale::German);
+    }
 }
