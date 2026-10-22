@@ -114,6 +114,18 @@ fn build_ui(app: &adw::Application) {
     maybe_seed_test_identity(&mut vauchi);
     let mut app_engine = AppEngine::new(vauchi);
     crate::locale::report_system_locale(&mut app_engine, |name| std::env::var(name).ok());
+    // CDN languages, themes and social networks: Core runs the update cycle
+    // and announces applied content as a Vauchi event, which the handler
+    // below re-renders on (vauchi/private#733 D10).
+    if let Some(data_dir) = app_engine
+        .vauchi()
+        .config()
+        .storage_path
+        .parent()
+        .map(std::path::Path::to_path_buf)
+    {
+        app_engine.start_content_updates(&data_dir, vauchi_app::ui::ContentRunOptions::default());
+    }
     app_engine.bootstrap();
     let app_engine = Rc::new(RefCell::new(app_engine));
 

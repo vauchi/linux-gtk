@@ -3732,13 +3732,16 @@ version = "0.86.0"
 source = "git+https://gitlab.com/vauchi/core.git?tag=v0.86.0#d073bd83953062bf4f7413edb6bc64e12bffdc1f"
 dependencies = [
  "base64",
+ "flate2",
  "hex",
  "serde",
  "serde_json",
  "sha2",
  "subtle",
  "thiserror 2.0.18",
+ "tokio",
  "tracing",
+ "ureq",
  "vauchi-core",
  "zeroize",
 ]
