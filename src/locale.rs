@@ -24,7 +24,7 @@ fn detect_locale_from(mut value_for: impl FnMut(&str) -> Option<String>) -> Loca
             if !code.is_empty()
                 && code != "C"
                 && code != "POSIX"
-                && let Some(locale) = Locale::from_code(code)
+                && let Some(locale) = vauchi_app::i18n::translated_locale(code)
             {
                 return locale;
             }
@@ -74,7 +74,7 @@ mod tests {
     fn lc_all_takes_precedence_over_lang() {
         assert_eq!(
             detect_test_locale(&[("LC_ALL", "de_DE.UTF-8"), ("LANG", "fr_FR.UTF-8")]),
-            Locale::German
+            Locale::GERMAN
         );
     }
 
@@ -83,7 +83,7 @@ mod tests {
     fn lc_messages_used_when_lc_all_unset() {
         assert_eq!(
             detect_test_locale(&[("LC_MESSAGES", "es_ES.UTF-8"), ("LANG", "it_IT.UTF-8")]),
-            Locale::Spanish
+            Locale::SPANISH
         );
     }
 
@@ -92,7 +92,7 @@ mod tests {
     fn lang_used_when_no_lc_var_set() {
         assert_eq!(
             detect_test_locale(&[("LANG", "it_CH.UTF-8")]),
-            Locale::Italian
+            Locale::ITALIAN
         );
     }
 
@@ -166,6 +166,6 @@ mod tests {
             None,
             "still following the system"
         );
-        assert_eq!(engine.render_context().resolved_locale(), Locale::German);
+        assert_eq!(engine.render_context().resolved_locale(), Locale::GERMAN);
     }
 }
