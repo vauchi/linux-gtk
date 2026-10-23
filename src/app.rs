@@ -128,6 +128,7 @@ fn build_ui(app: &adw::Application) {
     }
     app_engine.bootstrap();
     let app_engine = Rc::new(RefCell::new(app_engine));
+    platform::network_cost::watch(&app_engine);
 
     // Main layout: header + body
     let root = GtkBox::new(Orientation::Vertical, 0);

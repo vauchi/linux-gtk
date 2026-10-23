@@ -10,6 +10,7 @@ pub mod deep_link;
 pub mod hardware;
 pub mod header_bar;
 pub mod init;
+pub mod network_cost;
 pub mod nfc;
 pub mod notifications;
 pub mod screen_capture_protection;
