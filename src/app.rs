@@ -155,11 +155,6 @@ fn build_ui(app: &adw::Application) {
 
     root.append(&split_view);
 
-    // Register event handler for background screen invalidation (Plan 2C).
-    // Core events (sync, contact updates, etc.) re-render the active screen
-    // so the UI stays current without waiting for user interaction.
-    register_event_handler(&app_engine, &content, &toast_overlay, app);
-
     // Core-driven wakeup tick (ADR-044 Am2a). Replaces the frontend-owned
     // 30-second `poll_notifications()` loop with `on_wakeup()` so core owns
     // when work is due; the shell only executes the native timer.
@@ -178,7 +173,7 @@ fn build_ui(app: &adw::Application) {
     // render with no root drops Core's first `SetNavigation` — the sidebar
     // then stays empty while the split view, still expanded, suppresses
     // the navigation overlay too.
-    render_current_surface(&content, &app_engine, &toast_overlay);
+    register_event_handler(&app_engine, &content, &toast_overlay, app);
 
     {
         let app_engine = app_engine.clone();
@@ -276,7 +271,7 @@ fn register_event_handler(
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
     let app = app.clone();
-    glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+    let repaint = move || {
         if rx.try_recv().is_ok() {
             render_current_surface(&content, &app_engine, &toast_overlay);
 
@@ -290,6 +285,12 @@ fn register_event_handler(
                 app.send_notification(Some(&notif.event_key), &n);
             }
         }
+    };
+    // Consume the initial wakeup before showing controls, otherwise the first
+    // timer tick replaces widgets the user may already be activating (#764).
+    repaint();
+    glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+        repaint();
         glib::ControlFlow::Continue
     });
 }
