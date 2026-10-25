@@ -6,7 +6,7 @@ Version:        0.5.0
 Release:        1%{?dist}
 Summary:        Privacy-focused updatable contact cards (GTK desktop)
 
-License:        GPL-3.0-or-later
+License:        GPL-3.0-or-later AND AGPL-3.0-or-later
 URL:            https://vauchi.app
 Source0:        %{name}-%{version}.tar.gz
 

@@ -6,7 +6,7 @@
   <name>Vauchi</name>
   <summary>Privacy-focused updatable contact cards</summary>
   <metadata_license>GPL-3.0-or-later</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>GPL-3.0-or-later AND AGPL-3.0-or-later</project_license>
   <description>
     <p>Exchange contact cards in person via QR code. Update your info anytime — contacts stay current automatically. End-to-end encrypted, decentralized.</p>
   </description>
