@@ -9,12 +9,11 @@ use gtk4::{self, Box as GtkBox, Orientation, gio};
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc;
 
 use vauchi_app::i18n;
 use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{Event, StandardShortcut, api::VauchiEvent};
+use vauchi_core::{Event, StandardShortcut};
 
 use crate::core_ui::contextual_surface::{
     build_split_view, dispatch_platform_event, handle_commands, render_current_surface,
@@ -264,47 +263,25 @@ fn build_ui(app: &adw::Application) {
     window.present();
 }
 
-/// Register a `VauchiEvent` handler that re-renders the current screen.
-///
-/// The handler runs on whatever thread dispatches the event (often a sync
-/// background thread). An `mpsc` channel bridges to the GTK main loop via
-/// `glib::timeout_add_local`. Multiple events between polls are coalesced
-/// into a single re-render. Only events affecting the current screen
-/// trigger a re-render (selective invalidation via `affected_screens`).
+/// Bridge Core's coalesced invalidation wakeups to the GTK main loop.
 fn register_event_handler(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
     app: &adw::Application,
 ) {
-    let (tx, rx) = mpsc::channel::<Vec<String>>();
-
-    // Handler is Send+Sync — runs on the dispatching thread.
-    // Maps events to affected screen IDs before sending.
-    app_engine
-        .borrow()
-        .vauchi()
-        .add_event_handler(std::sync::Arc::new(move |event: VauchiEvent| {
-            let ids = vauchi_app::ui::affected_screens(&event);
-            if !ids.is_empty() {
-                let owned: Vec<String> = ids.into_iter().map(String::from).collect();
-                let _ = tx.send(owned);
-            }
-        }));
+    let rx = app_engine.borrow().subscribe_presentation_invalidations();
 
     let app_engine = app_engine.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
     let app = app.clone();
     glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-        let mut all_ids = Vec::new();
-        while let Ok(ids) = rx.try_recv() {
-            all_ids.extend(ids);
-        }
-        if !all_ids.is_empty() {
+        if rx.try_recv().is_ok() {
             render_current_surface(&content, &app_engine, &toast_overlay);
 
-            // Drain and show OS notifications
+            // Compatibility delivery until all shells execute PostNotification
+            // with shared delivery accounting and opaque native IDs (#764).
             let notifications = app_engine.borrow_mut().drain_pending_notifications();
             for notif in &notifications {
                 let n = gio::Notification::new(&notif.title);
