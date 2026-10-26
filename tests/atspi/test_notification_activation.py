@@ -11,7 +11,33 @@ import subprocess
 import sys
 
 
+def accessibility_bus_id():
+    import gi
+
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+
+    session = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    address = session.call_sync(
+        "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Bus", "GetAddress",
+        None, GLib.VariantType.new("(s)"), Gio.DBusCallFlags.NONE, 5000, None,
+    ).unpack()[0]
+    connection = Gio.DBusConnection.new_for_address_sync(
+        address, Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+        | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None,
+    )
+    try:
+        return connection.call_sync(
+            "org.freedesktop.DBus", "/org/freedesktop/DBus",
+            "org.freedesktop.DBus", "GetId", None,
+            GLib.VariantType.new("(s)"), Gio.DBusCallFlags.NONE, 5000, None,
+        ).unpack()[0]
+    finally:
+        connection.close_sync(None)
+
+
 def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_path):
+    parent_bus_id = accessibility_bus_id()
     repo = Path(__file__).resolve().parents[2]
     service_dir = tmp_path / "dbus-1" / "services"
     service_dir.mkdir(parents=True)
@@ -46,6 +72,7 @@ def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_pat
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "cold-start target reached Core" in result.stdout
+    assert accessibility_bus_id() == parent_bus_id
 
 
 def check_cold_start():
