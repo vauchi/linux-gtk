@@ -15,6 +15,8 @@ override_dh_auto_install:
 		debian/vauchi-gtk/usr/bin/gvauchi
 	install -Dm 644 data/com.vauchi.desktop.desktop \
 		debian/vauchi-gtk/usr/share/applications/com.vauchi.desktop.desktop
+	install -Dm 644 data/com.vauchi.desktop.service \
+		debian/vauchi-gtk/usr/share/dbus-1/services/com.vauchi.desktop.service
 	install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
 		debian/vauchi-gtk/usr/share/metainfo/com.vauchi.desktop.metainfo.xml
 	install -d debian/vauchi-gtk/usr/share/fonts/truetype/vauchi

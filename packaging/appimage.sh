@@ -17,7 +17,9 @@ mkdir -p "${APPDIR}/usr/share/metainfo"
 mkdir -p "${APPDIR}/usr/share/icons/hicolor/scalable/apps"
 
 cp target/release/gvauchi "${APPDIR}/usr/bin/"
-cp data/com.vauchi.desktop.desktop "${APPDIR}/usr/share/applications/"
+# A portable image has no stable installed path for D-Bus activation (#764).
+sed 's/^DBusActivatable=true$/DBusActivatable=false/' \
+  data/com.vauchi.desktop.desktop > "${APPDIR}/usr/share/applications/com.vauchi.desktop.desktop"
 cp data/com.vauchi.desktop.metainfo.xml "${APPDIR}/usr/share/metainfo/"
 cp data/com.vauchi.desktop.svg \
   "${APPDIR}/usr/share/icons/hicolor/scalable/apps/com.vauchi.desktop.svg"

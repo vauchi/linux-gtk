@@ -34,6 +34,8 @@ modules:
       - cargo build --release --features audio,ble,camera,mdns
       - install -Dm 755 target/release/gvauchi /app/bin/gvauchi
       - install -Dm 644 data/com.vauchi.desktop.desktop /app/share/applications/com.vauchi.desktop.desktop
+      - install -Dm 644 data/com.vauchi.desktop.service /app/share/dbus-1/services/com.vauchi.desktop.service
+      - sed -i 's|/usr/bin/gvauchi|/app/bin/gvauchi|' /app/share/dbus-1/services/com.vauchi.desktop.service
       - install -Dm 644 data/com.vauchi.desktop.metainfo.xml /app/share/metainfo/com.vauchi.desktop.metainfo.xml
       - install -Dm 644 data/com.vauchi.desktop.svg /app/share/icons/hicolor/scalable/apps/com.vauchi.desktop.svg
     sources:

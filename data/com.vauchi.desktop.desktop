@@ -13,4 +13,6 @@ Categories=Network;ContactManagement;GTK;
 Keywords=contacts;privacy;encrypted;exchange;qr;
 StartupWMClass=com.vauchi.desktop
 StartupNotify=true
+DBusActivatable=true
+X-GNOME-UsesNotifications=true
 MimeType=x-scheme-handler/vauchi;

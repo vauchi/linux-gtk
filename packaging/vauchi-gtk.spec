@@ -37,6 +37,8 @@ install -Dm 755 target/release/gvauchi \
     %{buildroot}%{_bindir}/gvauchi
 install -Dm 644 data/com.vauchi.desktop.desktop \
     %{buildroot}%{_datadir}/applications/com.vauchi.desktop.desktop
+install -Dm 644 data/com.vauchi.desktop.service \
+    %{buildroot}%{_datadir}/dbus-1/services/com.vauchi.desktop.service
 install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
     %{buildroot}%{_datadir}/metainfo/com.vauchi.desktop.metainfo.xml
 
@@ -44,6 +46,7 @@ install -Dm 644 data/com.vauchi.desktop.metainfo.xml \
 %license LICENSE
 %{_bindir}/gvauchi
 %{_datadir}/applications/com.vauchi.desktop.desktop
+%{_datadir}/dbus-1/services/com.vauchi.desktop.service
 %{_datadir}/metainfo/com.vauchi.desktop.metainfo.xml
 
 %changelog
