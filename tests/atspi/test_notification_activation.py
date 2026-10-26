@@ -9,6 +9,9 @@ import signal
 import shutil
 import subprocess
 import sys
+import tempfile
+
+import pytest
 
 
 def accessibility_bus_id():
@@ -36,10 +39,21 @@ def accessibility_bus_id():
         connection.close_sync(None)
 
 
-def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_path):
+@pytest.fixture
+def private_runtime_dir():
+    # Unix sockets must fit sun_path even when CI's TMPDIR is deeply nested.
+    with tempfile.TemporaryDirectory(prefix="vauchi-a11y-", dir="/tmp") as directory:
+        yield directory
+
+
+def test_notification_action_cold_starts_and_delivers_target(
+    gtk_binary, tmp_path, private_runtime_dir,
+):
     parent_bus_id = accessibility_bus_id()
     repo = Path(__file__).resolve().parents[2]
-    service_dir = tmp_path / "dbus-1" / "services"
+    # Keep the long-runner-path regression active on short local checkouts too.
+    app_data_dir = tmp_path / ("long-runner-path-" * 8)
+    service_dir = app_data_dir / "dbus-1" / "services"
     service_dir.mkdir(parents=True)
     service = (repo / "data/com.vauchi.desktop.service").read_text()
     # Relocate the installed executable into this test's build directory.
@@ -50,14 +64,12 @@ def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_pat
         (service_dir / f"{name}.service").write_text(
             f"[D-BUS Service]\nName={name}\nExec=/usr/bin/false\n"
         )
-    runtime_dir = tmp_path / "runtime"
-    runtime_dir.mkdir(mode=0o700)
     env = dict(os.environ)
     env.update(
-        XDG_RUNTIME_DIR=str(runtime_dir),
-        XDG_DATA_HOME=str(tmp_path),
-        XDG_CONFIG_HOME=str(tmp_path / "config"),
-        XDG_CACHE_HOME=str(tmp_path / "cache"),
+        XDG_RUNTIME_DIR=private_runtime_dir,
+        XDG_DATA_HOME=str(app_data_dir),
+        XDG_CONFIG_HOME=str(app_data_dir / "config"),
+        XDG_CACHE_HOME=str(app_data_dir / "cache"),
         XDG_CURRENT_DESKTOP="none",
         GTK_A11Y="atspi",
         GSK_RENDERER="cairo",
