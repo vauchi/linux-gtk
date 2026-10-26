@@ -92,19 +92,12 @@ pub(crate) fn handle_commands(
             // exchange's sub-second wait needs (#450). Core computes the
             // wait (#548).
             Command::ScheduleWakeup { delay_millis, .. } => {
-                if let Some(window) = container
-                    .root()
-                    .and_then(|root| root.downcast::<gtk4::Window>().ok())
-                    && let Some(application) = window.application()
-                {
-                    crate::app::arm_wakeup(
-                        &application,
-                        app_engine,
-                        container,
-                        toast_overlay,
-                        u64::from(delay_millis),
-                    );
-                }
+                crate::app::arm_wakeup(
+                    app_engine,
+                    container,
+                    toast_overlay,
+                    u64::from(delay_millis),
+                );
             }
             other => platform_commands.push(other),
         }

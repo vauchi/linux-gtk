@@ -5,7 +5,6 @@
 
 use gtk4::prelude::*;
 use gtk4::{gio, glib};
-use vauchi_app::notification_types::NotificationPriority;
 use vauchi_core::{NotificationSpec, NotificationUrgency};
 
 pub fn install_open_action(
@@ -38,12 +37,4 @@ pub fn post_notification(
             .set_default_action_and_target_value("app.open-notification", Some(&uri.to_variant()));
     }
     application.send_notification(notification.notification_id.as_deref(), &native);
-}
-
-pub fn os_priority_for(priority: NotificationPriority) -> gio::NotificationPriority {
-    match priority {
-        NotificationPriority::Default => gio::NotificationPriority::Normal,
-        NotificationPriority::High => gio::NotificationPriority::High,
-        NotificationPriority::Urgent => gio::NotificationPriority::Urgent,
-    }
 }

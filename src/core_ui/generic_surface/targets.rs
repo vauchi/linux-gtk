@@ -35,29 +35,15 @@ mod tests {
     use super::*;
 
     fn tokens(minimum_target_size: u16, corner_radius: u16) -> PresentationTokens {
-        PresentationTokens {
-            spacing_small: 4,
-            spacing_medium: 8,
-            spacing_large: 16,
-            corner_radius,
-            minimum_target_size,
-            colors: Box::new(vauchi_core::PresentationColors {
-                background: "#282a36".into(),
-                surface: "#21222c".into(),
-                text: "#f8f8f2".into(),
-                text_muted: "#bfbfbf".into(),
-                accent: "#bd93f9".into(),
-                border: "#6272a4".into(),
-                success: "#50fa7b".into(),
-                warning: "#ffb86c".into(),
-                error: "#ff5555".into(),
-                surface_input: None,
-                surface_muted: None,
-                surface_elevated: None,
-                text_on_accent: None,
-                focus_ring: None,
-            }),
-        }
+        let fixture: serde_json::Value =
+            serde_json::from_str(vauchi_app::ui::presentation_contract_fixture_json()).unwrap();
+        let mut tokens: PresentationTokens = serde_json::from_value(
+            fixture["initial_commands"][0]["ReplaceSurface"]["surface"]["tokens"].clone(),
+        )
+        .unwrap();
+        tokens.minimum_target_size = minimum_target_size;
+        tokens.corner_radius = corner_radius;
+        tokens
     }
 
     // @internal

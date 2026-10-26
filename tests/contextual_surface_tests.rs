@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod common;
+
 use vauchi_core::{
     ActionSpec, ActionTone, Command, ContextBar, Event, InteractionId, MotionPreference,
     NavigationItem, NavigationSpec, OverlayKind, OverlaySpec, PaneLayout, PresentationProfile,
@@ -52,7 +54,7 @@ fn surface_spec(id: &str, revision: u64) -> SurfaceSpec {
             spacing_large: 24,
             corner_radius: 12,
             minimum_target_size: 44,
-            colors: test_colors(),
+            ..common::presentation_tokens()
         },
         nodes: Vec::new(),
     }
@@ -455,14 +457,22 @@ fn live_application_enters_only_through_the_generic_reducer_protocol() {
     )
     .expect("read GTK application entry point");
 
-    for legacy_boundary in ["screen_renderer", "ActionResult", "handle_action("] {
+    for legacy_boundary in [
+        "screen_renderer",
+        "ActionResult",
+        "handle_action(",
+        "on_wakeup(",
+        "drain_pending_notifications(",
+        "poll_notifications(",
+    ] {
         assert!(
             !source.contains(legacy_boundary),
             "live GTK entry point still uses legacy boundary {legacy_boundary}"
         );
     }
     assert!(source.contains("render_current_surface"));
-    assert!(source.contains("handle_commands"));
+    assert!(source.contains("dispatch_platform_event"));
+    assert!(source.contains("Event::WakeupFired"));
 }
 
 // @scenario: generic_presentation_protocol.feature :: Responsive transitions preserve interaction state

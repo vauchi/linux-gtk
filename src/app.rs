@@ -16,7 +16,7 @@ use vauchi_app::ui::AppEngine;
 use vauchi_core::{Event, StandardShortcut};
 
 use crate::core_ui::contextual_surface::{
-    build_split_view, dispatch_platform_event, handle_commands, render_current_surface,
+    build_split_view, dispatch_platform_event, render_current_surface,
 };
 use crate::locale::detect_locale;
 use crate::platform;
@@ -170,10 +170,7 @@ fn build_ui(app: &adw::Application) {
 
     root.append(&split_view);
 
-    // Core-driven wakeup tick (ADR-044 Am2a). Replaces the frontend-owned
-    // 30-second `poll_notifications()` loop with `on_wakeup()` so core owns
-    // when work is due; the shell only executes the native timer.
-    register_wakeup_poll(app, &app_engine, &content, &toast_overlay);
+    register_wakeup_poll(&app_engine, &content, &toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -188,7 +185,7 @@ fn build_ui(app: &adw::Application) {
     // render with no root drops Core's first `SetNavigation` — the sidebar
     // then stays empty while the split view, still expanded, suppresses
     // the navigation overlay too.
-    register_event_handler(&app_engine, &content, &toast_overlay, app);
+    register_event_handler(&app_engine, &content, &toast_overlay);
 
     {
         let app_engine = app_engine.clone();
@@ -278,27 +275,16 @@ fn register_event_handler(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
-    app: &adw::Application,
 ) {
     let rx = app_engine.borrow().subscribe_presentation_invalidations();
 
     let app_engine = app_engine.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
-    let app = app.clone();
     let repaint = move || {
         if rx.try_recv().is_ok() {
             render_current_surface(&content, &app_engine, &toast_overlay);
-
-            // Compatibility delivery until all shells execute PostNotification
-            // with shared delivery accounting and opaque native IDs (#764).
-            let notifications = app_engine.borrow_mut().drain_pending_notifications();
-            for notif in &notifications {
-                let n = gio::Notification::new(&notif.title);
-                n.set_body(Some(&notif.body));
-                n.set_priority(platform::notifications::os_priority_for(notif.priority));
-                app.send_notification(Some(&notif.event_key), &n);
-            }
+            fire_wakeup(&app_engine, &content, &toast_overlay);
         }
     };
     // Consume the initial wakeup before showing controls, otherwise the first
@@ -310,56 +296,28 @@ fn register_event_handler(
     });
 }
 
-/// Register a core-driven wakeup tick every 30 seconds (ADR-044 Am2a).
-///
-/// Replaces the frontend-owned `poll_notifications()` loop with
-/// `PlatformAppEngine::on_wakeup()`. Core decides what work is due and emits
-/// the next `ScheduleWakeup` command; the shell owns only the native timer.
-/// Returned OS notifications are posted, and any pending commands (e.g.
-/// screen-presentation lifecycle commands) are dispatched through the same
-/// generic command path as user-driven reducer output.
+/// The fallback heartbeat covers native timer loss (ADR-044 Am2a).
 fn register_wakeup_poll(
-    app: &adw::Application,
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
 ) {
     let app_engine = app_engine.clone();
-    let app = app.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
 
     glib::timeout_add_local(std::time::Duration::from_secs(30), move || {
-        fire_wakeup(&app, &app_engine, &content, &toast_overlay);
+        fire_wakeup(&app_engine, &content, &toast_overlay);
         glib::ControlFlow::Continue
     });
 }
 
-/// Run due work for one `on_wakeup()` tick and dispatch its result: OS
-/// notifications are posted, and any pending commands (e.g. the next
-/// `ScheduleWakeup`, or screen-presentation lifecycle commands) are
-/// dispatched through the same generic command path as user-driven
-/// reducer output. Shared by the 30-second fallback poll and the
-/// fast-path timer `arm_wakeup` arms for a tighter `ScheduleWakeup` (#450).
-fn fire_wakeup<A: IsA<gio::Application>>(
-    app: &A,
+fn fire_wakeup(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
 ) {
-    let notifications = app_engine.borrow_mut().on_wakeup();
-    let commands = app_engine.borrow_mut().drain_pending_commands();
-
-    for n in notifications {
-        let notification = gio::Notification::new(&n.title);
-        notification.set_body(Some(&n.body));
-        notification.set_priority(platform::notifications::os_priority_for(n.priority));
-        app.send_notification(Some(&n.event_key), &notification);
-    }
-
-    if !commands.is_empty() {
-        handle_commands(content, app_engine, toast_overlay, commands, None);
-    }
+    dispatch_platform_event(content, app_engine, toast_overlay, Event::WakeupFired);
 }
 
 thread_local! {
@@ -375,8 +333,7 @@ thread_local! {
 /// keeps running underneath as the fallback heartbeat; this is the fast
 /// path a live QR exchange's sub-second `ScheduleWakeup` needs to advance
 /// on time (#450).
-pub(crate) fn arm_wakeup<A: IsA<gio::Application> + Clone + 'static>(
-    app: &A,
+pub(crate) fn arm_wakeup(
     app_engine: &Rc<RefCell<AppEngine>>,
     content: &GtkBox,
     toast_overlay: &adw::ToastOverlay,
@@ -387,7 +344,6 @@ pub(crate) fn arm_wakeup<A: IsA<gio::Application> + Clone + 'static>(
             previous.remove();
         }
     });
-    let app = app.clone();
     let app_engine = app_engine.clone();
     let content = content.clone();
     let toast_overlay = toast_overlay.clone();
@@ -396,7 +352,7 @@ pub(crate) fn arm_wakeup<A: IsA<gio::Application> + Clone + 'static>(
             PENDING_FAST_WAKEUP.with(|pending| {
                 pending.borrow_mut().take();
             });
-            fire_wakeup(&app, &app_engine, &content, &toast_overlay);
+            fire_wakeup(&app_engine, &content, &toast_overlay);
         });
     PENDING_FAST_WAKEUP.with(|pending| {
         *pending.borrow_mut() = Some(source_id);
