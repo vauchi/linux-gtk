@@ -198,6 +198,20 @@ fn notification_sender_preserves_opaque_identity() {
         post_notification(&app, &prepared());
         let (id, _) = server.receive();
         assert_eq!(id, "opaque/通知/17");
+        let mut replacement = prepared();
+        replacement.title = "Updated prepared title".into();
+        replacement.body = "Updated prepared body".into();
+        post_notification(&app, &replacement);
+        let (replacement_id, wire) = server.receive();
+        assert_eq!(replacement_id, id);
+        assert_eq!(
+            wire.lookup::<String>("title").unwrap().as_deref(),
+            Some("Updated prepared title")
+        );
+        assert_eq!(
+            wire.lookup::<String>("body").unwrap().as_deref(),
+            Some("Updated prepared body")
+        );
     });
 }
 
