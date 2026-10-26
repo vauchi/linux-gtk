@@ -59,6 +59,7 @@ fn report_environment_with_size(
         available_height: height as u32,
         input_modes: vec![InputMode::Keyboard, InputMode::Pointer],
         motion,
+        color_scheme: None,
     };
     for command in super::commands_for_event(app_engine, event) {
         match command {
