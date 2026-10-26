@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Maps Core's generic notification urgency hint onto GNotification priority.
-//! Core decides urgency; the shell only translates it (ADR-066).
+//! Executes prepared notification commands through GIO (ADR-066).
 
 use gtk4::gio;
 use gtk4::prelude::*;
@@ -21,7 +20,11 @@ pub fn post_notification(
         NotificationUrgency::Urgent => gio::NotificationPriority::Urgent,
         _ => gio::NotificationPriority::Normal,
     });
-    application.send_notification(None, &native);
+    if let Some(uri) = &notification.deep_link_uri {
+        native
+            .set_default_action_and_target_value("app.open-notification", Some(&uri.to_variant()));
+    }
+    application.send_notification(notification.notification_id.as_deref(), &native);
 }
 
 pub fn os_priority_for(priority: NotificationPriority) -> gio::NotificationPriority {
