@@ -227,3 +227,29 @@ fn anonymous_notifications_remain_distinct_without_a_click_target() {
         },
     );
 }
+
+// @internal — activating the native notification forwards the opaque target without parsing (#764).
+#[test]
+fn notification_click_forwards_the_captured_target() {
+    isolated_bus("notification_click_forwards_the_captured_target", || {
+        let server = NotificationServer::start();
+        let app = application();
+        let (sent, received) = mpsc::channel();
+        vauchi_gtk::platform::notifications::install_open_action(&app, move |uri| {
+            sent.send(uri).unwrap();
+        });
+        post_notification(&app, &prepared());
+        let (_, wire) = server.receive();
+        let action = wire.lookup::<String>("default-action").unwrap().unwrap();
+        let target = wire
+            .lookup::<String>("default-action-target")
+            .unwrap()
+            .unwrap();
+        app.activate_action(
+            action.strip_prefix("app.").unwrap(),
+            Some(&target.to_variant()),
+        );
+        assert_eq!(received.recv_timeout(DEADLINE).unwrap(), URI);
+        assert_eq!(received.try_recv(), Err(mpsc::TryRecvError::Empty));
+    });
+}
