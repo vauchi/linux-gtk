@@ -33,6 +33,24 @@ fn the_desktop_entry_hands_the_link_to_the_app() {
     assert_eq!(desktop_entry_value("Exec"), "gvauchi %u");
 }
 
+// @internal — notification actions must reopen a stopped application (#764).
+#[test]
+fn notifications_can_activate_the_packaged_application() {
+    assert_eq!(desktop_entry_value("DBusActivatable"), "true");
+    assert_eq!(desktop_entry_value("X-GNOME-UsesNotifications"), "true");
+    let service = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/com.vauchi.desktop.service"),
+    )
+    .expect("the package supplies a session D-Bus service");
+    let key = |name: &str| {
+        service
+            .lines()
+            .find_map(|line| line.strip_prefix(name)?.strip_prefix('='))
+    };
+    assert_eq!(key("Name"), Some("com.vauchi.desktop"));
+    assert_eq!(key("Exec"), Some("/usr/bin/gvauchi --gapplication-service"));
+}
+
 // @internal
 #[test]
 fn only_vauchi_links_are_passed_to_core() {
