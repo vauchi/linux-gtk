@@ -18,7 +18,7 @@ use std::rc::Rc;
 use vauchi_app::i18n::{self, Locale};
 use vauchi_app::theme::DesignTokens;
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{Command, Event, NotificationUrgency};
+use vauchi_core::{Command, Event};
 
 use crate::platform::hardware;
 
@@ -388,15 +388,7 @@ fn post_notification(container: &GtkBox, notification: &vauchi_core::Notificatio
     else {
         return;
     };
-    let native = gtk4::gio::Notification::new(&notification.title);
-    native.set_body(Some(&notification.body));
-    native.set_priority(match notification.urgency {
-        NotificationUrgency::Default => gtk4::gio::NotificationPriority::Normal,
-        NotificationUrgency::High => gtk4::gio::NotificationPriority::High,
-        NotificationUrgency::Urgent => gtk4::gio::NotificationPriority::Urgent,
-        _ => gtk4::gio::NotificationPriority::Normal,
-    });
-    application.send_notification(None, &native);
+    crate::platform::notifications::post_notification(&application, notification);
 }
 
 /// Report a hardware transport as unavailable — sends `HardwareUnavailable` back
