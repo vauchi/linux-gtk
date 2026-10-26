@@ -65,6 +65,22 @@ def preview_fixture_app(tmp_path_factory):
                     "spacing_large": 24,
                     "corner_radius": 12,
                     "minimum_target_size": 44,
+                    "colors": {
+                        "background": "#282a36",
+                        "surface": "#21222c",
+                        "text": "#f8f8f2",
+                        "text_muted": "#bfbfbf",
+                        "accent": "#bd93f9",
+                        "border": "#6272a4",
+                        "success": "#50fa7b",
+                        "warning": "#ffb86c",
+                        "error": "#ff5555",
+                        "surface_input": None,
+                        "surface_muted": None,
+                        "surface_elevated": None,
+                        "text_on_accent": None,
+                        "focus_ring": None,
+                    },
                 },
                 "nodes": [
                     {
