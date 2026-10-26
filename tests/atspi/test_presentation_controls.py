@@ -12,7 +12,7 @@ import pytest
 from gi.repository import Atspi
 
 from helpers import wait_until
-from surface_probe import dump, find_named, names, surface_with
+from surface_probe import dump, find_named, names, surface_with, text_contents
 
 
 @pytest.fixture(autouse=True)
@@ -53,11 +53,14 @@ def test_editable_input_exposes_label_value_and_native_editing(render_surface, o
     app = render_surface(surface_with("Input", value=original))
     entry = named(app, "A11Y_Input")
     assert entry.get_role_name() == "text"
-    assert Atspi.Text.get_text(entry, 0, -1) == original
+    wait_until(lambda: text_contents(entry) == original, message="Initial input text was not published")
+    assert Atspi.Text.get_character_count(entry) == len(original)
+    assert text_contents(entry) == original
     assert entry.get_editable_text_iface().set_text_contents(edited)
-    wait_until(lambda: Atspi.Text.get_text(entry, 0, -1) == edited)
+    wait_until(lambda: text_contents(entry) == edited, message="Edited input text was not published")
     assert entry.get_name() == "A11Y_Input"
-    assert Atspi.Text.get_text(entry, 0, -1) == edited
+    assert Atspi.Text.get_character_count(entry) == len(edited)
+    assert text_contents(entry) == edited
 
 
 def test_info_group_exposes_title_and_item_description(render_surface):
@@ -112,5 +115,5 @@ def test_status_exposes_title_and_detail(render_surface):
     app = render_surface(surface_with("Status", detail="Status detail"))
     status = named(app, "A11Y_Status")
     assert status.get_description() == "DESC_Status"
-    assert Atspi.Text.get_text(status, 0, -1) == "vis_status — Status detail"
+    assert text_contents(status) == "vis_status — Status detail"
 

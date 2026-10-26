@@ -109,6 +109,11 @@ def names(root):
     return [node.get_name() for node in walk(root) if node.get_name()]
 
 
+def text_contents(node):
+    length = Atspi.Text.get_character_count(node)
+    return Atspi.Text.get_text(node, 0, length)
+
+
 def descriptions(root):
     return [node.get_description() for node in walk(root) if node.get_description()]
 
