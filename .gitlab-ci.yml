@@ -8,7 +8,7 @@
 
 include:
   - project: 'vauchi/scripts'
-    ref: 379b25a3693b84bae379838eed630bf29f60a818
+    ref: 862ffb925603be537c836c963f88759cddd465a3
     file:
       - '/ci-templates/rust-base.yml'
       - '/ci-templates/shell-command-conformance.yml'
@@ -31,7 +31,7 @@ include:
       - '/ci-templates/cross-cutting-lint.yml'
 
 variables:
-  VAUCHI_SCRIPTS_REF: "379b25a3693b84bae379838eed630bf29f60a818"
+  VAUCHI_SCRIPTS_REF: "862ffb925603be537c836c963f88759cddd465a3"
   # cargo audit runs with --deny warnings; every entry here is an
   # advisory with no fix available to us, not one we chose to skip.
   # anyhow (RUSTSEC-2026-0190) and yanked spin were also flagged and are
