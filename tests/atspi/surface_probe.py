@@ -82,6 +82,14 @@ def load_fixture():
         return json.load(handle)
 
 
+def surface_with(kind, **changes):
+    surface = load_fixture()
+    node = next(node for node in surface["nodes"] if isinstance(node, dict) and kind in node)
+    node[kind].update(changes)
+    surface["nodes"] = [node]
+    return surface
+
+
 def walk(node, max_depth=25, _depth=0, _out=None):
     """Collect every accessible in the subtree, depth-first."""
     out = [] if _out is None else _out

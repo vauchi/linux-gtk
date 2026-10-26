@@ -9,6 +9,7 @@ which causes "did not appear in AT-SPI tree" timeouts on CI.
 """
 
 import os
+import json
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,41 @@ from helpers import dump_tree, find_app  # noqa: E402
 
 _ATSPI_DIR = os.path.dirname(os.path.abspath(__file__))
 _WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(_ATSPI_DIR)))
+
+
+@pytest.fixture
+def render_surface(tmp_path):
+    """Render each supplied contract in its own process through the real renderer."""
+    from surface_probe import find_app_by_anchor
+
+    binary = _find_binary("render_fixture")
+    assert binary is not None, "render_fixture must be built before native tests"
+    processes = []
+
+    def render(surface):
+        path = tmp_path / f"surface-{len(processes)}.json"
+        path.write_text(json.dumps(surface))
+        log_path = path.with_suffix(".log")
+        with log_path.open("wb") as log:
+            proc = subprocess.Popen(
+                [binary, str(path), "--keep-open"],
+                env={**os.environ, "GTK_A11Y": "atspi"},
+                stdout=log, stderr=log,
+            )
+        processes.append(proc)
+        app = find_app_by_anchor(proc.pid)
+        assert app is not None, log_path.read_text()
+        return app
+
+    yield render
+
+    for proc in processes:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
 
 
 def _wait_for_atspi_ready(timeout: float = 10.0) -> bool:

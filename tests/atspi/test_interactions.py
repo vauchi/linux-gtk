@@ -11,14 +11,14 @@ Note on AT-SPI roles: GTK4/libadwaita buttons expose as "button"
 (not "push button") in AT-SPI. Images use "image" role.
 """
 
-import pytest
-
 from helpers import (
     DEFAULT_MAX_DEPTH,
     dump_tree,
+    click_button,
     find_all,
     find_one,
     wait_until,
+    wait_for_element,
 )
 from navigation import EXPECTED_DESTINATIONS, navigate_to
 
@@ -120,31 +120,17 @@ class TestShowToast:
 class TestInlineConfirm:
     """Manual item: verify InlineConfirm shows warning + confirm/cancel."""
 
-    def test_emergency_shred_has_confirm_buttons(self, gtk_app):
-        """Emergency Shred screen should show confirm and cancel buttons."""
-        if not navigate_to(gtk_app, "Emergency Shred"):
-            pytest.skip("Emergency Shred not reachable via AT-SPI sidebar")
-        wait_until(
-            lambda: len(find_all(gtk_app, role="button", max_depth=DEFAULT_MAX_DEPTH)) > 0,
-            timeout=5.0,
-            message="Emergency Shred screen should have buttons after navigation",
-        )
-
-        # GTK4 buttons use "button" role (not "push button")
-        buttons = find_all(gtk_app, role="button", max_depth=DEFAULT_MAX_DEPTH)
-        button_names = [b.get_name() for b in buttons if b.get_name()]
-
-        # Filter out window control buttons
-        app_buttons = [
-            n for n in button_names
-            if n not in ("Minimize", "Maximize", "Close", "")
-        ]
-
-        assert len(app_buttons) > 0, (
-            f"No app buttons on Emergency Shred screen.\n"
-            f"Found buttons: {button_names}\n"
-            f"Tree:\n{dump_tree(gtk_app, 8)}"
-        )
+    def test_emergency_shred_has_confirm_buttons(self, gtk_app_seeded_isolated):
+        app, _ = gtk_app_seeded_isolated
+        assert navigate_to(app, "Settings"), dump_tree(app)
+        assert click_button(app, "Advanced"), dump_tree(app)
+        assert wait_for_element(app, name="Emergency Wipe", timeout=5.0) is not None, dump_tree(app)
+        assert click_button(app, "Emergency Wipe"), dump_tree(app)
+        for label in ("Shred Everything", "Cancel"):
+            button = wait_for_element(app, role="button", name=label, timeout=5.0)
+            assert button is not None, dump_tree(app)
+            assert button.get_name() == label
+            assert button.get_action_iface().get_n_actions() == 1
 
 
 # ---------------------------------------------------------------------------

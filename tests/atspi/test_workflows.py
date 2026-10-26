@@ -6,8 +6,6 @@
 Each test exercises a complete user journey across multiple screens.
 """
 
-import pytest
-
 from helpers import (
     find_all,
     find_one,
@@ -19,6 +17,7 @@ from helpers import (
     dump_tree,
 )
 from navigation import navigate_to
+from surface_probe import dump, surface_with
 
 
 class TestOnboardingWorkflow:
@@ -33,12 +32,11 @@ class TestOnboardingWorkflow:
 
     def test_onboarding_has_action_button(self, gtk_app_fresh):
         """Initial onboarding screen should have a 'Create new identity' button."""
-        buttons = find_all(gtk_app_fresh, role="button")
-        if not buttons:
-            pytest.skip(
-                "No buttons found in AT-SPI tree — "
-                "GTK4 may not expose ScreenAction buttons under Xvfb"
-            )
+        button = wait_for_element(
+            gtk_app_fresh, role="button", name="Create new identity", timeout=5.0,
+        )
+        assert button is not None, dump_tree(gtk_app_fresh)
+        assert button.get_name() == "Create new identity"
 
     def test_accessible_text_edit_advances_onboarding(self, gtk_app_onboarding):
         """Accessible text editing must update Core before Continue."""
@@ -106,21 +104,14 @@ class TestNavigationWorkflow:
         )
 
 
-class TestExchangeWorkflow:
-    """Contact exchange flow with QR code."""
+class TestQrPresentation:
+    """A supplied QR payload must become a named native image."""
 
-    def test_exchange_screen_has_qr_elements(self, gtk_app):
-        """Exchange screen should show QR code related elements when visible."""
-        # QR labels only exist when the Exchange screen is active.
-        # The app starts on My Info — QR won't be in the tree unless
-        # we navigate there. AT-SPI sidebar click may not work reliably
-        # on all GTK4 builds, so skip if QR is not found.
-        qr_display = find_one(gtk_app, name="QR code for contact exchange")
-        qr_scan = find_one(gtk_app, name="Scan QR code")
-        if qr_display is None and qr_scan is None:
-            pytest.skip(
-                "QR elements not found — Exchange screen may not be active"
-            )
+    def test_qr_payload_exposes_named_native_image(self, render_surface):
+        app = render_surface(surface_with("Qr"))
+        images = find_all(app, role="image", name="A11Y_Qr")
+        assert len(images) == 1, dump(app)
+        assert images[0].get_description() == "DESC_Qr"
 
 
 class TestSettingsWorkflow:
