@@ -11,6 +11,8 @@
 //! display path is available, so a developer without Xvfb still gets a green
 //! suite; CI provides Xvfb.
 
+mod common;
+
 use std::process::Command;
 use vauchi_core::{
     AccessibilitySpec, PresentationNode, PresentationTextStyle, PresentationTokens, SurfaceId,
@@ -23,6 +25,14 @@ fn have(cmd: &str) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+// @internal — the native accessibility probe must decode with the current Core schema.
+#[test]
+fn accessibility_fixture_decodes_against_core() {
+    let fixture: SurfaceSpec =
+        serde_json::from_str(include_str!("atspi/fixtures/all_nodes.json")).unwrap();
+    assert_eq!(fixture.surface_id.as_str(), "a11y_node_probe");
 }
 
 // @internal
@@ -53,7 +63,7 @@ fn render_fixture_writes_valid_png() {
             spacing_large: 24,
             corner_radius: 12,
             minimum_target_size: 44,
-            colors: test_colors(),
+            ..common::presentation_tokens()
         },
         nodes: vec![
             PresentationNode::Text {
@@ -134,7 +144,7 @@ fn catalog_entry_with_commands(
             spacing_large: 24,
             corner_radius: 12,
             minimum_target_size: 44,
-            colors: test_colors(),
+            ..common::presentation_tokens()
         },
         nodes,
     };
