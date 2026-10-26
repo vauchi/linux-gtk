@@ -66,6 +66,13 @@ pub fn run() {
         .build();
     app.connect_activate(build_ui);
     app.connect_open(open_deep_links);
+    let weak_app = app.downgrade();
+    platform::notifications::install_open_action(&app, move |uri| {
+        if let Some(app) = weak_app.upgrade() {
+            present_for_deep_link(&app);
+            forward_deep_link(uri);
+        }
+    });
     app.run_with_args(&args.iter().map(String::as_str).collect::<Vec<_>>());
 }
 
@@ -92,17 +99,25 @@ fn maybe_seed_test_identity(vauchi: &mut vauchi_core::api::Vauchi) {
 
 fn open_deep_links(app: &adw::Application, files: &[gio::File], _hint: &str) {
     let opened: Vec<String> = files.iter().map(|file| file.uri().to_string()).collect();
+    present_for_deep_link(app);
+    for uri in platform::deep_link::deep_link_uris(&opened) {
+        forward_deep_link(uri);
+    }
+}
+
+fn present_for_deep_link(app: &adw::Application) {
     match app.active_window() {
         Some(window) => window.present(),
         None => app.activate(),
     }
-    for uri in platform::deep_link::deep_link_uris(&opened) {
-        OPEN_DEEP_LINK.with(|open| {
-            if let Some(open) = open.borrow().as_ref() {
-                open(uri);
-            }
-        });
-    }
+}
+
+fn forward_deep_link(uri: String) {
+    OPEN_DEEP_LINK.with(|open| {
+        if let Some(open) = open.borrow().as_ref() {
+            open(uri);
+        }
+    });
 }
 
 fn build_ui(app: &adw::Application) {

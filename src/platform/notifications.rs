@@ -3,10 +3,23 @@
 
 //! Executes prepared notification commands through GIO (ADR-066).
 
-use gtk4::gio;
 use gtk4::prelude::*;
+use gtk4::{gio, glib};
 use vauchi_app::notification_types::NotificationPriority;
 use vauchi_core::{NotificationSpec, NotificationUrgency};
+
+pub fn install_open_action(
+    application: &impl IsA<gio::Application>,
+    open: impl Fn(String) + 'static,
+) {
+    let action = gio::SimpleAction::new("open-notification", Some(glib::VariantTy::STRING));
+    action.connect_activate(move |_, parameter| {
+        if let Some(uri) = parameter.and_then(glib::Variant::str) {
+            open(uri.to_owned());
+        }
+    });
+    application.as_ref().add_action(&action);
+}
 
 pub fn post_notification(
     application: &impl IsA<gio::Application>,
