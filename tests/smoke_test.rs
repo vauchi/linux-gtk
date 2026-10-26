@@ -12,6 +12,55 @@ use vauchi_core::{
 };
 use vauchi_gtk::core_ui::contextual_surface::commands_for_event;
 
+// @internal — native timers enter the same command/event boundary as UI events (#764).
+#[test]
+fn wakeup_observation_returns_prepared_notifications_once() {
+    let mut core = Vauchi::in_memory().expect("in-memory Core");
+    core.create_identity("Alice").unwrap();
+    let engine = RefCell::new(AppEngine::new(core));
+    engine
+        .borrow()
+        .vauchi()
+        .dispatch_event(vauchi_core::VauchiEvent::EmergencyAlertReceived {
+            contact_id: "notification-target".into(),
+            message: "HELP".into(),
+            timestamp: 1_700_000_000,
+            location: None,
+            alert_nonce: [7; 32],
+        });
+    let commands = commands_for_event(
+        &engine,
+        vauchi_core::event_from_json(r#""WakeupFired""#).unwrap(),
+    );
+    let notifications: Vec<_> = commands
+        .iter()
+        .filter_map(|command| match command {
+            Command::PostNotification { notification } => Some(notification),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(
+        notifications[0].deep_link_uri.as_deref(),
+        Some("vauchi://contact/notification-target")
+    );
+    assert_eq!(
+        notifications[0].notification_id,
+        Some(format!("alert:notification-target:{}", "07".repeat(32)))
+    );
+    let again = commands_for_event(
+        &engine,
+        vauchi_core::event_from_json(r#""WakeupFired""#).unwrap(),
+    );
+    assert_eq!(
+        again
+            .iter()
+            .filter(|command| matches!(command, Command::PostNotification { .. }))
+            .count(),
+        0
+    );
+}
+
 // @scenario: generic_presentation_protocol.feature :: Every shell renders the same prepared presentation
 #[test]
 fn fresh_install_boots_with_a_generic_surface_and_context_bar() {
