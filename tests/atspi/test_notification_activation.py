@@ -50,8 +50,11 @@ def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_pat
         (service_dir / f"{name}.service").write_text(
             f"[D-BUS Service]\nName={name}\nExec=/usr/bin/false\n"
         )
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir(mode=0o700)
     env = dict(os.environ)
     env.update(
+        XDG_RUNTIME_DIR=str(runtime_dir),
         XDG_DATA_HOME=str(tmp_path),
         XDG_CONFIG_HOME=str(tmp_path / "config"),
         XDG_CACHE_HOME=str(tmp_path / "cache"),
@@ -60,10 +63,15 @@ def test_notification_action_cold_starts_and_delivers_target(gtk_binary, tmp_pat
         GSK_RENDERER="cairo",
         LC_ALL="C.UTF-8",
     )
-    for name in ("VAUCHI_TEST_NON_UNIQUE", "VAUCHI_TEST_SEED", "AT_SPI_BUS_ADDRESS"):
+    for name in (
+        "VAUCHI_TEST_NON_UNIQUE", "VAUCHI_TEST_SEED", "AT_SPI_BUS_ADDRESS",
+        "DISPLAY", "WAYLAND_DISPLAY",
+    ):
         env.pop(name, None)
+    # AT-SPI also publishes sockets and X11 properties outside D-Bus. Sharing
+    # the outer display/runtime lets child teardown strand later suite apps.
     result = subprocess.run(
-        ["dbus-run-session", "--", sys.executable, __file__],
+        ["xvfb-run", "-a", "dbus-run-session", "--", sys.executable, __file__],
         env=env,
         capture_output=True,
         text=True,

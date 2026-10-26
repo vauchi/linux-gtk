@@ -21,6 +21,7 @@ from gi.repository import Atspi  # noqa: E402
 
 from conftest import _find_binary, _wait_for_atspi_ready  # noqa: E402
 from helpers import find_all  # noqa: E402
+from surface_probe import load_fixture  # noqa: E402
 
 _ATSPI_DIR = os.path.dirname(os.path.abspath(__file__))
 _WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(_ATSPI_DIR)))
@@ -59,29 +60,7 @@ def preview_fixture_app(tmp_path_factory):
                 "subtitle": None,
                 "accessibility_label": "Fixture surface",
                 "layout": "scroll",
-                "tokens": {
-                    "spacing_small": 8,
-                    "spacing_medium": 16,
-                    "spacing_large": 24,
-                    "corner_radius": 12,
-                    "minimum_target_size": 44,
-                    "colors": {
-                        "background": "#282a36",
-                        "surface": "#21222c",
-                        "text": "#f8f8f2",
-                        "text_muted": "#bfbfbf",
-                        "accent": "#bd93f9",
-                        "border": "#6272a4",
-                        "success": "#50fa7b",
-                        "warning": "#ffb86c",
-                        "error": "#ff5555",
-                        "surface_input": None,
-                        "surface_muted": None,
-                        "surface_elevated": None,
-                        "text_on_accent": None,
-                        "focus_ring": None,
-                    },
-                },
+                "tokens": load_fixture()["tokens"],
                 "nodes": [
                     {
                         "Text": {
