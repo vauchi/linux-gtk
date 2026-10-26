@@ -15,6 +15,18 @@ from helpers import wait_until
 from surface_probe import dump, find_named, names, surface_with
 
 
+@pytest.fixture(autouse=True)
+def explicit_text_ranges(monkeypatch):
+    read_text = Atspi.Text.get_text
+
+    def bounded_read(widget, start, end):
+        # GTK 4.18.6 clamps a negative GtkEditable end offset to zero (#270).
+        assert 0 <= start <= end, "AT-SPI reads must use explicit character bounds"
+        return read_text(widget, start, end)
+
+    monkeypatch.setattr(Atspi.Text, "get_text", bounded_read)
+
+
 
 def named(app, label):
     widget = find_named(app, label)
@@ -33,15 +45,19 @@ def test_toggle_exposes_exact_label_checked_and_enabled_state(render_surface, va
     assert toggle.get_state_set().contains(Atspi.StateType.SENSITIVE) == enabled
 
 
-def test_editable_input_exposes_label_value_and_native_editing(render_surface):
-    app = render_surface(surface_with("Input", value="Original text"))
+@pytest.mark.parametrize("original, edited", [
+    ("Original text", "Edited text"),
+    ("Zoë 🔑", "改訂 🐈"),
+])
+def test_editable_input_exposes_label_value_and_native_editing(render_surface, original, edited):
+    app = render_surface(surface_with("Input", value=original))
     entry = named(app, "A11Y_Input")
     assert entry.get_role_name() == "text"
-    assert Atspi.Text.get_text(entry, 0, -1) == "Original text"
-    assert entry.get_editable_text_iface().set_text_contents("Edited text")
-    wait_until(lambda: Atspi.Text.get_text(entry, 0, -1) == "Edited text")
+    assert Atspi.Text.get_text(entry, 0, -1) == original
+    assert entry.get_editable_text_iface().set_text_contents(edited)
+    wait_until(lambda: Atspi.Text.get_text(entry, 0, -1) == edited)
     assert entry.get_name() == "A11Y_Input"
-    assert Atspi.Text.get_text(entry, 0, -1) == "Edited text"
+    assert Atspi.Text.get_text(entry, 0, -1) == edited
 
 
 def test_info_group_exposes_title_and_item_description(render_surface):
