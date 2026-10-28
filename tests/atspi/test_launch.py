@@ -26,6 +26,7 @@ class TestAppLaunch:
             windows = find_all(gtk_app, role="filler", max_depth=2)
         assert len(windows) >= 1, f"No window found. Tree:\n{dump_tree(gtk_app, 3)}"
 
+    # @scenario: accessibility :: Screen reader announces app structure on desktop
     def test_window_has_title(self, gtk_app):
         """The main window should have 'Vauchi' in its name."""
         windows = find_all(gtk_app, role="frame", max_depth=2)
@@ -36,6 +37,7 @@ class TestAppLaunch:
             f"No window with 'Vauchi' in name. Found: {window_names}"
         )
 
+    # @scenario: accessibility :: Screen reader announces app structure on desktop
     def test_core_destinations_are_discoverable(self, gtk_app):
         """Core's destinations reach AT-SPI, in the sidebar or the overlay."""
         names = sidebar_names(gtk_app)
