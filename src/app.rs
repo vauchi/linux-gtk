@@ -66,6 +66,8 @@ pub fn run() {
         .build();
     app.connect_activate(build_ui);
     app.connect_open(open_deep_links);
+    #[cfg(all(feature = "ble", target_os = "linux"))]
+    app.connect_shutdown(|_| platform::ble::dispose_scanning());
     let weak_app = app.downgrade();
     platform::notifications::install_open_action(&app, move |uri| {
         if let Some(app) = weak_app.upgrade() {

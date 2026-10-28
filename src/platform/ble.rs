@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! BLE exchange handler via BlueZ (bluer).
+//! BLE exchange handler via BlueZ.
 //!
-//! Implements scanning, advertising, connecting, and GATT operations
-//! for the vauchi BLE exchange protocol. All BLE operations run on a
-//! background thread with a tokio runtime, reporting results back to
-//! the GTK main loop via mpsc channels.
+//! Scanning runs on Core's shared discovery executor (ADR-075). Advertising,
+//! connecting and GATT still use `bluer` on background threads, reporting
+//! to the GTK main loop via mpsc channels, until their executors land
+//! (vauchi/private#770).
 
 #[cfg(all(feature = "ble", target_os = "linux"))]
 mod inner {
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
     use std::rc::Rc;
     use std::sync::Mutex as StdMutex;
@@ -24,6 +24,7 @@ mod inner {
     use vauchi_core::{BleLinkDirection, Event};
 
     use crate::core_ui::contextual_surface::dispatch_platform_event;
+    use crate::platform::ble_discovery::DiscoveryHost;
 
     /// Persistent BLE connection state shared across connect/write/read/disconnect calls.
     struct BleConnection {
@@ -49,69 +50,100 @@ mod inner {
         })
     }
 
-    /// Start scanning for vauchi BLE peripherals.
-    ///
-    /// Discovers nearby devices advertising the vauchi service UUID.
-    /// Reports each discovery as `BleDeviceDiscovered` to AppEngine.
+    // A static, not a thread-local: a thread-local host would be disposed
+    // after Tokio's own thread-local is gone and abort the process at exit.
+    static DISCOVERY: StdMutex<Option<DiscoveryHost>> = StdMutex::new(None);
+
+    thread_local! {
+        static SCAN_GENERATION: Cell<u64> = const { Cell::new(0) };
+    }
+
+    fn lock_discovery() -> std::sync::MutexGuard<'static, Option<DiscoveryHost>> {
+        DISCOVERY
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Scan through Core's shared discovery executor (ADR-075). Core decides
+    /// how long the scan runs; observations reach it on the main loop until
+    /// it stops the scan or starts another.
     pub fn start_scanning(
         container: &gtk4::Box,
         app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
         service_uuid: String,
     ) {
-        let container = container.clone();
-        let app_engine = app_engine.clone();
-        let toast_overlay = toast_overlay.clone();
-        let (tx, rx) = mpsc::channel::<Result<Vec<Event>, String>>();
-
         let msg = i18n::get_string(Locale::default(), "platform.ble_scanning");
         let scan_toast = adw::Toast::new(&msg);
         scan_toast.set_timeout(3);
         toast_overlay.add_toast(scan_toast);
 
-        std::thread::spawn(move || {
-            let rt = match tokio::runtime::Runtime::new() {
-                Ok(rt) => rt,
-                Err(e) => {
-                    tx.send(Err(format!("Tokio runtime: {}", e))).ok();
-                    return;
-                }
-            };
-            let result = rt.block_on(scan_for_devices(&service_uuid));
-            tx.send(result).ok();
-        });
+        let generation = next_scan_generation();
+        if let Err(error) = start_discovery(service_uuid) {
+            dispatch_platform_event(
+                container,
+                app_engine,
+                toast_overlay,
+                Event::HardwareError {
+                    transport: "BLE".into(),
+                    error,
+                },
+            );
+            return;
+        }
 
-        glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-            match rx.try_recv() {
-                Ok(Ok(events)) => {
-                    for event in events {
-                        dispatch_platform_event(&container, &app_engine, &toast_overlay, event);
-                    }
-                    glib::ControlFlow::Break
-                }
-                Ok(Err(e)) => {
-                    dispatch_platform_event(
-                        &container,
-                        &app_engine,
-                        &toast_overlay,
-                        Event::HardwareError {
-                            transport: "BLE".into(),
-                            error: e.clone(),
-                        },
-                    );
-                    let msg = i18n::get_string_with_args(
-                        Locale::default(),
-                        "platform.ble_scan_failed",
-                        &[("error", &e)],
-                    );
-                    let toast = adw::Toast::new(&msg);
-                    toast_overlay.add_toast(toast);
-                    glib::ControlFlow::Break
-                }
-                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+        let container = container.clone();
+        let app_engine = app_engine.clone();
+        let toast_overlay = toast_overlay.clone();
+        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+            // The lock is released before dispatch, which may stop the scan.
+            while SCAN_GENERATION.get() == generation {
+                let next = lock_discovery().as_mut().and_then(DiscoveryHost::pop);
+                let Some(event) = next else {
+                    break;
+                };
+                dispatch_platform_event(&container, &app_engine, &toast_overlay, event);
+            }
+            if SCAN_GENERATION.get() == generation {
+                glib::ControlFlow::Continue
+            } else {
+                glib::ControlFlow::Break
             }
         });
+    }
+
+    pub fn stop_scanning() {
+        next_scan_generation();
+        if let Some(host) = lock_discovery().as_mut() {
+            host.stop();
+        }
+    }
+
+    /// Release the executor and the OS scan before the application exits.
+    pub fn dispose_scanning() {
+        next_scan_generation();
+        let host = lock_discovery().take();
+        drop(host);
+    }
+
+    fn next_scan_generation() -> u64 {
+        let generation = SCAN_GENERATION.get().wrapping_add(1);
+        SCAN_GENERATION.set(generation);
+        generation
+    }
+
+    fn start_discovery(service_uuid: String) -> Result<(), String> {
+        let mut host = lock_discovery();
+        if host.is_none() {
+            *host = Some(
+                DiscoveryHost::new(vauchi_hardware::host_discovery())
+                    .map_err(|error| error.to_string())?,
+            );
+        }
+        match host.as_mut() {
+            Some(host) => host.start(service_uuid).map_err(|error| error.to_string()),
+            None => Ok(()),
+        }
     }
 
     /// Start advertising our vauchi BLE service.
@@ -405,69 +437,6 @@ mod inner {
     }
 
     // ── Async BlueZ operations ──────────────────────────────────────
-
-    async fn scan_for_devices(service_uuid: &str) -> Result<Vec<Event>, String> {
-        use bluer::AdapterEvent;
-        use tokio_stream::StreamExt;
-
-        let session = bluer::Session::new()
-            .await
-            .map_err(|e| format!("BlueZ session: {}", e))?;
-        let adapter = session
-            .default_adapter()
-            .await
-            .map_err(|e| format!("No BLE adapter: {}", e))?;
-        adapter
-            .set_powered(true)
-            .await
-            .map_err(|e| format!("Power on adapter: {}", e))?;
-
-        let discover = adapter
-            .discover_devices()
-            .await
-            .map_err(|e| format!("Start discovery: {}", e))?;
-
-        let target_uuid: bluer::Uuid = service_uuid
-            .parse()
-            .map_err(|e| format!("Invalid UUID: {}", e))?;
-
-        let mut events = Vec::new();
-        let mut stream = discover;
-
-        // Scan for up to 5 seconds
-        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(5);
-
-        loop {
-            tokio::select! {
-                _ = tokio::time::sleep_until(deadline) => break,
-                item = stream.next() => {
-                    match item {
-                        Some(AdapterEvent::DeviceAdded(addr)) => {
-                            if let Ok(device) = adapter.device(addr) {
-                                let uuids = device.uuids().await.unwrap_or(None).unwrap_or_default();
-                                if uuids.contains(&target_uuid) {
-                                    let rssi = device.rssi().await.unwrap_or(None).unwrap_or(0);
-                                    events.push(Event::BleDeviceDiscovered {
-                                        id: addr.to_string(),
-                                        rssi,
-                                        adv_data: vec![],
-                                    });
-                                }
-                            }
-                        }
-                        None => break,
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        if events.is_empty() {
-            Err("No vauchi devices found nearby".into())
-        } else {
-            Ok(events)
-        }
-    }
 
     async fn advertise_service(service_uuid: &str) -> Result<(), String> {
         use bluer::adv::Advertisement;

@@ -143,6 +143,10 @@ pub(crate) fn handle_exchange_commands(
                     );
                 }
             }
+            Command::BleStopScanning => {
+                #[cfg(all(feature = "ble", target_os = "linux"))]
+                crate::platform::ble::stop_scanning();
+            }
             Command::BleStartAdvertising {
                 service_uuid,
                 payload: _,

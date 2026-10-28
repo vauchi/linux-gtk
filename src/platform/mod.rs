@@ -5,6 +5,8 @@
 
 pub mod audio;
 pub mod ble;
+#[cfg(all(feature = "ble", target_os = "linux"))]
+pub mod ble_discovery;
 pub mod camera;
 pub mod deep_link;
 pub mod hardware;
