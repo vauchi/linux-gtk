@@ -11,11 +11,13 @@ use std::sync::{Arc, Mutex};
 use vauchi_core::Event;
 use vauchi_gtk::platform::nfc_reader::{Card, ReaderSession};
 
+type Answer = Result<Vec<u8>, String>;
+
 /// A card that records what it was sent and answers from a script.
 #[derive(Clone, Default)]
 struct ScriptedCard {
     sent: Arc<Mutex<Vec<Vec<u8>>>>,
-    answers: Arc<Mutex<VecDeque<Result<Vec<u8>, String>>>>,
+    answers: Arc<Mutex<VecDeque<Answer>>>,
 }
 
 impl ScriptedCard {

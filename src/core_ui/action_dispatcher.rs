@@ -230,9 +230,9 @@ pub(crate) fn handle_exchange_commands(
             }
 
             // ── NFC ──────────────────────────────────────────────────
-            // `apdus` reach the NFC platform path with the RG-11 follow-up
-            // (problems/2026-07-06-desktop-tui-web-domain-shell-violations).
-            Command::NfcActivate { payload, .. } => {
+            // A reader transmits Core's frames and ignores `payload`, which
+            // stays for shells that still frame on their own (#764).
+            Command::NfcActivate { apdus, .. } => {
                 if hardware::has_nfc() {
                     #[cfg(feature = "nfc")]
                     {
@@ -240,12 +240,12 @@ pub(crate) fn handle_exchange_commands(
                             container,
                             app_engine,
                             toast_overlay,
-                            payload.clone(),
+                            apdus.clone(),
                         );
                     }
                     #[cfg(not(feature = "nfc"))]
                     {
-                        let _ = payload;
+                        let _ = apdus;
                         if notified_unavailable.insert("nfc") {
                             let msg = i18n::get_string(
                                 Locale::default(),
@@ -259,10 +259,15 @@ pub(crate) fn handle_exchange_commands(
                     report_hardware_unavailable(container, app_engine, toast_overlay, "NFC");
                 }
             }
+            Command::NfcSendApdu { apdus, .. } => {
+                #[cfg(feature = "nfc")]
+                crate::platform::nfc::send(apdus.clone());
+                #[cfg(not(feature = "nfc"))]
+                let _ = apdus;
+            }
             Command::NfcDeactivate => {
-                // PC/SC polling is one-shot (returns after first exchange),
-                // so deactivate is a no-op. The background thread exits on
-                // its own after success or failure.
+                #[cfg(feature = "nfc")]
+                crate::platform::nfc::deactivate();
             }
 
             // ── Image picking (avatar editor) ────────────────────────

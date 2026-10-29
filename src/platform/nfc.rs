@@ -1,168 +1,164 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! NFC exchange handler via PC/SC (pcsclite).
+//! NFC reader over PC/SC (pcsclite) for USB readers (ACR122U, PN532): the
+//! desktop reads a phone doing Host Card Emulation.
 //!
-//! Implements NFC exchange for USB NFC readers (ACR122U, PN532) using
-//! the PC/SC smartcard API. The desktop acts as a reader and exchanges
-//! data with a phone doing NFC Host Card Emulation (HCE).
-//!
-//! APDU protocol:
-//!   1. SELECT Vauchi AID (F0564155434849)
-//!   2. EXCHANGE (INS 0xE0) — send our payload, receive theirs
-//!
-//! All PC/SC operations run on a background thread to avoid blocking
-//! the GTK main loop.
+//! Core frames every APDU and reads every status word (vauchi/private#764);
+//! `nfc_reader::ReaderSession` executes its commands on one card. Here a
+//! worker thread owns that session and the PC/SC calls, which block, and
+//! the GTK main loop drains its observations to Core.
 
 #[cfg(feature = "nfc")]
 mod inner {
     use std::cell::RefCell;
     use std::rc::Rc;
-    use std::sync::mpsc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::{self, Receiver, Sender};
+    use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+    use std::time::Duration;
 
     use gtk4::glib;
     use libadwaita as adw;
 
-    use vauchi_app::i18n;
     use vauchi_app::ui::AppEngine;
     use vauchi_core::Event;
 
     use crate::core_ui::contextual_surface::dispatch_platform_event;
-    use crate::locale::detect_locale;
+    use crate::platform::nfc_reader::{Card, ReaderSession};
 
-    // TODO(HUMBLE): T — frontend implements Vauchi APDU protocol (AID, EXCHANGE, SW1/SW2); move APDU framing into vauchi-core and forward raw bytes (see _private/docs/problems/2026-07-06-desktop-tui-web-domain-shell-violations)
-    /// Vauchi NFC Application ID.
-    const VAUCHI_AID: &[u8] = b"\xF0\x56\x41\x55\x43\x48\x49";
+    /// PC/SC offers no tag-arrival callback through this API, so the wait
+    /// for a tag polls; the interval only bounds how late a deactivation
+    /// is noticed.
+    const TAG_POLL: Duration = Duration::from_millis(200);
 
-    /// APDU instruction for payload exchange.
-    const INS_EXCHANGE: u8 = 0xE0;
-
-    /// Build a SELECT AID APDU: 00 A4 04 00 <len> <AID>
-    fn build_select_apdu() -> Vec<u8> {
-        let mut apdu = vec![0x00, 0xA4, 0x04, 0x00, VAUCHI_AID.len() as u8];
-        apdu.extend_from_slice(VAUCHI_AID);
-        apdu
+    enum Request {
+        Activate(Vec<Vec<u8>>),
+        Send(Vec<Vec<u8>>),
+        Deactivate,
     }
 
-    /// Build an EXCHANGE APDU: 80 E0 00 00 <Lc> <payload> 00
-    fn build_exchange_apdu(payload: &[u8]) -> Vec<u8> {
-        let mut apdu = vec![0x80, INS_EXCHANGE, 0x00, 0x00, payload.len() as u8];
-        apdu.extend_from_slice(payload);
-        apdu.push(0x00); // Le: max response
-        apdu
+    struct Worker {
+        requests: Sender<Request>,
+        /// Cleared by `deactivate`, so a wait for a tag ends without
+        /// reporting a failure Core no longer expects.
+        active: Arc<AtomicBool>,
     }
 
-    /// Check APDU response status (last 2 bytes = 90 00).
-    fn is_apdu_success(response: &[u8]) -> bool {
-        response.len() >= 2
-            && response[response.len() - 2] == 0x90
-            && response[response.len() - 1] == 0x00
+    static WORKER: Mutex<Option<Worker>> = Mutex::new(None);
+
+    fn lock_worker() -> MutexGuard<'static, Option<Worker>> {
+        WORKER.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Activate NFC: poll for cards and exchange payload on tap.
+    struct PcscCard(pcsc::Card);
+
+    impl Card for PcscCard {
+        fn transmit(&mut self, apdu: &[u8]) -> Result<Vec<u8>, String> {
+            let mut response = vec![0u8; pcsc::MAX_BUFFER_SIZE_EXTENDED];
+            self.0
+                .transmit(apdu, &mut response)
+                .map(<[u8]>::to_vec)
+                .map_err(|e| e.to_string())
+        }
+    }
+
+    /// `NfcActivate`: wait for a tag, then transmit Core's frames.
     pub fn activate(
         container: &gtk4::Box,
         app_engine: &Rc<RefCell<AppEngine>>,
         toast_overlay: &adw::ToastOverlay,
-        payload: Vec<u8>,
+        apdus: Vec<Vec<u8>>,
     ) {
+        let mut worker = lock_worker();
+        let worker = worker.get_or_insert_with(|| start(container, app_engine, toast_overlay));
+        worker.active.store(true, Ordering::SeqCst);
+        let _ = worker.requests.send(Request::Activate(apdus));
+    }
+
+    /// `NfcSendApdu`: transmit Core's frames on the connected tag.
+    pub fn send(apdus: Vec<Vec<u8>>) {
+        if let Some(worker) = lock_worker().as_ref() {
+            let _ = worker.requests.send(Request::Send(apdus));
+        }
+    }
+
+    /// `NfcDeactivate`.
+    pub fn deactivate() {
+        if let Some(worker) = lock_worker().as_ref() {
+            worker.active.store(false, Ordering::SeqCst);
+            let _ = worker.requests.send(Request::Deactivate);
+        }
+    }
+
+    fn start(
+        container: &gtk4::Box,
+        app_engine: &Rc<RefCell<AppEngine>>,
+        toast_overlay: &adw::ToastOverlay,
+    ) -> Worker {
+        let (requests, incoming) = mpsc::channel();
+        let (observations, observed) = mpsc::channel();
+        let active = Arc::new(AtomicBool::new(false));
+        let worker_active = active.clone();
+        std::thread::Builder::new()
+            .name("vauchi-nfc-reader".into())
+            .spawn(move || serve(&incoming, &observations, &worker_active))
+            .expect("spawn the NFC reader thread");
+
         let container = container.clone();
         let app_engine = app_engine.clone();
         let toast_overlay = toast_overlay.clone();
-        let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
-
-        let msg = i18n::get_string(detect_locale(), "platform.nfc_waiting");
-        let toast = adw::Toast::new(&msg);
-        toast.set_timeout(5);
-        toast_overlay.add_toast(toast);
-
-        std::thread::spawn(move || {
-            let result = poll_and_exchange(&payload);
-            tx.send(result).ok();
-        });
-
-        glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-            match rx.try_recv() {
-                Ok(Ok(data)) => {
-                    dispatch_platform_event(
-                        &container,
-                        &app_engine,
-                        &toast_overlay,
-                        Event::NfcDataReceived { data },
-                    );
-                    glib::ControlFlow::Break
+        glib::timeout_add_local(Duration::from_millis(100), move || {
+            loop {
+                match observed.try_recv() {
+                    Ok(event) => {
+                        dispatch_platform_event(&container, &app_engine, &toast_overlay, event)
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break glib::ControlFlow::Continue,
+                    Err(mpsc::TryRecvError::Disconnected) => break glib::ControlFlow::Break,
                 }
-                Ok(Err(e)) => {
-                    dispatch_platform_event(
-                        &container,
-                        &app_engine,
-                        &toast_overlay,
-                        Event::HardwareError {
-                            transport: "NFC".into(),
-                            error: e.clone(),
-                        },
-                    );
-                    let msg = i18n::get_string_with_args(
-                        detect_locale(),
-                        "platform.nfc_exchange_failed",
-                        &[("error", &e)],
-                    );
-                    let toast = adw::Toast::new(&msg);
-                    toast_overlay.add_toast(toast);
-                    glib::ControlFlow::Break
-                }
-                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
             }
         });
+        Worker { requests, active }
     }
 
-    /// Poll PC/SC readers for a card and exchange data.
-    fn poll_and_exchange(our_payload: &[u8]) -> Result<Vec<u8>, String> {
-        let ctx =
-            pcsc::Context::establish(pcsc::Scope::System).map_err(|e| format!("PC/SC: {}", e))?;
-
-        // Get reader list
-        let readers_buf_len = ctx
-            .list_readers_len()
-            .map_err(|e| format!("List readers: {}", e))?;
-        let mut readers_buf = vec![0u8; readers_buf_len];
-        let readers = ctx
-            .list_readers(&mut readers_buf)
-            .map_err(|e| format!("List readers: {}", e))?;
-
-        // Try connecting to each reader
-        for reader in readers {
-            let card = match ctx.connect(reader, pcsc::ShareMode::Shared, pcsc::Protocols::ANY) {
-                Ok(card) => card,
-                Err(_) => continue, // No card present in this reader
+    fn serve(incoming: &Receiver<Request>, observations: &Sender<Event>, active: &AtomicBool) {
+        let mut session = ReaderSession::<PcscCard>::new();
+        for request in incoming {
+            let events = match request {
+                Request::Activate(apdus) => session.activate(|| wait_for_tag(active), &apdus),
+                Request::Send(apdus) => session.send(&apdus),
+                Request::Deactivate => {
+                    session.deactivate();
+                    Vec::new()
+                }
             };
-
-            // Step 1: SELECT Vauchi AID
-            let select_apdu = build_select_apdu();
-            let mut recv_buf = [0u8; 512];
-            let response = card
-                .transmit(&select_apdu, &mut recv_buf)
-                .map_err(|e| format!("SELECT transmit: {}", e))?;
-
-            if !is_apdu_success(response) {
-                continue; // Not a Vauchi card
+            if !active.load(Ordering::SeqCst) {
+                continue;
             }
-
-            // Step 2: EXCHANGE — send our payload, receive theirs
-            let exchange_apdu = build_exchange_apdu(our_payload);
-            let response = card
-                .transmit(&exchange_apdu, &mut recv_buf)
-                .map_err(|e| format!("EXCHANGE transmit: {}", e))?;
-
-            if is_apdu_success(response) && response.len() > 2 {
-                // Strip SW1 SW2 (last 2 bytes)
-                let data = response[..response.len() - 2].to_vec();
-                return Ok(data);
+            for event in events {
+                let _ = observations.send(event);
             }
         }
+    }
 
-        Err("No NFC device with Vauchi AID found".into())
+    fn wait_for_tag(active: &AtomicBool) -> Result<PcscCard, String> {
+        let context = pcsc::Context::establish(pcsc::Scope::System).map_err(|e| e.to_string())?;
+        while active.load(Ordering::SeqCst) {
+            let mut names = vec![0u8; context.list_readers_len().map_err(|e| e.to_string())?];
+            for reader in context
+                .list_readers(&mut names)
+                .map_err(|e| e.to_string())?
+            {
+                if let Ok(card) =
+                    context.connect(reader, pcsc::ShareMode::Shared, pcsc::Protocols::ANY)
+                {
+                    return Ok(PcscCard(card));
+                }
+            }
+            std::thread::sleep(TAG_POLL);
+        }
+        Err("NFC reader deactivated".into())
     }
 }
 
