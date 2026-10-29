@@ -2902,7 +2902,7 @@ dependencies = [
 [[package]]
 name = "rqrr"
 version = "0.11.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.93.0#4d6ef73bfdfe0b73934c1b4a6891abfd0ed70a4e"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.94.0#311ea635e1b6cb36507d72d8454a0bfa0afe554e"
 dependencies = [
  "g2p",
  "image",
@@ -3800,8 +3800,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-app"
-version = "0.93.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.93.0#4d6ef73bfdfe0b73934c1b4a6891abfd0ed70a4e"
+version = "0.94.0"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.94.0#311ea635e1b6cb36507d72d8454a0bfa0afe554e"
 dependencies = [
  "base64",
  "flate2",
@@ -3820,8 +3820,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-core"
-version = "0.93.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.93.0#4d6ef73bfdfe0b73934c1b4a6891abfd0ed70a4e"
+version = "0.94.0"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.94.0#311ea635e1b6cb36507d72d8454a0bfa0afe554e"
 dependencies = [
  "argon2",
  "base64",
@@ -3885,8 +3885,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-hardware"
-version = "0.93.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.93.0#4d6ef73bfdfe0b73934c1b4a6891abfd0ed70a4e"
+version = "0.94.0"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.94.0#311ea635e1b6cb36507d72d8454a0bfa0afe554e"
 dependencies = [
  "futures-util",
  "thiserror 2.0.18",
@@ -3898,8 +3898,8 @@ dependencies = [
 
 [[package]]
 name = "vauchi-protocol"
-version = "0.93.0"
-source = "git+https://gitlab.com/vauchi/core.git?tag=v0.93.0#4d6ef73bfdfe0b73934c1b4a6891abfd0ed70a4e"
+version = "0.94.0"
+source = "git+https://gitlab.com/vauchi/core.git?tag=v0.94.0#311ea635e1b6cb36507d72d8454a0bfa0afe554e"
 dependencies = [
  "serde",
  "serde_json",
