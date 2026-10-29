@@ -71,6 +71,7 @@ glib-build-tools = "0.20"
 
 [dev-dependencies]
 tempfile = "3.0"
+vauchi-hardware = { git = "https://gitlab.com/vauchi/core.git", tag = "v0.94.0", version = "=0.94.0", features = ["fake-bluez"] }
 
 # Release profile: optimized binary (matches cli/tui)
 [profile.release]
