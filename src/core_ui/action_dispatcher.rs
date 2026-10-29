@@ -317,6 +317,7 @@ pub(crate) fn handle_exchange_commands(
             Command::DirectSend {
                 payload,
                 is_initiator,
+                endpoint,
             } => {
                 execute_direct_send(
                     container,
@@ -324,6 +325,7 @@ pub(crate) fn handle_exchange_commands(
                     toast_overlay,
                     payload.clone(),
                     *is_initiator,
+                    endpoint.clone(),
                 );
             }
 
@@ -442,6 +444,7 @@ fn execute_direct_send(
     toast_overlay: &adw::ToastOverlay,
     payload: Vec<u8>,
     is_initiator: bool,
+    endpoint: vauchi_core::DirectEndpoint,
 ) {
     use std::sync::mpsc;
 
@@ -451,13 +454,8 @@ fn execute_direct_send(
     let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
 
     std::thread::spawn(move || {
-        let addr = crate::platform::tcp_exchange::discover_phone().unwrap_or_else(|| {
-            format!(
-                "127.0.0.1:{}",
-                crate::platform::tcp_exchange::USB_EXCHANGE_PORT,
-            )
-        });
-        let result = crate::platform::tcp_exchange::execute_exchange(&addr, &payload, is_initiator);
+        let result =
+            crate::platform::tcp_exchange::execute_exchange(&endpoint, &payload, is_initiator);
         tx.send(result).ok();
     });
 

@@ -1,54 +1,39 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
-//
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! TCP client for USB cable exchange (ADR-031).
-//!
-//! Connects to the phone's TCP listener, executes the VXCH
-//! framing protocol, and returns the peer's payload.
-//!
-//! Before connecting, `execute_exchange` attempts mDNS discovery via
-//! `discover_phone()` to locate the phone's IP on the local network.
-//! If discovery finds the service, the resolved address takes priority
-//! over the caller-supplied `addr`. If discovery is disabled or times out,
-//! the caller-supplied address is used as-is.
+//! Executes Core's direct TCP endpoint policy using the VXCH transport.
 
-use std::net::TcpStream;
+use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::time::Duration;
 
+use vauchi_core::DirectEndpoint;
 use vauchi_core::exchange::tcp_transport::TcpDirectTransport;
 
 #[cfg(feature = "mdns")]
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 
-/// Default TCP port for vauchi USB exchange.
-pub const USB_EXCHANGE_PORT: u16 = 19283;
-
-/// Connect and read/write timeout.
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-
-/// Discover the phone's address via mDNS/DNS-SD.
-///
-/// Browses for `_vauchi-exchange._tcp.local.` for up to 5 seconds.
-/// Returns the first resolved address (IP:port), or None if not found.
 #[cfg(feature = "mdns")]
-pub fn discover_phone() -> Option<String> {
+fn discover_phone(endpoint: &DirectEndpoint) -> Option<SocketAddr> {
+    if endpoint.browse_timeout_ms == 0 {
+        return None;
+    }
     let mdns = ServiceDaemon::new().ok()?;
-    let receiver = mdns.browse("_vauchi-exchange._tcp.local.").ok()?;
-
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let receiver = mdns.browse(&endpoint.service_type).ok()?;
+    let deadline =
+        std::time::Instant::now() + Duration::from_millis(u64::from(endpoint.browse_timeout_ms));
 
     while std::time::Instant::now() < deadline {
-        match receiver.recv_timeout(Duration::from_millis(500)) {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        match receiver.recv_timeout(remaining) {
             Ok(ServiceEvent::ServiceResolved(info)) => {
                 if let Some(addr) = info.get_addresses().iter().next() {
-                    let port = info.get_port();
+                    let address = SocketAddr::new(*addr, info.get_port());
                     mdns.shutdown().ok();
-                    return Some(format!("{addr}:{port}"));
+                    return Some(address);
                 }
             }
             Ok(_) => continue,
-            Err(_) => continue,
+            Err(_) => break,
         }
     }
 
@@ -57,32 +42,35 @@ pub fn discover_phone() -> Option<String> {
 }
 
 #[cfg(not(feature = "mdns"))]
-pub fn discover_phone() -> Option<String> {
+fn discover_phone(_endpoint: &DirectEndpoint) -> Option<SocketAddr> {
     None
 }
 
-/// Execute a direct exchange over TCP.
-///
-/// Attempts mDNS discovery first to resolve the phone's address on the
-/// local network. Falls back to the caller-supplied `addr` if discovery
-/// is disabled or times out.
+/// Browse once, then exchange with the discovered peer or Core's fallback.
 pub fn execute_exchange(
-    addr: &str,
+    endpoint: &DirectEndpoint,
     our_payload: &[u8],
     is_initiator: bool,
 ) -> Result<Vec<u8>, String> {
-    // Try mDNS discovery first, fall back to provided address.
-    let resolved = discover_phone().unwrap_or_else(|| addr.to_string());
-
-    let sock_addr = resolved.parse().map_err(|e| format!("bad address: {e}"))?;
-    let stream = TcpStream::connect_timeout(&sock_addr, CONNECT_TIMEOUT)
+    let sock_addr = match discover_phone(endpoint) {
+        Some(address) => address,
+        None => {
+            let host: IpAddr = endpoint
+                .fallback_host
+                .parse()
+                .map_err(|e| format!("bad address: {e}"))?;
+            SocketAddr::new(host, endpoint.port)
+        }
+    };
+    let timeout = Duration::from_millis(u64::from(endpoint.io_timeout_ms));
+    let stream = TcpStream::connect_timeout(&sock_addr, timeout)
         .map_err(|e| format!("TCP connect failed: {e}"))?;
 
     stream
-        .set_read_timeout(Some(CONNECT_TIMEOUT))
+        .set_read_timeout(Some(timeout))
         .map_err(|e| format!("set timeout: {e}"))?;
     stream
-        .set_write_timeout(Some(CONNECT_TIMEOUT))
+        .set_write_timeout(Some(timeout))
         .map_err(|e| format!("set timeout: {e}"))?;
 
     let mut transport = TcpDirectTransport::physical(stream);
