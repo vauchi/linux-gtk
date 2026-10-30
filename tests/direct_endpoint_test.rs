@@ -52,3 +52,30 @@ fn direct_endpoint_rejects_an_invalid_fallback_address() {
 
     assert!(error.starts_with("bad address:"), "{error}");
 }
+
+// @internal
+#[test]
+fn a_silent_peer_fails_the_exchange_at_cores_io_deadline() {
+    let listener = TcpListener::bind("127.0.0.2:0").unwrap();
+    let endpoint = DirectEndpoint {
+        fallback_host: "127.0.0.2".into(),
+        port: listener.local_addr().unwrap().port(),
+        browse_timeout_ms: 0,
+        io_timeout_ms: 200,
+        ..DirectEndpoint::default()
+    };
+    // Not joined: an exchange that never reached the listener would leave
+    // it in accept() and hang the test instead of failing it.
+    let silent_peer = thread::spawn(move || listener.accept().unwrap());
+
+    let started = std::time::Instant::now();
+    let received = execute_exchange(&endpoint, b"desktop payload", false);
+
+    assert!(received.is_err(), "a peer that never answers: {received:?}");
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "the exchange must end at Core's 200 ms deadline, not a shell constant; took {:?}",
+        started.elapsed()
+    );
+    drop(silent_peer);
+}
