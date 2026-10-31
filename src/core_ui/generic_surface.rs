@@ -82,8 +82,9 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
 
 /// Applies Core's per-surface corner radius as a CSS rule any widget can
 /// opt into via `targets::TARGET_RADIUS_CLASS`. Re-applying on every render
-/// works because a later provider at the same priority wins the cascade, so a surface with a different `corner_radius` supersedes
-/// the last one rather than needing to be torn down first.
+/// works because a later provider at the same priority wins the cascade, so
+/// a surface with a different `corner_radius` supersedes the last one rather
+/// than needing to be torn down first.
 fn apply_target_radius(tokens: &PresentationTokens) {
     let provider = gtk4::CssProvider::new();
     provider.load_from_data(&targets::target_radius_css(tokens));

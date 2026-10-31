@@ -209,6 +209,12 @@ fn main() {
         .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_activate(move |app| {
+        // Every surface reloads Core's colours, so a capture a few frames
+        // after a colour change would catch Adwaita's CSS transitions halfway
+        // and differ with whatever the previous screen painted.
+        if let Some(settings) = gtk4::Settings::default() {
+            settings.set_gtk_enable_animations(false);
+        }
         let catalog_window = Rc::new(build_app_window(app, width, height));
         catalog_window.window.present();
         drive_jobs(app, catalog_window, jobs.clone(), themes.clone());
