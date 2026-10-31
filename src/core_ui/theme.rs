@@ -1,55 +1,66 @@
 // SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Theme integration: maps core `Theme` colors to GTK4 CSS.
+//! Paints the colours Core sends with each surface as a GTK4 stylesheet.
 //!
-//! Loads the default theme from `vauchi-app` and applies it as a CSS
-//! stylesheet via `CssProvider`. The CSS is regenerated whenever the
-//! theme changes, enabling runtime switching.
+//! Core resolves the picked theme, "follow system" and contrast; the shell
+//! keeps no theme of its own (#814).
 
 use gtk4::CssProvider;
 use gtk4::gdk::Display;
-use vauchi_app::theme::{FontFamilyTokens, Theme, ThemeColors};
+use std::cell::RefCell;
+use vauchi_app::theme::{DesignTokens, FontFamilyTokens};
+use vauchi_core::PresentationColors;
 
-/// Apply a `Theme` to the default GTK4 display via a `CssProvider`.
-///
-/// Replaces any previously applied vauchi theme CSS. Safe to call
-/// multiple times for runtime theme switching.
-pub fn apply_theme(theme: &Theme) {
-    let css = generate_css(&theme.colors, &theme.tokens.font_family);
-    let provider = CssProvider::new();
-    provider.load_from_data(&css);
+thread_local! {
+    /// One provider, reloaded in place: every surface carries colours, so
+    /// adding a provider per render would stack them for the app's lifetime.
+    static THEME_PROVIDER: RefCell<Option<(CssProvider, String)>> = const { RefCell::new(None) };
+}
 
-    if let Some(display) = Display::default() {
+/// Paint `colors` on the default display. A surface whose colours match the
+/// last ones painted costs nothing.
+pub fn apply_colors(colors: &PresentationColors) {
+    let css = generate_css(colors, &DesignTokens::default().font_family);
+    THEME_PROVIDER.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some((provider, painted)) = slot.as_mut() {
+            if *painted != css {
+                provider.load_from_data(&css);
+                *painted = css;
+            }
+            return;
+        }
+        let Some(display) = Display::default() else {
+            return;
+        };
+        let provider = CssProvider::new();
+        provider.load_from_data(&css);
         gtk4::style_context_add_provider_for_display(
             &display,
             &provider,
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
-    }
+        *slot = Some((provider, css));
+    });
 }
 
-/// Apply the default bundled theme.
-pub fn apply_default_theme() {
-    let theme = vauchi_app::theme::default_theme();
-    apply_theme(&theme);
-}
-
-/// Generate a GTK4 CSS string from core `ThemeColors` and `FontFamilyTokens`.
+/// Generate a GTK4 CSS string from Core's `PresentationColors` and the
+/// bundled `FontFamilyTokens`.
 ///
-/// Uses CSS custom properties (`--vauchi-*`) so components can
-/// reference them, plus direct widget selectors for immediate effect.
-fn generate_css(colors: &ThemeColors, fonts: &FontFamilyTokens) -> String {
+/// Named colours (`@define-color vauchi_*`) let components reference a
+/// role; the widget selectors below paint libadwaita's own widgets.
+fn generate_css(colors: &PresentationColors, fonts: &FontFamilyTokens) -> String {
     format!(
         r#"
-/* Vauchi core theme — auto-generated from vauchi-app::theme */
+/* Vauchi theme — generated from the colours Core sends with each surface */
 @define-color vauchi_bg_primary {bg_primary};
 @define-color vauchi_bg_secondary {bg_secondary};
 @define-color vauchi_bg_tertiary {bg_tertiary};
 @define-color vauchi_text_primary {text_primary};
 @define-color vauchi_text_secondary {text_secondary};
 @define-color vauchi_accent {accent};
-@define-color vauchi_accent_dark {accent_dark};
+@define-color vauchi_text_on_accent {text_on_accent};
 @define-color vauchi_success {success};
 @define-color vauchi_error {error};
 @define-color vauchi_warning {warning};
@@ -84,7 +95,7 @@ button {{
    without this the active segment of a toggle group looked idle. */
 button:checked {{
     background-color: @vauchi_accent;
-    color: @vauchi_bg_primary;
+    color: @vauchi_text_on_accent;
 }}
 
 entry {{
@@ -95,7 +106,7 @@ entry {{
 
 .suggested-action {{
     background-color: @vauchi_accent;
-    color: @vauchi_bg_primary;
+    color: @vauchi_text_on_accent;
 }}
 
 .destructive-action {{
@@ -183,12 +194,12 @@ list .avatar {{
    than as one more row identical to the rest. */
 .nav-sidebar-row.selected {{
     background-color: @vauchi_accent;
-    color: @vauchi_bg_primary;
+    color: @vauchi_text_on_accent;
 }}
 
 .nav-sidebar-badge {{
     background-color: @vauchi_accent;
-    color: @vauchi_bg_primary;
+    color: @vauchi_text_on_accent;
     border-radius: 999px;
     min-width: 1.4em;
     padding: 0 0.4em;
@@ -196,13 +207,16 @@ list .avatar {{
     font-weight: 600;
 }}
 "#,
-        bg_primary = colors.bg_primary,
-        bg_secondary = colors.bg_secondary,
-        bg_tertiary = colors.bg_tertiary,
-        text_primary = colors.text_primary,
-        text_secondary = colors.text_secondary,
+        bg_primary = colors.background,
+        bg_secondary = colors.surface,
+        bg_tertiary = colors.surface_input.as_deref().unwrap_or(&colors.surface),
+        text_primary = colors.text,
+        text_secondary = colors.text_muted,
         accent = colors.accent,
-        accent_dark = colors.accent_dark,
+        text_on_accent = colors
+            .text_on_accent
+            .as_deref()
+            .unwrap_or(&colors.background),
         success = colors.success,
         error = colors.error,
         warning = colors.warning,

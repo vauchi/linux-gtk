@@ -123,9 +123,6 @@ fn forward_deep_link(uri: String) {
 }
 
 fn build_ui(app: &adw::Application) {
-    // Apply core theme colors via CSS provider (runtime-switchable)
-    crate::core_ui::theme::apply_default_theme();
-
     let mut vauchi = platform::init::init_vauchi().expect("Failed to initialize Vauchi backend");
     maybe_seed_test_identity(&mut vauchi);
     let mut app_engine = AppEngine::new(vauchi);
@@ -226,6 +223,7 @@ fn build_ui(app: &adw::Application) {
         &window,
         &content,
         &app_engine,
+        &toast_overlay,
     );
 
     // Native keys activate only shortcuts declared by Core for this surface.

@@ -51,8 +51,6 @@ fn main() {
         .build();
 
     app.connect_activate(move |app| {
-        vauchi_gtk::core_ui::theme::apply_default_theme();
-
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .default_width(width)

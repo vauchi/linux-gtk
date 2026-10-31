@@ -8,13 +8,24 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use vauchi_app::ui::AppEngine;
-use vauchi_core::{Command, Event, InputMode, MotionPreference, WindowClass};
+use vauchi_core::{ColorScheme, Command, Event, InputMode, MotionPreference, WindowClass};
 
 pub(crate) fn install_environment_reporting(
     window: &adw::ApplicationWindow,
     container: &GtkBox,
     app_engine: &Rc<RefCell<AppEngine>>,
+    toast_overlay: &adw::ToastOverlay,
 ) {
+    // Core answers a light/dark switch under "follow system" with the
+    // surface in the other theme, so the switch re-presents the surface.
+    {
+        let container = container.clone();
+        let app_engine = app_engine.clone();
+        let toast_overlay = toast_overlay.clone();
+        adw::StyleManager::default().connect_dark_notify(move |_| {
+            super::widgets::render_current_surface(&container, &app_engine, &toast_overlay);
+        });
+    }
     let last_size = Rc::new(Cell::new((0, 0)));
     let container = container.clone();
     let app_engine = app_engine.clone();
@@ -54,13 +65,12 @@ fn report_environment_with_size(
             MotionPreference::Reduced
         }
     });
-    let event = Event::PresentationEnvironmentChanged {
-        available_width: width as u32,
-        available_height: height as u32,
-        input_modes: vec![InputMode::Keyboard, InputMode::Pointer],
+    let event = environment_event(
+        width,
+        height,
         motion,
-        color_scheme: None,
-    };
+        adw::StyleManager::default().is_dark(),
+    );
     for command in super::commands_for_event(app_engine, event) {
         match command {
             Command::SetPresentationProfile { profile } => {
@@ -75,6 +85,20 @@ fn report_environment_with_size(
             }
             _ => {}
         }
+    }
+}
+
+fn environment_event(width: i32, height: i32, motion: MotionPreference, dark: bool) -> Event {
+    Event::PresentationEnvironmentChanged {
+        available_width: width as u32,
+        available_height: height as u32,
+        input_modes: vec![InputMode::Keyboard, InputMode::Pointer],
+        motion,
+        color_scheme: Some(if dark {
+            ColorScheme::Dark
+        } else {
+            ColorScheme::Light
+        }),
     }
 }
 
@@ -102,7 +126,6 @@ pub(super) fn apply_window_class(container: &GtkBox, class: WindowClass) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vauchi_core::ColorScheme;
 
     /// Core resolves "follow system" from this report (#814), so it must
     /// say whether the desktop is light or dark, never leave it out.

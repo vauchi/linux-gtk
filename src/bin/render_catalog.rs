@@ -38,9 +38,9 @@ use libadwaita as adw;
 use vauchi_app::theme::{Theme, ThemeMode, bundled_themes, default_theme, load_themes_from_json};
 use vauchi_app::ui::AppEngine;
 use vauchi_core::api::Vauchi;
+use vauchi_core::{Command, PresentationColors};
 use vauchi_gtk::capture::{FRAMES_BEFORE_CAPTURE, MAX_FRAMES_BEFORE_CAPTURE, widget_to_png};
 use vauchi_gtk::core_ui::contextual_surface::{build_split_view, replay_command_batch};
-use vauchi_gtk::core_ui::theme::apply_theme;
 use vauchi_gtk::screen_catalog::{CatalogScreen, load_screens};
 
 const BASE_DPI: f64 = 96.0;
@@ -73,6 +73,27 @@ impl Variant {
         }
     }
 
+    /// The catalog's surfaces carry the colours Core recorded them with, the
+    /// default theme's. The light variant repaints them in the light theme,
+    /// mapped as Core maps a theme but without its contrast correction, so
+    /// a light PNG is close to, not exactly, what Core would send.
+    fn repaint(self, themes: &Themes, commands: Vec<Command>) -> Vec<Command> {
+        if self != Variant::Light {
+            return commands;
+        }
+        let colors = presentation_colors(&themes.light);
+        commands
+            .into_iter()
+            .map(|command| match command {
+                Command::ReplaceSurface { mut surface } => {
+                    surface.tokens.colors = Box::new(colors.clone());
+                    Command::ReplaceSurface { surface }
+                }
+                other => other,
+            })
+            .collect()
+    }
+
     fn text_scale(self) -> f64 {
         match self {
             Variant::LargeText => LARGE_TEXT_SCALE,
@@ -87,10 +108,29 @@ impl Variant {
             _ => adw::ColorScheme::ForceDark,
         };
         adw::StyleManager::default().set_color_scheme(scheme);
-        apply_theme(theme);
         if let Some(settings) = gtk4::Settings::default() {
             settings.set_gtk_xft_dpi((BASE_DPI * self.text_scale() * XFT_DPI_UNIT) as i32);
         }
+    }
+}
+
+fn presentation_colors(theme: &Theme) -> PresentationColors {
+    let colors = &theme.colors;
+    PresentationColors {
+        background: colors.bg_primary.clone(),
+        surface: colors.bg_secondary.clone(),
+        text: colors.text_primary.clone(),
+        text_muted: colors.text_secondary.clone(),
+        accent: colors.accent.clone(),
+        border: colors.border.clone(),
+        success: colors.success.clone(),
+        warning: colors.warning.clone(),
+        error: colors.error.clone(),
+        surface_input: colors.surface_input.clone(),
+        surface_muted: colors.surface_muted.clone(),
+        surface_elevated: colors.surface_elevated.clone(),
+        text_on_accent: colors.text_on_accent.clone(),
+        focus_ring: colors.focus_ring.clone(),
     }
 }
 
@@ -347,7 +387,7 @@ fn start_job(job: &Job, themes: &Themes, window: &CatalogWindow) {
         &window.replay_target,
         &window.app_engine,
         &toast_overlay,
-        job.screen.commands.clone(),
+        job.variant.repaint(themes, job.screen.commands.clone()),
     );
 }
 

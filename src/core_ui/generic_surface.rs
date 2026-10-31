@@ -29,6 +29,7 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
+    crate::core_ui::theme::apply_colors(&surface.tokens.colors);
     apply_target_radius(&surface.tokens);
     let scrolled = gtk4::ScrolledWindow::builder()
         .vexpand(true)
@@ -81,8 +82,7 @@ pub fn render(container: &GtkBox, surface: &SurfaceSpec, on_event: &OnEvent) {
 
 /// Applies Core's per-surface corner radius as a CSS rule any widget can
 /// opt into via `targets::TARGET_RADIUS_CLASS`. Re-applying on every render
-/// mirrors `theme::apply_theme`: a later provider at the same priority wins
-/// the cascade, so a surface with a different `corner_radius` supersedes
+/// works because a later provider at the same priority wins the cascade, so a surface with a different `corner_radius` supersedes
 /// the last one rather than needing to be torn down first.
 fn apply_target_radius(tokens: &PresentationTokens) {
     let provider = gtk4::CssProvider::new();
