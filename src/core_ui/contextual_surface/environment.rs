@@ -97,3 +97,25 @@ pub(super) fn apply_window_class(container: &GtkBox, class: WindowClass) {
     // shell never branches on form factor itself).
     super::sidebar::set_collapsed(container, matches!(class, WindowClass::Compact));
 }
+
+// INLINE_TEST_REQUIRED: tests exercise private `environment_event`
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vauchi_core::ColorScheme;
+
+    /// Core resolves "follow system" from this report (#814), so it must
+    /// say whether the desktop is light or dark, never leave it out.
+    // @internal
+    #[test]
+    fn the_environment_report_says_whether_the_desktop_is_dark() {
+        for (dark, expected) in [(true, ColorScheme::Dark), (false, ColorScheme::Light)] {
+            let event = environment_event(800, 600, MotionPreference::Full, dark);
+
+            let Event::PresentationEnvironmentChanged { color_scheme, .. } = event else {
+                panic!("expected PresentationEnvironmentChanged, got {event:?}");
+            };
+            assert_eq!(color_scheme, Some(expected), "dark = {dark}");
+        }
+    }
+}

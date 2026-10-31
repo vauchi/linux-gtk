@@ -218,7 +218,31 @@ list .avatar {{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vauchi_app::theme::{ThemeColors, default_theme};
+    use vauchi_app::theme::DesignTokens;
+
+    /// Every role distinct, so a test can tell which role a rule took.
+    fn colors() -> PresentationColors {
+        PresentationColors {
+            background: "#000001".to_string(),
+            surface: "#000002".to_string(),
+            text: "#000003".to_string(),
+            text_muted: "#000004".to_string(),
+            accent: "#000005".to_string(),
+            border: "#000006".to_string(),
+            success: "#000007".to_string(),
+            warning: "#000008".to_string(),
+            error: "#000009".to_string(),
+            surface_input: Some("#00000a".to_string()),
+            surface_muted: Some("#00000b".to_string()),
+            surface_elevated: Some("#00000c".to_string()),
+            text_on_accent: Some("#00000d".to_string()),
+            focus_ring: Some("#00000e".to_string()),
+        }
+    }
+
+    fn css_for(colors: &PresentationColors) -> String {
+        generate_css(colors, &DesignTokens::default().font_family)
+    }
 
     /// Both the standalone `Image` node and a list row's avatar hand their
     /// initials to a `Label` carrying the `avatar` class, but nothing ever
@@ -229,7 +253,7 @@ mod tests {
     // @internal
     #[test]
     fn generated_css_gives_the_avatar_class_a_body() {
-        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(
             css.contains(".avatar"),
@@ -242,60 +266,63 @@ mod tests {
         );
     }
 
+    /// The shell paints the colours Core sends with each surface (#814);
+    /// each of Core's roles fills the named colour the rules below use.
+    // @internal
     #[test]
-    fn generate_css_includes_all_colors() {
-        let colors = ThemeColors {
-            bg_primary: "#1e1e2e".to_string(),
-            bg_secondary: "#181825".to_string(),
-            bg_tertiary: "#313244".to_string(),
-            text_primary: "#cdd6f4".to_string(),
-            text_secondary: "#a6adc8".to_string(),
-            accent: "#89b4fa".to_string(),
-            accent_dark: "#74c7ec".to_string(),
-            success: "#a6e3a1".to_string(),
-            error: "#f38ba8".to_string(),
-            warning: "#fab387".to_string(),
-            border: "#45475a".to_string(),
-            ..default_theme().colors
-        };
+    fn generate_css_defines_each_named_colour_from_cores_role() {
+        let css = css_for(&colors());
 
-        let css = generate_css(&colors, &default_theme().tokens.font_family);
+        for (name, value) in [
+            ("vauchi_bg_primary", "#000001"),
+            ("vauchi_bg_secondary", "#000002"),
+            ("vauchi_text_primary", "#000003"),
+            ("vauchi_text_secondary", "#000004"),
+            ("vauchi_accent", "#000005"),
+            ("vauchi_border", "#000006"),
+            ("vauchi_success", "#000007"),
+            ("vauchi_warning", "#000008"),
+            ("vauchi_error", "#000009"),
+            ("vauchi_bg_tertiary", "#00000a"),
+            ("vauchi_text_on_accent", "#00000d"),
+            ("vauchi_focus_ring", "#00000e"),
+        ] {
+            assert!(
+                css.contains(&format!("@define-color {name} {value};")),
+                "{name} should be {value}"
+            );
+        }
+    }
 
-        assert!(
-            css.contains("#1e1e2e"),
-            "CSS should contain bg_primary color"
-        );
-        assert!(
-            css.contains("#181825"),
-            "CSS should contain bg_secondary color"
-        );
-        assert!(
-            css.contains("#313244"),
-            "CSS should contain bg_tertiary color"
-        );
-        assert!(
-            css.contains("#cdd6f4"),
-            "CSS should contain text_primary color"
-        );
-        assert!(
-            css.contains("#a6adc8"),
-            "CSS should contain text_secondary color"
-        );
-        assert!(css.contains("#89b4fa"), "CSS should contain accent color");
-        assert!(
-            css.contains("#74c7ec"),
-            "CSS should contain accent_dark color"
-        );
-        assert!(css.contains("#a6e3a1"), "CSS should contain success color");
-        assert!(css.contains("#f38ba8"), "CSS should contain error color");
-        assert!(css.contains("#fab387"), "CSS should contain warning color");
-        assert!(css.contains("#45475a"), "CSS should contain border color");
+    /// A theme may leave out the input surface; controls then sit on the
+    /// surface colour, the nearest required role.
+    // @internal
+    #[test]
+    fn generate_css_grounds_controls_on_the_surface_when_core_sends_no_input_surface() {
+        let css = css_for(&PresentationColors {
+            surface_input: None,
+            ..colors()
+        });
+
+        assert!(css.contains("@define-color vauchi_bg_tertiary #000002;"));
+    }
+
+    /// A theme may leave out on-accent text; labels on the accent then use
+    /// the background colour, as they did before Core sent the role.
+    // @internal
+    #[test]
+    fn generate_css_writes_on_the_accent_in_the_background_colour_when_core_sends_none() {
+        let css = css_for(&PresentationColors {
+            text_on_accent: None,
+            ..colors()
+        });
+
+        assert!(css.contains("@define-color vauchi_text_on_accent #000001;"));
     }
 
     #[test]
     fn generate_css_has_define_color_directives() {
-        let theme = default_theme();
-        let css = generate_css(&theme.colors, &theme.tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(
             css.contains("@define-color vauchi_bg_primary"),
@@ -313,8 +340,7 @@ mod tests {
 
     #[test]
     fn generate_css_has_widget_selectors() {
-        let theme = default_theme();
-        let css = generate_css(&theme.colors, &theme.tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(css.contains("window {"), "CSS should style the window");
         assert!(
@@ -334,8 +360,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_highlights_the_selected_sidebar_row() {
-        let theme = default_theme();
-        let css = generate_css(&theme.colors, &theme.tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(
             css.contains(".nav-sidebar-row.selected"),
@@ -352,7 +377,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_styles_serious_action_as_a_warning_outline_with_no_fill() {
-        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(
             css.contains(".serious-action {"),
@@ -370,7 +395,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_draws_a_focus_ring_from_the_theme() {
-        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+        let css = css_for(&colors());
 
         assert!(
             css.contains(":focus-visible"),
@@ -392,13 +417,11 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_focus_ring_prefers_the_dedicated_theme_role_over_accent() {
-        let colors = ThemeColors {
+        let css = css_for(&PresentationColors {
             accent: "#0000ff".to_string(),
             focus_ring: Some("#ff00ff".to_string()),
-            ..default_theme().colors
-        };
-
-        let css = generate_css(&colors, &default_theme().tokens.font_family);
+            ..colors()
+        });
 
         assert!(
             css.contains("@define-color vauchi_focus_ring #ff00ff;"),
@@ -411,13 +434,11 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_focus_ring_falls_back_to_accent_when_theme_has_none() {
-        let colors = ThemeColors {
+        let css = css_for(&PresentationColors {
             accent: "#0000ff".to_string(),
             focus_ring: None,
-            ..default_theme().colors
-        };
-
-        let css = generate_css(&colors, &default_theme().tokens.font_family);
+            ..colors()
+        });
 
         assert!(
             css.contains("@define-color vauchi_focus_ring #0000ff;"),
@@ -447,7 +468,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_grounds_the_content_pane_and_its_controls_in_theme_tokens() {
-        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+        let css = css_for(&colors());
 
         for (selector, token) in [
             (".content-pane", "@vauchi_bg_primary"),
@@ -478,7 +499,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_fills_a_checked_button_with_the_accent() {
-        let css = generate_css(&default_theme().colors, &default_theme().tokens.font_family);
+        let css = css_for(&colors());
 
         let body = rule_body(&css, "button:checked");
         assert!(
@@ -487,49 +508,9 @@ mod tests {
              segment of a toggle group stands out from the idle ones: {body:?}"
         );
         assert!(
-            body.contains("color: @vauchi_bg_primary"),
-            "`button:checked` must pair the accent ground with the inverse \
-             text colour so the label stays readable on it: {body:?}"
-        );
-    }
-
-    #[test]
-    fn generate_css_different_themes_produce_different_output() {
-        let dark = ThemeColors {
-            bg_primary: "#000000".to_string(),
-            bg_secondary: "#111111".to_string(),
-            bg_tertiary: "#222222".to_string(),
-            text_primary: "#ffffff".to_string(),
-            text_secondary: "#cccccc".to_string(),
-            accent: "#0000ff".to_string(),
-            accent_dark: "#000099".to_string(),
-            success: "#00ff00".to_string(),
-            error: "#ff0000".to_string(),
-            warning: "#ffff00".to_string(),
-            border: "#333333".to_string(),
-            ..default_theme().colors
-        };
-        let light = ThemeColors {
-            bg_primary: "#ffffff".to_string(),
-            bg_secondary: "#eeeeee".to_string(),
-            bg_tertiary: "#dddddd".to_string(),
-            text_primary: "#000000".to_string(),
-            text_secondary: "#333333".to_string(),
-            accent: "#0066cc".to_string(),
-            accent_dark: "#004488".to_string(),
-            success: "#228b22".to_string(),
-            error: "#cc0000".to_string(),
-            warning: "#cc8800".to_string(),
-            border: "#cccccc".to_string(),
-            ..default_theme().colors
-        };
-
-        let dark_css = generate_css(&dark, &default_theme().tokens.font_family);
-        let light_css = generate_css(&light, &default_theme().tokens.font_family);
-
-        assert_ne!(
-            dark_css, light_css,
-            "Different themes should produce different CSS"
+            body.contains("color: @vauchi_text_on_accent"),
+            "`button:checked` must pair the accent ground with Core's \
+             on-accent text so the label stays readable on it: {body:?}"
         );
     }
 
@@ -541,8 +522,7 @@ mod tests {
     // @internal
     #[test]
     fn generate_css_sets_font_families_from_design_tokens() {
-        let fonts = default_theme().tokens.font_family;
-        let css = generate_css(&default_theme().colors, &fonts);
+        let css = css_for(&colors());
 
         assert!(
             css.contains(r#"font-family: "Hanken Grotesk""#),
